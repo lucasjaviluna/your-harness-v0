@@ -172,8 +172,8 @@ Entregable: [docs/PHASE_0_CONTRACT.md](PHASE_0_CONTRACT.md), especificación bre
 ### Fase 1 — Esqueleto instalable del package
 
 - [x] Crear `package.json` con nombre, versión, scripts, palabra clave `pi-package` y manifest `pi`.
-- [ ] Crear una sola extensión de entrada y registrar `/harness-work` y `/harness-status`.
-- [ ] Validar argumentos vacíos o desconocidos y mostrar ayuda útil.
+- [x] Crear una sola extensión de entrada y registrar `/harness-work` y `/harness-status`.
+- [x] Validar argumentos vacíos o desconocidos y mostrar ayuda útil.
 - [ ] Añadir comprobación de compatibilidad con la versión de Pi utilizada durante el desarrollo.
 - [ ] Probar carga local desde Git Bash en Windows y desde un segundo repositorio, sin depender de archivos de este proyecto.
 - [ ] Conservar `.pi/extensions/ask-name.ts` como ejemplo independiente; no incorporarla al package.

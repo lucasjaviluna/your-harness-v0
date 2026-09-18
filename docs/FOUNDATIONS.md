@@ -227,9 +227,9 @@ No incluye:
 - El repositorio contiene el plan por fases en `docs/PLAN_IMPLEMENTACION.md`.
 - La documentación fundacional está definida en este archivo.
 - La Fase 0 está completada como contrato inicial del producto.
-- La implementación runtime del package aún no comenzó.
-- Las fases 1 a 8 permanecen pendientes.
-- La próxima unidad de trabajo recomendada es la Fase 1: esqueleto instalable y comando inicial de Pi.
+- La Fase 1 está en progreso: manifest y extensión inicial creados; faltan pruebas de instalación y compatibilidad.
+- Las fases 2 a 8 permanecen pendientes.
+- La próxima unidad de trabajo recomendada es completar la Fase 1: pruebas de instalación, compatibilidad y carga desde otro repositorio.
 
 ## 14. Fuentes
 
