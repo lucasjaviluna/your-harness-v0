@@ -1,0 +1,20 @@
+{
+  "name": "pi-harness",
+  "version": "0.1.0",
+  "description": "A human-guided development workflow harness for Pi.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "harness",
+    "software-development"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "pi": {
+    "extensions": ["./extensions"],
+    "skills": ["./skills"]
+  }
+}
