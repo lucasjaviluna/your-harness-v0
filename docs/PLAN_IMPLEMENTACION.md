@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: implementación incremental. Fases 0 a 4 completadas; Fase 5 pendiente.
+Estado: implementación incremental. Fases 0 a 5 completadas; Fase 6 pendiente.
 
 ## 1. Objetivo y alcance
 
@@ -253,15 +253,15 @@ Entregable: [docs/PHASE_4_TASKS.md](PHASE_4_TASKS.md), una tarea mediana que pue
 
 ### Fase 5 — Ruta simple
 
-- [ ] Crear `harness-simple` con el ciclo: entender, inspeccionar, editar, verificar y resumir.
-- [ ] Respetar las instrucciones y herramientas del repositorio actual; no imponer `npm`, un lenguaje o una suite de pruebas universal.
-- [ ] Seleccionar verificaciones proporcionales al cambio y documentar el resultado real.
-- [ ] Revisar el diff antes de cerrar la tarea y detectar archivos ajenos modificados durante la sesión.
-- [ ] Presentar un resumen de cambios y verificaciones para revisión humana antes del cierre cuando el perfil lo requiera.
-- [ ] Permitir reencaminar a `sdd` si la implementación descubre un impacto mayor al previsto.
-- [ ] Definir salida de fallo: causa concreta, estado de los archivos y siguiente paso posible.
+- [x] Crear `harness-simple` con el ciclo: entender, inspeccionar, editar, verificar y resumir.
+- [x] Respetar las instrucciones y herramientas del repositorio actual; no imponer `npm`, un lenguaje o una suite de pruebas universal.
+- [x] Seleccionar verificaciones proporcionales al cambio y documentar el resultado real.
+- [x] Revisar el diff antes de cerrar la tarea y detectar archivos ajenos modificados durante la sesión.
+- [x] Presentar un resumen de cambios y verificaciones para revisión humana antes del cierre cuando el perfil lo requiera.
+- [x] Permitir reencaminar a `sdd` si la implementación descubre un impacto mayor al previsto.
+- [x] Definir salida de fallo: causa concreta, estado de los archivos y siguiente paso posible.
 
-Entregable: ejecución completa de una tarea pequeña sin artefactos SDD. Cierre: el ejemplo simple produce un cambio verificable y un resumen fiel a la evidencia.
+Entregable: [docs/PHASE_5_SIMPLE.md](PHASE_5_SIMPLE.md), ejecución de una tarea pequeña sin artefactos SDD. Cierre: el flujo produce un cambio verificable, un resumen fiel a la evidencia y un checkpoint HIL antes del cierre.
 
 ### Fase 6 — Ruta compleja con OpenSpec
 

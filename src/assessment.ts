@@ -1,5 +1,5 @@
-import type { Assessment, HarnessTask, HumanDecisionValue, HumanGate, Route, TaskPhase, WorkIntent } from "./task.ts";
-import { unresolvedGate } from "./task.ts";
+import type { Assessment, HarnessTask, HumanDecisionValue, HumanGate, Route, TaskPhase, WorkIntent, WorkResult } from "./task.ts";
+import { closeTask, unresolvedGate } from "./task.ts";
 
 type Signal = { pattern: RegExp; reason: string; area: string };
 
@@ -138,7 +138,28 @@ export function decideGate(task: HarnessTask, value: HumanDecisionValue, note?: 
     return applyAssessment({ ...task, humanGates, clarifications: [...task.clarifications, note!.trim()], phase: "assessing" });
   }
   if (gate.kind === "authorize" && value === "approve") return { ...task, humanGates, phase: "planning" };
+  if (gate.kind === "review") {
+    if (value === "approve") {
+      if (task.result?.checks.some((check) => check.status === "failed")) {
+        throw new Error("No se puede aprobar un resultado con verificaciones fallidas. Usa revise o corrige el problema antes de aprobar.");
+      }
+      return closeTask({ ...task, humanGates }, { ...task.result!, status: "completed" });
+    }
+    if (value === "revise") return { ...task, humanGates, phase: "planning" };
+  }
   return { ...task, humanGates, phase: "blocked" };
+}
+
+export function rerouteToSdd(task: HarnessTask, reason: string): HarnessTask {
+  const assessment: Assessment = {
+    recommendedRoute: "sdd", route: "sdd", routeSource: "automatic", profile: task.profile,
+    intent: task.intent ?? "implement", confidence: "high", reasons: [reason],
+    affectedAreas: [...new Set([...(task.assessment?.affectedAreas ?? []), "scope-growth"])],
+    unknowns: task.assessment?.unknowns ?? [],
+    evidence: [...(task.assessment?.evidence ?? []), `Reencaminamiento: ${reason}`],
+  };
+  const gate = createAssessmentGate(assessment)!;
+  return { ...task, route: "sdd", assessment, phase: "awaiting-approval", humanGates: [...task.humanGates, gate] };
 }
 
 export function requestScopeChange(task: HarnessTask, newScope: string): HarnessTask {

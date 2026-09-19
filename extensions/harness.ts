@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { applyAssessment, decideGate, formatAssessment, requestScopeChange } from "../src/assessment.ts";
+import { applyAssessment, decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "../src/assessment.ts";
 import { collectRepositoryContext } from "../src/intake.ts";
+import { buildSimpleWorkflowPrompt, captureRepositorySnapshot, createSimpleReviewGate, parseSimpleAgentResult, reviewChangedFiles, type RepositorySnapshot } from "../src/simple.ts";
 import { readTaskArtifact, writeTaskArtifact } from "../src/task-artifact.ts";
 import {
   createTask,
@@ -19,6 +20,7 @@ type ParsedArgs =
   | { ok: false; message: string };
 
 let lastTask: HarnessTask | undefined;
+let simpleBaseline: RepositorySnapshot | undefined;
 const VALID_MODES = new Set<WorkMode>(["auto", "simple", "task", "sdd"]);
 const VALID_DECISIONS = new Set<HumanDecisionValue>(["approve", "reject", "revise", "cancel", "answer"]);
 
@@ -99,10 +101,72 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("session_start", async (_event, ctx) => {
     lastTask = undefined;
+    simpleBaseline = undefined;
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "custom" || entry.customType !== TASK_ENTRY_TYPE) continue;
       if (isHarnessTask(entry.data)) lastTask = hydrateHarnessTask(entry.data);
     }
+  });
+
+  pi.registerCommand("harness-simple", {
+    description: "Ejecuta el workflow directo de una tarea simple autorizada",
+    handler: async (_args, ctx) => {
+      if (!lastTask || lastTask.route !== "simple") {
+        showMessage(ctx, "No hay una tarea con ruta simple. Inicia una con /harness-work --mode simple <prompt>.", "warn");
+        return;
+      }
+      if (lastTask.phase === "awaiting-review") {
+        showMessage(ctx, "La tarea ya terminó y espera revisión. Usa /harness-decide approve, revise o cancel.", "warn");
+        return;
+      }
+      if (!["planning", "implementing"].includes(lastTask.phase)) {
+        showMessage(ctx, `La tarea no puede iniciar el workflow simple desde la fase ${lastTask.phase}.`, "warn");
+        return;
+      }
+      if (!ctx.isIdle()) {
+        showMessage(ctx, "Pi está ocupado. Espera a que termine el turno actual y vuelve a ejecutar /harness-simple.", "warn");
+        return;
+      }
+      simpleBaseline = await captureRepositorySnapshot(lastTask.cwd);
+      lastTask = { ...lastTask, phase: "implementing" };
+      pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+      showMessage(ctx, "Workflow simple iniciado. Pi inspeccionará, editará y verificará la tarea; luego pedirá revisión humana.");
+      pi.sendUserMessage(buildSimpleWorkflowPrompt(lastTask, simpleBaseline), { deliverAs: "followUp" });
+    },
+  });
+
+  pi.on("agent_end", async (event, ctx) => {
+    if (!lastTask || lastTask.route !== "simple" || lastTask.phase !== "implementing") return;
+    const messages = (event as unknown as { messages?: unknown[] }).messages ?? [];
+    const assistant = [...messages].reverse().find((item) => (item as { role?: string })?.role === "assistant") as { content?: unknown } | undefined;
+    const text = typeof assistant?.content === "string"
+      ? assistant.content
+      : Array.isArray(assistant?.content)
+        ? (assistant.content as Array<{ type?: string; text?: string }>).filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n")
+        : "";
+    const parsed = parseSimpleAgentResult(text);
+    if (!parsed) {
+      const result = { status: "failed" as const, summary: "El agente no entregó un bloque HARNESS_RESULT válido.", artifacts: [], checks: [], risks: ["No se pudo verificar el resumen estructurado del workflow simple."], nextStep: "Revisar la salida del agente y ejecutar /harness-simple nuevamente." };
+      lastTask = { ...lastTask, phase: "failed", result };
+      pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+      showMessage(ctx, `${result.summary} ${result.nextStep}`, "warn");
+      return;
+    }
+    const current = await captureRepositorySnapshot(lastTask.cwd);
+    const review = reviewChangedFiles(simpleBaseline ?? { available: false, status: [], files: [] }, current, parsed.changedFiles);
+    const result = review.unexpectedFiles.length
+      ? { ...parsed, risks: [...parsed.risks, `Archivos modificados fuera del reporte: ${review.unexpectedFiles.join(", ")}.`] }
+      : parsed;
+    if (text.match(/^route:\s*sdd\s*$/im)) {
+      lastTask = rerouteToSdd({ ...lastTask, result }, "El workflow simple detectó que el impacto excede un cambio local.");
+      pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+      showMessage(ctx, "La tarea excede el alcance simple y fue reencaminada a SDD. Usa /harness-decide approve para preparar OpenSpec.", "warn");
+      return;
+    }
+    const gate = createSimpleReviewGate(lastTask, result, review.unexpectedFiles);
+    lastTask = { ...lastTask, phase: "awaiting-review", result, humanGates: [...lastTask.humanGates, gate] };
+    pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+    showMessage(ctx, `Workflow simple terminado y listo para revisión humana. Usa /harness-decide approve, revise o cancel.\n${result.summary}`);
   });
 
   pi.registerCommand("harness-work", {
