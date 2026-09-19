@@ -29,6 +29,31 @@ Pi Harness adapta el proceso al riesgo sin perder continuidad, verificabilidad n
 - Toda finalización debe incluir evidencia de verificación y limitaciones conocidas.
 - Las integraciones externas deben ser adaptadores o packages compañeros.
 - El harness debe coexistir con otros packages de Pi sin apropiarse de sus comandos o artefactos.
+- El core debe ser agnóstico del perfil de usuario; el perfil `developer` es el valor predeterminado del MVP.
+- Las rutas se eligen por intención, complejidad, riesgo y contexto disponible, no por la profesión de la persona.
+- La experiencia, el lenguaje de los checkpoints y los entregables pueden especializarse mediante perfiles sin duplicar el motor del harness.
+
+## 3.1 Perfiles de usuario y núcleo agnóstico
+
+Aunque la primera validación se hará con tareas de desarrollo, el harness puede servir también a analistas funcionales, product owners, marketing u otros perfiles. Para conservar esa capacidad, el núcleo no debe asumir que toda solicitud termina en una edición de código.
+
+El modelo conceptual separa cuatro dimensiones:
+
+| Dimensión | Ejemplos |
+| --- | --- |
+| Perfil | `developer`, `functional-analyst`, `product-owner`, `marketing`, `custom` |
+| Intención | `understand`, `analyze`, `define`, `plan`, `create`, `implement`, `review`, `decide` |
+| Contexto | prompt, repositorio, documento, conversación, sistema externo |
+| Resultado | código/tests, requisitos, criterios de aceptación, análisis, contenido, decisión o plan |
+
+El perfil no reemplaza la evaluación. Solo aporta vocabulario, formato de salida, preguntas HIL y criterios de éxito específicos. La evaluación común sigue determinando profundidad y riesgo.
+
+Decisión actual:
+
+- `developer` será el perfil default y el único perfil priorizado en el MVP operativo.
+- Los contratos `Task`, `Assessment`, `HumanGate` y `WorkResult` no deben contener reglas exclusivas de desarrollo.
+- Las capacidades específicas de cada perfil vivirán en perfiles, políticas o adaptadores reemplazables.
+- El soporte de perfiles no técnicos se diseñará desde ahora, pero su implementación completa queda fuera del primer incremento salvo que sea necesaria para validar el core.
 
 ## 4. Rutas de trabajo
 
@@ -169,7 +194,14 @@ pi-harness/
 │   ├── config.ts
 │   ├── human-gates.ts
 │   ├── result.ts
+│   ├── profile.ts
+│   ├── work-context.ts
 │   └── openspec.ts
+├── profiles/
+│   └── developer.ts
+├── adapters/
+│   ├── repository.ts
+│   └── documents.ts
 ├── skills/
 │   ├── harness-assess/SKILL.md
 │   ├── harness-simple/SKILL.md
@@ -212,6 +244,7 @@ No incluye:
 - dashboards o UI propia;
 - telemetría y APIs externas;
 - autonomía completa sin confirmación en tareas de riesgo.
+- implementación completa de perfiles no técnicos; el diseño del core sí debe permanecer preparado para ellos.
 
 ## 12. Decisiones abiertas
 
@@ -227,9 +260,12 @@ No incluye:
 - El repositorio contiene el plan por fases en `docs/PLAN_IMPLEMENTACION.md`.
 - La documentación fundacional está definida en este archivo.
 - La Fase 0 está completada como contrato inicial del producto.
-- La Fase 1 está en progreso: manifest y extensión inicial creados; faltan pruebas de instalación y compatibilidad.
-- Las fases 2 a 8 permanecen pendientes.
-- La próxima unidad de trabajo recomendada es completar la Fase 1: pruebas de instalación, compatibilidad y carga desde otro repositorio.
+- La Fase 1 está completada: manifest, extensión inicial, compatibilidad de API, instalación desde un repositorio consumidor y carga desde Git Bash validados.
+- La Fase 2 está completada: intake, contexto mínimo, persistencia y recuperación interactiva validados.
+- La Fase 3 está completada: evaluación explicada, override manual, gates SDD/aclaración y casos frontera validados.
+- Las fases 4 a 8 permanecen pendientes.
+- La próxima unidad de trabajo recomendada es comenzar la Fase 4: ruta de tarea ligera y su artefacto persistente.
+- El perfil default del MVP es `developer`; el core se mantiene agnóstico para habilitar perfiles funcionales, de producto y marketing en fases posteriores.
 
 ## 14. Fuentes
 

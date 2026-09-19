@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: propuesta para implementar por fases. Ninguna fase está completada.
+Estado: implementación incremental. Fases 0 a 3 completadas; Fase 4 pendiente.
 
 ## 1. Objetivo y alcance
 
@@ -25,6 +25,9 @@ Quedan fuera de esta versión: Azure DevOps, otros sistemas de tickets, creació
 - Human-in-the-Middle es una política transversal: la persona aprueba decisiones de alcance, riesgo, arquitectura y cierre, pero no cada acción mecánica.
 - El modo de intervención predeterminado será `balanced`: autonomía alta para cambios simples y aprobación explícita para decisiones relevantes o irreversibles.
 - Las capacidades adicionales se separan en packages compañeros o adaptadores opcionales.
+- El core es agnóstico del perfil de usuario; `developer` es el perfil default del MVP.
+- La ruta se decide por intención, complejidad, riesgo y contexto, no por el rol profesional de quien inicia la tarea.
+- Los perfiles especializados adaptan lenguaje, preguntas HIL, criterios de éxito y formatos de salida sin duplicar el motor de workflow.
 
 ## 2. Experiencia prevista
 
@@ -64,6 +67,8 @@ pi-harness/
 │   ├── task.ts                 # contratos y transiciones de estado
 │   ├── intake.ts               # contexto mínimo del repositorio
 │   ├── assessment.ts           # evaluación y política de enrutamiento
+│   ├── profile.ts              # perfil, intención y capacidades de salida
+│   ├── work-context.ts         # fuentes de contexto normalizadas
 │   ├── config.ts               # configuración y validación
 │   ├── result.ts               # contrato común de resultados y evidencias
 │   └── openspec.ts             # detección y delegación a OpenSpec
@@ -72,6 +77,11 @@ pi-harness/
 │   ├── harness-task/SKILL.md
 │   ├── harness-simple/SKILL.md
 │   └── harness-sdd/SKILL.md
+├── profiles/
+│   └── developer.ts            # perfil default del MVP
+├── adapters/
+│   ├── repository.ts
+│   └── documents.ts            # fuentes futuras
 ├── tests/
 └── docs/
     └── PLAN_IMPLEMENTACION.md
@@ -84,6 +94,9 @@ El manifest `pi` declarará solo la extensión y las skills propias. Las depende
 ```ts
 type WorkMode = "auto" | "simple" | "task" | "sdd";
 type Route = "simple" | "task" | "sdd" | "clarify";
+type UserProfile = "developer" | "functional-analyst" | "product-owner" | "marketing" | "custom";
+type WorkIntent = "understand" | "analyze" | "define" | "plan" | "create" | "implement" | "review" | "decide";
+type ContextSource = "prompt" | "repository" | "document" | "conversation" | "external-system";
 type Phase = "intake" | "assessing" | "clarifying" | "planning" |
   "awaiting-approval" | "implementing" | "verifying" |
   "awaiting-review" | "blocked" | "done" | "cancelled" | "failed";
@@ -91,6 +104,8 @@ type Phase = "intake" | "assessing" | "clarifying" | "planning" |
 type Task = {
   id: string;
   prompt: string;
+  profile: UserProfile;
+  intent?: WorkIntent;
   cwd: string;
   requestedMode: WorkMode;
   route?: Route;
@@ -103,6 +118,8 @@ type Task = {
 
 type Assessment = {
   route: Route;
+  profile: UserProfile;
+  intent: WorkIntent;
   confidence: "high" | "medium" | "low";
   reasons: string[];
   affectedAreas: string[];
@@ -111,6 +128,7 @@ type Assessment = {
 };
 
 type WorkResult = {
+  profile: UserProfile;
   status: "completed" | "blocked" | "needs-input" | "failed";
   summary: string;
   artifacts: string[];
@@ -141,6 +159,18 @@ type HumanGate = {
 
 El estado pertenece a la sesión de Pi y se reconstruye desde entradas propias de la extensión. Las tareas de duración media se guardan como `.harness/tasks/<task-name>.md`; los artefactos OpenSpec permanecen en el repositorio en el formato de OpenSpec. No habrá una base de datos adicional para la primera versión.
 
+### Perfiles y especialización
+
+El core debe poder recibir solicitudes de distintos perfiles, aunque el MVP use `developer` por defecto. El perfil aporta configuración, no una nueva máquina de estados:
+
+- `developer`: cambios de código, tests, revisión de diff y verificación del repositorio.
+- `functional-analyst`: análisis de comportamiento, reglas de negocio, escenarios y trazabilidad.
+- `product-owner`: definición de alcance, historias, criterios de aceptación, prioridades y decisiones.
+- `marketing`: briefs, mensajes, variantes, restricciones de marca y revisión de contenido.
+- `custom`: configuración declarativa para otros roles.
+
+En todos los casos, el flujo común conserva prompt original, evaluación, gates, evidencia y resultado. Solo cambian los adaptadores de contexto, el vocabulario de interacción y los formatos de entrega. El primer incremento implementará únicamente el perfil `developer`, pero probará que los contratos no requieran repositorio, código ni comandos de verificación como condición universal.
+
 ## 4. Decisiones de diseño incorporadas
 
 - Adoptar tres niveles de trabajo: `simple`, `task` y `sdd`. La ruta `task` cubre el trabajo intermedio que necesita continuidad, pero no una propuesta, especificación, diseño y tareas separados.
@@ -166,6 +196,8 @@ Estas decisiones adoptan un enfoque ODD, persistencia de tareas, recuperación d
 - [x] Definir qué acciones son siempre bloqueantes: destrucción, efectos externos, cambios de alcance, decisiones arquitectónicas y cierre de tareas complejas.
 - [x] Fijar la interfaz pública de comandos y las opciones; documentar cómo se pasa un prompt largo o de varias líneas.
 - [x] Documentar el contrato `Task`/`Assessment` y las transiciones válidas entre fases.
+- [x] Decidir que el core será agnóstico del perfil y que `developer` será el perfil default del MVP.
+- [x] Separar conceptualmente perfil, intención, fuente de contexto y formato de resultado.
 
 Entregable: [docs/PHASE_0_CONTRACT.md](PHASE_0_CONTRACT.md), especificación breve de comportamiento con ejemplos de entrada y salida. Cierre: otra persona puede describir el resultado esperado para las cuatro rutas sin interpretar la implementación.
 
@@ -174,35 +206,39 @@ Entregable: [docs/PHASE_0_CONTRACT.md](PHASE_0_CONTRACT.md), especificación bre
 - [x] Crear `package.json` con nombre, versión, scripts, palabra clave `pi-package` y manifest `pi`.
 - [x] Crear una sola extensión de entrada y registrar `/harness-work` y `/harness-status`.
 - [x] Validar argumentos vacíos o desconocidos y mostrar ayuda útil.
-- [ ] Añadir comprobación de compatibilidad con la versión de Pi utilizada durante el desarrollo.
-- [ ] Probar carga local desde Git Bash en Windows y desde un segundo repositorio, sin depender de archivos de este proyecto.
-- [ ] Conservar `.pi/extensions/ask-name.ts` como ejemplo independiente; no incorporarla al package.
+- [x] Añadir comprobación de compatibilidad con la API de Pi utilizada durante el desarrollo.
+- [x] Probar carga local desde Git Bash en Windows, sin depender de archivos de este proyecto.
+- [x] Probar instalación y carga desde un segundo repositorio consumidor.
+- [x] Conservar `.pi/extensions/ask-name.ts` como ejemplo independiente; no incorporarla al package.
 
 Entregable: package instalable localmente que recibe y muestra una solicitud, sin clasificarla ni editar código. Cierre: Pi carga ambos comandos y el package se puede desactivar sin afectar otros recursos.
 
 ### Fase 2 — Ingreso de tarea y contexto mínimo
 
-- [ ] Analizar `--mode` y `--analyze-only` sin alterar el texto restante del usuario.
-- [ ] Registrar una tarea con identificador, prompt original, directorio y fase inicial.
-- [ ] Recoger contexto pertinente: instrucciones del proyecto, archivos principales, estado de Git cuando esté disponible y comandos de verificación documentados.
-- [ ] Limitar la lectura inicial a lo necesario; ampliar la exploración según la solicitud.
-- [ ] Persistir y reconstruir el estado en la sesión de Pi para que `/harness-status` funcione tras reiniciar o recargar.
-- [ ] Distinguir errores recuperables (por ejemplo, repositorio sin Git) de fallos que impiden continuar.
+- [x] Analizar `--mode` y `--analyze-only` sin alterar el texto restante del usuario.
+- [x] Registrar una tarea con identificador, prompt original, directorio y fase inicial.
+- [x] Recoger contexto pertinente: instrucciones del proyecto, archivos principales, estado de Git cuando esté disponible y comandos de verificación documentados.
+- [x] Limitar la lectura inicial a lo necesario; ampliar la exploración según la solicitud.
+- [x] Persistir y reconstruir el estado en una sesión interactiva de Pi tras reiniciar o recargar.
+- [x] Distinguir errores recuperables (por ejemplo, repositorio sin Git) de fallos que impiden continuar.
+- [ ] Evitar que la ausencia de repositorio, Git o comandos de verificación se trate como error para perfiles no técnicos.
 
-Entregable: objeto de tarea y resumen de contexto reproducibles. Cierre: iniciar una solicitud, recargar Pi y obtener el mismo estado sin duplicar la tarea.
+Entregable: [docs/PHASE_2_INTAKE.md](PHASE_2_INTAKE.md), objeto de tarea y resumen de contexto reproducibles. Cierre pendiente: iniciar una solicitud en una sesión interactiva, recargar Pi y obtener el mismo estado sin duplicar la tarea.
 
 ### Fase 3 — Evaluación y elección de ruta
 
-- [ ] Definir señales de complejidad: alcance entre módulos, cambios de contratos o datos, migraciones, seguridad, compatibilidad, decisiones de diseño y dificultad de verificación.
-- [ ] Definir señales de simplicidad: alcance local conocido, requisitos claros, cambio reversible y verificación acotada.
-- [ ] Implementar la evaluación con salida estructurada y validación de campos; registrar razones y referencias concretas al repositorio.
-- [ ] Aplicar reglas explícitas: un cambio de contrato, migración o decisión arquitectónica relevante recomienda `sdd`; un cambio con varias decisiones pero alcance acotado usa `task`; información decisiva ausente lleva a `clarify`; `simple` requiere evidencia suficiente.
-- [ ] Permitir anulación manual de la ruta y registrar que provino del usuario.
-- [ ] Mostrar la recomendación de `sdd` y pedir confirmación antes de crear artefactos OpenSpec.
-- [ ] Persistir cada checkpoint humano, su evidencia, decisión y nota; una tarea en espera no debe poder continuar silenciosamente.
-- [ ] Cubrir casos fronterizos: prompt corto con impacto grande, prompt largo con cambio trivial y tareas sin suficiente contexto.
+- [x] Definir señales de complejidad: alcance entre módulos, cambios de contratos o datos, migraciones, seguridad, compatibilidad, decisiones de diseño y dificultad de verificación.
+- [x] Definir señales de simplicidad: alcance local conocido, requisitos claros, cambio reversible y verificación acotada.
+- [x] Implementar la evaluación con salida estructurada y validación de campos; registrar razones y referencias concretas al repositorio.
+- [x] Aplicar reglas explícitas: un cambio de contrato, migración o decisión arquitectónica relevante recomienda `sdd`; un cambio con varias decisiones pero alcance acotado usa `task`; información decisiva ausente lleva a `clarify`; `simple` requiere evidencia suficiente.
+- [x] Permitir anulación manual de la ruta y registrar que provino del usuario.
+- [x] Mostrar la recomendación de `sdd` y pedir confirmación antes de crear artefactos OpenSpec.
+- [x] Persistir cada checkpoint humano, su evidencia, decisión y nota; una tarea en espera no debe poder continuar silenciosamente.
+- [x] Cubrir casos fronterizos: prompt corto con impacto grande, prompt largo con cambio trivial y tareas sin suficiente contexto.
+- [x] Evaluar complejidad por intención y riesgo, manteniendo el mismo motor para perfiles técnicos y no técnicos.
+- [x] Definir el contrato del perfil default `developer` y puntos de extensión para perfiles funcionales, de producto y marketing.
 
-Entregable: recomendación `simple`, `task`, `sdd` o `clarify` visible y justificable. Cierre: los ejemplos de la fase 0 llegan a la ruta esperada y los cambios de criterio se pueden hacer sin modificar la extensión principal.
+Entregable: [docs/PHASE_3_ASSESSMENT.md](PHASE_3_ASSESSMENT.md), recomendación `simple`, `task`, `sdd` o `clarify` visible y justificable. Cierre: los ejemplos de la fase 0 llegan a la ruta esperada y los cambios de criterio se pueden hacer sin modificar la extensión principal.
 
 ### Fase 4 — Ruta de tarea ligera
 
@@ -253,6 +289,7 @@ Entregable: una tarea compleja ejecutada a través de OpenSpec en un repositorio
 - [ ] Implementar `/harness-status`, `/harness-doctor` y `/harness-changes` con salidas legibles.
 - [ ] Verificar que los artefactos de tarea y OpenSpec sean suficientes para recuperar el trabajo.
 - [ ] Probar rechazo, revisión, cancelación, reanudación y decisiones repetidas en cada tipo de gate.
+- [ ] Permitir seleccionar perfil e intención sin cambiar la semántica de las rutas ni duplicar la máquina de estados.
 
 Entregable: comportamiento estable en sesiones largas y entornos con otros packages. Cierre: los casos de interrupción terminan en un estado entendible y se pueden continuar sin recrear trabajo completado.
 
@@ -292,6 +329,7 @@ Estas capacidades pueden ser valiosas, pero no son necesarias para validar el fl
 - Instaladores o binarios independientes de Pi.
 - Automatización completa de SDD sin confirmación humana.
 - Automatización completamente autónoma como comportamiento predeterminado; la intervención humana seguirá siendo obligatoria para acciones de alto riesgo.
+- Implementación completa de perfiles funcionales, de producto o marketing; el MVP solo necesita el perfil `developer`, pero los contratos deben quedar preparados.
 
 La regla de salida del MVP es que una persona pueda iniciar una tarea desde un prompt, recibir una recomendación, completar una tarea simple o ligera y recuperar su estado. OpenSpec puede integrarse después sin rediseñar esos contratos.
 
@@ -303,6 +341,8 @@ La regla de salida del MVP es que una persona pueda iniciar una tarea desde un p
 - Formato y ubicación de la configuración del proyecto.
 - Compatibilidad mínima de versiones de Pi y OpenSpec, fijada con pruebas de instalación reales.
 - Necesidad futura de admitir prompts normales sin `/harness-work`; si se añade, debe ser una opción explícita por proyecto.
+- Forma de seleccionar perfiles: flag, configuración del proyecto o inferencia asistida; el default actual es `developer`.
+- Catálogo final de intenciones y formatos de resultado por perfil.
 
 ## 9. Fuentes de referencia
 
