@@ -18,6 +18,14 @@ export type TaskPhase =
   | "failed";
 export type HumanGateKind = "clarify" | "authorize" | "review" | "recover";
 export type HumanDecisionValue = "approve" | "reject" | "revise" | "cancel" | "answer";
+export type WorkResult = {
+  status: "completed" | "blocked" | "needs-input" | "failed";
+  summary: string;
+  artifacts: string[];
+  checks: Array<{ command?: string; status: "passed" | "failed" | "skipped"; evidence: string }>;
+  nextStep?: string;
+  risks: string[];
+};
 
 export type RepositoryContext = {
   repoRoot?: string;
@@ -63,10 +71,13 @@ export type HarnessTask = {
   profile: UserProfile;
   intent?: WorkIntent;
   route?: Route;
+  artifactPath?: string;
+  scope?: string;
   assessment?: Assessment;
   humanGates: HumanGate[];
   clarifications: string[];
   context?: RepositoryContext;
+  result?: WorkResult;
 };
 
 export const TASK_ENTRY_TYPE = "pi-harness.task";
@@ -95,6 +106,7 @@ export function createTask(input: {
     phase: "intake",
     createdAt: timestamp.toISOString(),
     profile: input.profile ?? "developer",
+    scope: input.prompt,
     humanGates: [],
     clarifications: [],
     context: input.context,
@@ -136,6 +148,7 @@ export function formatTaskStatus(task: HarnessTask): string {
     `Perfil: ${task.profile}`,
     `Modo solicitado: ${task.requestedMode}`,
     `Ruta: ${task.route ?? "sin evaluar"}`,
+    task.artifactPath ? `Artefacto: ${task.artifactPath}` : "Artefacto: ninguno",
     `Solo análisis: ${task.analyzeOnly ? "sí" : "no"}`,
     `Creada: ${task.createdAt}`,
     `CWD: ${task.cwd}`,
@@ -145,5 +158,10 @@ export function formatTaskStatus(task: HarnessTask): string {
     `Prompt: ${task.prompt}`,
     assessment ? `Evaluación: ${assessment.confidence}; ${assessment.reasons.join(" | ")}` : "Evaluación: pendiente",
     gate ? `Decisión requerida: ${gate.question}` : "Decisión requerida: ninguna",
+    task.result ? `Resultado: ${task.result.status}; ${task.result.summary}` : "Resultado: pendiente",
   ].join("\n");
+}
+
+export function closeTask(task: HarnessTask, result: WorkResult): HarnessTask {
+  return { ...task, phase: result.status === "completed" ? "done" : "blocked", result };
 }

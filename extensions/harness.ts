@@ -1,8 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { applyAssessment, decideGate, formatAssessment } from "../src/assessment.ts";
+import { applyAssessment, decideGate, formatAssessment, requestScopeChange } from "../src/assessment.ts";
 import { collectRepositoryContext } from "../src/intake.ts";
+import { readTaskArtifact, writeTaskArtifact } from "../src/task-artifact.ts";
 import {
   createTask,
+  closeTask,
   formatTaskStatus,
   hydrateHarnessTask,
   isHarnessTask,
@@ -83,6 +85,15 @@ function parseDecision(args: string): { ok: true; value: HumanDecisionValue; not
   return { ok: true, value: candidate as HumanDecisionValue, note: note.join(" ") || undefined };
 }
 
+async function syncTaskArtifact(task: HarnessTask): Promise<HarnessTask> {
+  if (task.route !== "task") return task;
+  const path = await writeTaskArtifact(task);
+  if (task.artifactPath === path) return task;
+  const withPath = { ...task, artifactPath: path };
+  await writeTaskArtifact(withPath);
+  return withPath;
+}
+
 export default function (pi: ExtensionAPI) {
   assertCompatiblePi(pi);
 
@@ -111,12 +122,18 @@ export default function (pi: ExtensionAPI) {
         analyzeOnly: parsed.analyzeOnly,
         context,
       }));
+      try {
+        lastTask = await syncTaskArtifact(lastTask);
+      } catch (error) {
+        showMessage(ctx, error instanceof Error ? `No se pudo crear el artefacto de tarea: ${error.message}` : "No se pudo crear el artefacto de tarea.", "error");
+        return;
+      }
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
 
       const suffix = lastTask.analyzeOnly ? " (solo análisis)" : "";
       showMessage(
         ctx,
-        `Tarea recibida. Modo: ${lastTask.requestedMode}${suffix}.\nID: ${lastTask.id}\n${formatAssessment(lastTask.assessment!)}${lastTask.phase === "awaiting-approval" ? "\nUsa /harness-decide approve para autorizar la preparación SDD." : ""}${lastTask.phase === "clarifying" ? "\nUsa /harness-decide answer <respuesta> para aportar la información faltante." : ""}`,
+        `Tarea recibida. Modo: ${lastTask.requestedMode}${suffix}.\nID: ${lastTask.id}\n${formatAssessment(lastTask.assessment!)}${lastTask.artifactPath ? `\nArtefacto: ${lastTask.artifactPath}` : ""}${lastTask.phase === "awaiting-approval" ? "\nUsa /harness-decide approve para autorizar el objetivo y plan." : ""}${lastTask.phase === "clarifying" ? "\nUsa /harness-decide answer <respuesta> para aportar la información faltante." : ""}`,
       );
     },
   });
@@ -146,12 +163,86 @@ export default function (pi: ExtensionAPI) {
       }
       try {
         lastTask = decideGate(lastTask, parsed.value, parsed.note);
+        lastTask = await syncTaskArtifact(lastTask);
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
         const suffix = lastTask.assessment ? `\n${formatAssessment(lastTask.assessment)}` : "";
         showMessage(ctx, `Decisión registrada: ${parsed.value}.\nFase actual: ${lastTask.phase}.${suffix}`);
       } catch (error) {
         showMessage(ctx, error instanceof Error ? error.message : "No se pudo registrar la decisión.", "warn");
       }
+    },
+  });
+
+  pi.registerCommand("harness-task-resume", {
+    description: "Recupera una tarea ligera desde .harness/tasks",
+    handler: async (args, ctx) => {
+      try {
+        const recovered = await readTaskArtifact(ctx.cwd, args.trim() || undefined);
+        lastTask = recovered.task;
+        lastTask = { ...lastTask, artifactPath: recovered.path };
+        pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+        showMessage(ctx, `Tarea ligera recuperada desde ${recovered.path}.\n${formatTaskStatus(lastTask)}`);
+      } catch (error) {
+        showMessage(ctx, error instanceof Error ? error.message : "No se pudo recuperar la tarea ligera.", "warn");
+      }
+    },
+  });
+
+  pi.registerCommand("harness-task-status", {
+    description: "Muestra el estado de la tarea ligera actual",
+    handler: async (_args, ctx) => {
+      if (!lastTask || lastTask.route !== "task") {
+        showMessage(ctx, "No hay una tarea ligera activa en esta sesión.", "warn");
+        return;
+      }
+      showMessage(ctx, formatTaskStatus(lastTask));
+    },
+  });
+
+  pi.registerCommand("harness-task-scope", {
+    description: "Solicita un cambio de alcance para la tarea ligera actual",
+    handler: async (args, ctx) => {
+      if (!lastTask || lastTask.route !== "task") {
+        showMessage(ctx, "No hay una tarea ligera activa en esta sesión.", "warn");
+        return;
+      }
+      try {
+        lastTask = requestScopeChange(lastTask, args);
+        lastTask = await syncTaskArtifact(lastTask);
+        pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+        showMessage(ctx, `Cambio de alcance registrado. Debe aprobarse con /harness-decide approve.\n${formatTaskStatus(lastTask)}`);
+      } catch (error) {
+        showMessage(ctx, error instanceof Error ? error.message : "No se pudo registrar el cambio de alcance.", "warn");
+      }
+    },
+  });
+
+  pi.registerCommand("harness-task-close", {
+    description: "Cierra una tarea ligera con un resultado resumido",
+    handler: async (args, ctx) => {
+      if (!lastTask || lastTask.route !== "task") {
+        showMessage(ctx, "No hay una tarea ligera activa en esta sesión.", "warn");
+        return;
+      }
+      if (lastTask.phase !== "awaiting-review") {
+        showMessage(ctx, "Una tarea ligera solo puede cerrarse desde awaiting-review, después de verificarla.", "warn");
+        return;
+      }
+      const summary = args.trim();
+      if (!summary) {
+        showMessage(ctx, "Uso: /harness-task-close <resumen del resultado>", "warn");
+        return;
+      }
+      lastTask = closeTask(lastTask, {
+        status: "completed",
+        summary,
+        artifacts: lastTask.artifactPath ? [lastTask.artifactPath] : [],
+        checks: [],
+        risks: [],
+      });
+      lastTask = await syncTaskArtifact(lastTask);
+      pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+      showMessage(ctx, `Tarea ligera cerrada.\n${formatTaskStatus(lastTask)}`);
     },
   });
 }

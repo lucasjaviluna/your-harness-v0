@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: implementación incremental. Fases 0 a 3 completadas; Fase 4 pendiente.
+Estado: implementación incremental. Fases 0 a 4 completadas; Fase 5 pendiente.
 
 ## 1. Objetivo y alcance
 
@@ -242,14 +242,14 @@ Entregable: [docs/PHASE_3_ASSESSMENT.md](PHASE_3_ASSESSMENT.md), recomendación 
 
 ### Fase 4 — Ruta de tarea ligera
 
-- [ ] Crear `harness-task` para trabajos que requieren continuidad sin la estructura completa de OpenSpec.
-- [ ] Generar `.harness/tasks/<task-name>.md` con objetivo, problema, alcance, restricciones, tareas, evidencia, progreso, próximo paso y decisiones aceptadas.
-- [ ] Permitir reanudar la tarea leyendo el artefacto y reconstruyendo su fase.
-- [ ] Actualizar solo las secciones afectadas, conservando tareas completadas y evidencia válida.
-- [ ] Solicitar aprobación del objetivo y del plan antes de implementar; volver a `awaiting-approval` si cambia el alcance.
-- [ ] Cerrar la tarea con un resultado común y mantener el archivo como historial breve del cambio.
+- [x] Crear `harness-task` para trabajos que requieren continuidad sin la estructura completa de OpenSpec.
+- [x] Generar `.harness/tasks/<task-name>.md` con objetivo, problema, alcance, restricciones, tareas, evidencia, progreso, próximo paso y decisiones aceptadas.
+- [x] Permitir reanudar la tarea leyendo el artefacto y reconstruyendo su fase.
+- [x] Actualizar solo las secciones afectadas, conservando tareas completadas y evidencia válida.
+- [x] Solicitar aprobación del objetivo y del plan antes de implementar; volver a `awaiting-approval` si cambia el alcance.
+- [x] Cerrar la tarea con un resultado común y mantener el archivo como historial breve del cambio.
 
-Entregable: una tarea mediana que puede continuar después de una interrupción. Cierre: el agente puede recuperar el trabajo desde el archivo sin depender del contexto conversacional completo.
+Entregable: [docs/PHASE_4_TASKS.md](PHASE_4_TASKS.md), una tarea mediana que puede continuar después de una interrupción. Cierre: el agente puede recuperar el trabajo desde el archivo sin depender del contexto conversacional completo.
 
 ### Fase 5 — Ruta simple
 
