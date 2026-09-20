@@ -1,5 +1,31 @@
 # your-harness-v0
 
+## Instalación local
+
+Desde este repositorio:
+
+```text
+pi install . -l
+```
+
+Para verificar el artefacto distribuible sin publicarlo:
+
+```text
+npm run pack:check
+npm run test:e2e
+```
+
+Requisitos: Node.js compatible con la versión de Pi instalada y Pi disponible en el entorno. OpenSpec es opcional para las rutas `sdd`; si falta, `/harness-doctor` muestra el comando de inicialización sugerido.
+
+Para probar una tarea:
+
+```text
+/harness-work --mode simple Cambiar un texto localizado
+/harness-simple
+```
+
+En Git Bash, si Pi no recibe correctamente una ruta Windows, usa `MSYS_NO_PATHCONV=1`.
+
 Documentación del proyecto:
 
 - [Fundamentos del proyecto](docs/FOUNDATIONS.md)
@@ -11,4 +37,5 @@ Documentación del proyecto:
 - [Ruta SDD con OpenSpec de la Fase 6](docs/PHASE_6_OPENSPEC.md)
 - [Operación y configuración de la Fase 7](docs/PHASE_7_OPERATIONS.md)
 - [Configuración](docs/CONFIGURATION.md)
+- [Validación y distribución de la Fase 8](docs/PHASE_8_VALIDATION.md)
 - [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)

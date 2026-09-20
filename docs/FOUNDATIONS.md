@@ -267,8 +267,8 @@ No incluye:
 - La Fase 5 está completada: `harness-simple` ejecuta el ciclo directo, selecciona verificaciones del repositorio, revisa archivos modificados, exige aprobación humana y puede reencaminar a SDD.
 - La Fase 6 está completada: detección de OpenSpec para Pi, delegación sin duplicación, estado del change y gates HIL para propose, apply, verify, sync y archive.
 - La Fase 7 está completada: configuración validada, precedencia, recuperación HIL, idempotencia, diagnósticos y convivencia por prefijo implementados.
-- La Fase 8 permanece pendiente.
-- La próxima unidad de trabajo recomendada es comenzar la Fase 8: validación end-to-end y distribución.
+- La Fase 8 está completada técnicamente: pruebas de distribución, consumidores temporales, manifest y documentación ejecutados; la publicación npm requiere una decisión y autorización explícitas.
+- La próxima unidad de trabajo recomendada es decidir nombre/ámbito npm, versión inicial y si se desea publicar.
 - El perfil default del MVP es `developer`; el core se mantiene agnóstico para habilitar perfiles funcionales, de producto y marketing en fases posteriores.
 
 ## 14. Fuentes

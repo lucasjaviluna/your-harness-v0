@@ -9,9 +9,19 @@
     "software-development"
   ],
   "license": "MIT",
+  "files": [
+    "extensions",
+    "src",
+    "skills",
+    "docs",
+    "README.md",
+    "package.json"
+  ],
   "type": "module",
   "scripts": {
-    "test": "node --experimental-transform-types --test"
+    "test": "node --experimental-transform-types --test",
+    "test:e2e": "node --experimental-transform-types --test tests/e2e.test.ts",
+    "pack:check": "node scripts/pack-check.mjs"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"

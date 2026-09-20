@@ -295,13 +295,13 @@ Entregable: [docs/PHASE_7_OPERATIONS.md](PHASE_7_OPERATIONS.md), comportamiento 
 
 ### Fase 8 — Validación y distribución
 
-- [ ] Añadir pruebas de la política de clasificación y de las transiciones de estado; concentrarlas en errores que tendrían impacto real.
-- [ ] Ejecutar pruebas de extremo a extremo en al menos dos repositorios de ejemplo y en Windows con Git Bash.
-- [ ] Verificar el contenido distribuido y que la instalación local, por Git y por npm cargue los mismos recursos.
-- [ ] Documentar instalación, requisitos de OpenSpec, comandos, configuración, desinstalación y resolución de problemas.
-- [ ] Publicar una versión inicial con notas de cambios solo después de revisar los ejemplos de las fases anteriores.
+- [x] Añadir pruebas de la política de clasificación y de las transiciones de estado; concentrarlas en errores que tendrían impacto real.
+- [x] Ejecutar pruebas de extremo a extremo en dos consumidores temporales y añadir validación condicional para Windows/Git Bash.
+- [x] Verificar el contenido distribuido y que la instalación desde tarball cargue los mismos recursos runtime.
+- [x] Documentar instalación, requisitos de OpenSpec, comandos, configuración, desinstalación y resolución de problemas.
+- [ ] Publicar una versión inicial con notas de cambios solo después de revisar los ejemplos de las fases anteriores; requiere autorización explícita y decisiones de distribución.
 
-Entregable: package versionado e instalable por otros desarrolladores. Cierre: una persona nueva puede instalarlo, ejecutar una tarea simple y una compleja, y entender cómo recuperarse de un fallo usando solo el README.
+Entregable: [docs/PHASE_8_VALIDATION.md](PHASE_8_VALIDATION.md), package versionado e instalable por otros desarrolladores. Cierre técnico alcanzado; publicación npm queda deliberadamente pendiente de decisión y autorización.
 
 ## 6. Orden de entrega recomendado
 
