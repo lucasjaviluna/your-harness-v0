@@ -9,4 +9,6 @@ Documentación del proyecto:
 - [Ruta de tarea ligera de la Fase 4](docs/PHASE_4_TASKS.md)
 - [Ruta simple de la Fase 5](docs/PHASE_5_SIMPLE.md)
 - [Ruta SDD con OpenSpec de la Fase 6](docs/PHASE_6_OPENSPEC.md)
+- [Operación y configuración de la Fase 7](docs/PHASE_7_OPERATIONS.md)
+- [Configuración](docs/CONFIGURATION.md)
 - [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)

@@ -137,6 +137,7 @@ export function decideGate(task: HarnessTask, value: HumanDecisionValue, note?: 
   if (gate.kind === "clarify" && value === "answer") {
     return applyAssessment({ ...task, humanGates, clarifications: [...task.clarifications, note!.trim()], phase: "assessing" });
   }
+  if (gate.kind === "recover" && value === "approve") return { ...task, humanGates, phase: "planning" };
   if (gate.kind === "authorize" && value === "approve") return { ...task, humanGates, phase: "planning" };
   if (gate.kind === "review") {
     if (value === "approve") {

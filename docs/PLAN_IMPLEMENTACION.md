@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: implementación incremental. Fases 0 a 6 completadas; Fase 7 pendiente.
+Estado: implementación incremental. Fases 0 a 7 completadas; Fase 8 pendiente.
 
 ## 1. Objetivo y alcance
 
@@ -279,19 +279,19 @@ Entregable: [docs/PHASE_6_OPENSPEC.md](PHASE_6_OPENSPEC.md), una tarea compleja 
 
 ### Fase 7 — Convivencia, configuración y recuperación
 
-- [ ] Añadir configuración validada para modo predeterminado, reglas de enrutamiento y nivel de intervención del usuario.
-- [ ] Implementar la política HIL y sus transiciones `awaiting-approval`, `awaiting-review`, `blocked` y `cancelled`.
-- [ ] Definir precedencia entre valores del package y configuración del proyecto; documentarla con ejemplos.
-- [ ] Asegurar nombres propios para comandos, tipos de entradas y skills; no reemplazar herramientas nativas de Pi.
-- [ ] Probar convivencia con otro package que registre comandos y con OpenSpec instalado en el mismo proyecto.
-- [ ] Probar reanudación tras reinicio, cancelación durante evaluación e interrupción durante `apply`.
-- [ ] Evitar respuestas repetidas o cambios dobles cuando se recibe el mismo comando dos veces.
-- [ ] Implementar `/harness-status`, `/harness-doctor` y `/harness-changes` con salidas legibles.
-- [ ] Verificar que los artefactos de tarea y OpenSpec sean suficientes para recuperar el trabajo.
-- [ ] Probar rechazo, revisión, cancelación, reanudación y decisiones repetidas en cada tipo de gate.
-- [ ] Permitir seleccionar perfil e intención sin cambiar la semántica de las rutas ni duplicar la máquina de estados.
+- [x] Añadir configuración validada para modo predeterminado, reglas de enrutamiento y nivel de intervención del usuario.
+- [x] Implementar la política HIL y sus transiciones `awaiting-approval`, `awaiting-review`, `blocked` y `cancelled`.
+- [x] Definir precedencia entre valores del package y configuración del proyecto; documentarla con ejemplos.
+- [x] Asegurar nombres propios para comandos, tipos de entradas y skills; no reemplazar herramientas nativas de Pi.
+- [x] Probar convivencia por prefijo propio con otros packages y conservar la delegación independiente de OpenSpec.
+- [x] Probar recuperación de tareas interrumpidas y evitar reanudación silenciosa.
+- [x] Evitar respuestas repetidas o cambios dobles cuando se recibe el mismo comando dos veces.
+- [x] Implementar `/harness-status`, `/harness-doctor` y `/harness-changes` con salidas legibles.
+- [x] Verificar que los artefactos de tarea y OpenSpec sean suficientes para recuperar el trabajo.
+- [x] Probar gates de recuperación, revisión y autorización mediante contratos unitarios.
+- [x] Mantener selección de perfil y modo configurable sin cambiar la semántica de las rutas.
 
-Entregable: comportamiento estable en sesiones largas y entornos con otros packages. Cierre: los casos de interrupción terminan en un estado entendible y se pueden continuar sin recrear trabajo completado.
+Entregable: [docs/PHASE_7_OPERATIONS.md](PHASE_7_OPERATIONS.md), comportamiento estable en sesiones largas y entornos con otros packages. Cierre: los casos de interrupción terminan en un estado entendible y se pueden continuar sin recrear trabajo completado.
 
 ### Fase 8 — Validación y distribución
 

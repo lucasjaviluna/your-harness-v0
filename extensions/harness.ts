@@ -3,6 +3,9 @@ import { applyAssessment, decideGate, formatAssessment, requestScopeChange, rero
 import { collectRepositoryContext } from "../src/intake.ts";
 import { buildSimpleWorkflowPrompt, captureRepositorySnapshot, createSimpleReviewGate, parseSimpleAgentResult, reviewChangedFiles, type RepositorySnapshot } from "../src/simple.ts";
 import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, detectOpenSpec, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
+import { DEFAULT_CONFIG, loadConfig, type HarnessConfig } from "../src/config.ts";
+import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
+import { isActiveTask, recoverInterruptedTask } from "../src/recovery.ts";
 import { readTaskArtifact, writeTaskArtifact } from "../src/task-artifact.ts";
 import {
   createTask,
@@ -23,6 +26,7 @@ type ParsedArgs =
 let lastTask: HarnessTask | undefined;
 let simpleBaseline: RepositorySnapshot | undefined;
 let sddDetection: OpenSpecDetection | undefined;
+let currentConfig: HarnessConfig = structuredClone(DEFAULT_CONFIG);
 const VALID_MODES = new Set<WorkMode>(["auto", "simple", "task", "sdd"]);
 const VALID_DECISIONS = new Set<HumanDecisionValue>(["approve", "reject", "revise", "cancel", "answer"]);
 
@@ -33,9 +37,9 @@ function assertCompatiblePi(pi: ExtensionAPI): void {
   }
 }
 
-function parseArgs(args: string): ParsedArgs {
+function parseArgs(args: string, defaultMode: WorkMode = "auto"): ParsedArgs {
   let remaining = args.trim();
-  let requestedMode: WorkMode = "auto";
+  let requestedMode: WorkMode = defaultMode;
   let analyzeOnly = false;
 
   while (remaining.startsWith("--")) {
@@ -109,6 +113,8 @@ export default function (pi: ExtensionAPI) {
       if (entry.type !== "custom" || entry.customType !== TASK_ENTRY_TYPE) continue;
       if (isHarnessTask(entry.data)) lastTask = hydrateHarnessTask(entry.data);
     }
+    currentConfig = (await loadConfig(ctx.cwd)).config;
+    if (currentConfig.hil.recoverInterrupted && lastTask) lastTask = recoverInterruptedTask(lastTask);
   });
 
   pi.registerCommand("harness-sdd", {
@@ -248,10 +254,16 @@ export default function (pi: ExtensionAPI) {
     const result = review.unexpectedFiles.length
       ? { ...parsed, risks: [...parsed.risks, `Archivos modificados fuera del reporte: ${review.unexpectedFiles.join(", ")}.`] }
       : parsed;
-    if (text.match(/^route:\s*sdd\s*$/im)) {
+    if (text.match(/^route:\s*sdd\s*$/im) && currentConfig.routing.allowRerouteToSdd) {
       lastTask = rerouteToSdd({ ...lastTask, result }, "El workflow simple detectó que el impacto excede un cambio local.");
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
       showMessage(ctx, "La tarea excede el alcance simple y fue reencaminada a SDD. Usa /harness-decide approve para preparar OpenSpec.", "warn");
+      return;
+    }
+    if (!currentConfig.hil.requireReview) {
+      lastTask = closeTask(lastTask, { ...result, status: "completed", nextStep: "Revisar el resultado cuando sea conveniente." });
+      pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+      showMessage(ctx, `Workflow simple completado según la configuración del proyecto.\n${result.summary}`);
       return;
     }
     const gate = createSimpleReviewGate(lastTask, result, review.unexpectedFiles);
@@ -281,9 +293,19 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("harness-work", {
     description: "Inicia una tarea de desarrollo en pi-harness",
     handler: async (args, ctx) => {
-      const parsed = parseArgs(args);
+      const loadedConfig = await loadConfig(ctx.cwd);
+      currentConfig = loadedConfig.config;
+      const parsed = parseArgs(args, currentConfig.defaultMode);
       if (!parsed.ok) {
         showMessage(ctx, parsed.message, "warn");
+        return;
+      }
+      if (parsed.requestedMode !== "auto" && !currentConfig.routing.allowManualOverride) {
+        showMessage(ctx, "La configuración del proyecto deshabilita overrides manuales de ruta.", "warn");
+        return;
+      }
+      if (isActiveTask(lastTask) && lastTask?.prompt === parsed.prompt && lastTask.requestedMode === parsed.requestedMode) {
+        showMessage(ctx, `La misma tarea ya está activa (${lastTask.id}); no se creó un duplicado.\n${formatTaskStatus(lastTask)}`, "warn");
         return;
       }
 
@@ -294,7 +316,11 @@ export default function (pi: ExtensionAPI) {
         requestedMode: parsed.requestedMode,
         analyzeOnly: parsed.analyzeOnly,
         context,
+        profile: currentConfig.profile,
       }));
+      if (!currentConfig.hil.requireApproval && lastTask.route === "task" && lastTask.phase === "awaiting-approval") {
+        lastTask = { ...lastTask, phase: "planning", humanGates: lastTask.humanGates.filter((gate) => gate.kind !== "authorize") };
+      }
       try {
         lastTask = await syncTaskArtifact(lastTask);
       } catch (error) {
@@ -319,6 +345,26 @@ export default function (pi: ExtensionAPI) {
         return;
       }
       showMessage(ctx, formatTaskStatus(lastTask));
+    },
+  });
+
+  pi.registerCommand("harness-doctor", {
+    description: "Diagnostica la configuración y capacidades de pi-harness",
+    handler: async (_args, ctx) => {
+      const loaded = await loadConfig(ctx.cwd);
+      currentConfig = loaded.config;
+      const context = await collectRepositoryContext(ctx.cwd);
+      const openSpec = await detectOpenSpec(context.repoRoot ?? ctx.cwd);
+      showMessage(ctx, formatDoctorReport(loaded, context, openSpec, true));
+    },
+  });
+
+  pi.registerCommand("harness-changes", {
+    description: "Muestra cambios Git y changes OpenSpec activos",
+    handler: async (_args, ctx) => {
+      const snapshot = await captureRepositorySnapshot(ctx.cwd);
+      const openSpec = await detectOpenSpec(ctx.cwd);
+      showMessage(ctx, formatChangesReport(snapshot, openSpec));
     },
   });
 
@@ -353,6 +399,7 @@ export default function (pi: ExtensionAPI) {
         const recovered = await readTaskArtifact(ctx.cwd, args.trim() || undefined);
         lastTask = recovered.task;
         lastTask = { ...lastTask, artifactPath: recovered.path };
+        if (currentConfig.hil.recoverInterrupted) lastTask = recoverInterruptedTask(lastTask);
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
         showMessage(ctx, `Tarea ligera recuperada desde ${recovered.path}.\n${formatTaskStatus(lastTask)}`);
       } catch (error) {
