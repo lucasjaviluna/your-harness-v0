@@ -2,6 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { applyAssessment, decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "../src/assessment.ts";
 import { collectRepositoryContext } from "../src/intake.ts";
 import { buildSimpleWorkflowPrompt, captureRepositorySnapshot, createSimpleReviewGate, parseSimpleAgentResult, reviewChangedFiles, type RepositorySnapshot } from "../src/simple.ts";
+import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, detectOpenSpec, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
 import { readTaskArtifact, writeTaskArtifact } from "../src/task-artifact.ts";
 import {
   createTask,
@@ -21,6 +22,7 @@ type ParsedArgs =
 
 let lastTask: HarnessTask | undefined;
 let simpleBaseline: RepositorySnapshot | undefined;
+let sddDetection: OpenSpecDetection | undefined;
 const VALID_MODES = new Set<WorkMode>(["auto", "simple", "task", "sdd"]);
 const VALID_DECISIONS = new Set<HumanDecisionValue>(["approve", "reject", "revise", "cancel", "answer"]);
 
@@ -102,10 +104,45 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     lastTask = undefined;
     simpleBaseline = undefined;
+    sddDetection = undefined;
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "custom" || entry.customType !== TASK_ENTRY_TYPE) continue;
       if (isHarnessTask(entry.data)) lastTask = hydrateHarnessTask(entry.data);
     }
+  });
+
+  pi.registerCommand("harness-sdd", {
+    description: "Ejecuta el siguiente paso autorizado del workflow OpenSpec",
+    handler: async (_args, ctx) => {
+      if (!lastTask || lastTask.route !== "sdd") {
+        showMessage(ctx, "No hay una tarea con ruta SDD. Inicia una con /harness-work --mode sdd <prompt>.", "warn");
+        return;
+      }
+      if (lastTask.phase !== "planning") {
+        showMessage(ctx, `La tarea SDD no puede avanzar desde la fase ${lastTask.phase}. Resuelve primero el checkpoint HIL pendiente.`, "warn");
+        return;
+      }
+      if (!ctx.isIdle()) {
+        showMessage(ctx, "Pi está ocupado. Espera a que termine el turno actual y vuelve a ejecutar /harness-sdd.", "warn");
+        return;
+      }
+      sddDetection = await detectOpenSpec(lastTask.cwd);
+      if (!sddDetection.configured) {
+        showMessage(ctx, `OpenSpec no está configurado para Pi. ${sddDetection.findings.join(" ")} Inicialización sugerida: ${sddDetection.initCommand}`, "warn");
+        return;
+      }
+      const previousStep = lastTask.openspec?.step;
+      const step = previousStep === "proposed" ? "apply" : previousStep === "applied" ? "verify" : previousStep ?? "propose";
+      const message = buildOpenSpecDelegation(lastTask, sddDetection, step);
+      if (!message) {
+        showMessage(ctx, `Falta el comando OpenSpec para el paso ${step}. Ejecuta "openspec update" o revisa la configuración de Pi.`, "warn");
+        return;
+      }
+      lastTask = { ...lastTask, phase: "implementing", openspec: { ...lastTask.openspec, ...sddDetection, step } };
+      pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+      showMessage(ctx, `Delegando a OpenSpec: ${sddDetection.commands[step]}`);
+      pi.sendUserMessage(message, { deliverAs: "followUp" });
+    },
   });
 
   pi.registerCommand("harness-simple", {
@@ -136,6 +173,60 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("agent_end", async (event, ctx) => {
+    if (lastTask?.route === "sdd" && lastTask.phase === "implementing") {
+      const messages = (event as unknown as { messages?: unknown[] }).messages ?? [];
+      const assistant = [...messages].reverse().find((item) => (item as { role?: string })?.role === "assistant") as { content?: unknown } | undefined;
+      const text = typeof assistant?.content === "string"
+        ? assistant.content
+        : Array.isArray(assistant?.content)
+          ? (assistant.content as Array<{ type?: string; text?: string }>).filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n")
+          : "";
+      const detection = sddDetection ?? await detectOpenSpec(lastTask.cwd);
+      const step = lastTask.openspec?.step ?? "propose";
+      const change = extractOpenSpecChange(text, detection.activeChanges) ?? lastTask.openspec?.change;
+      const artifacts = extractOpenSpecArtifacts(lastTask.cwd, change);
+      if (step === "propose") {
+        const existingArtifacts = await existingOpenSpecArtifacts(lastTask.cwd, change);
+        if (!change || existingArtifacts.length === 0) {
+          lastTask = { ...lastTask, phase: "planning", result: { status: "failed", summary: "OpenSpec no produjo artefactos de propuesta reconocibles.", artifacts: [], checks: [], risks: ["No se encontró proposal.md, design.md o tasks.md para el change detectado."], nextStep: "Revisa la salida del agente y ejecuta /harness-sdd nuevamente." }, openspec: { ...lastTask.openspec!, step: "propose", change, artifacts, lastOutput: text, error: "proposal-artifacts-missing" } };
+          pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+          showMessage(ctx, "La propuesta OpenSpec no produjo artefactos reconocibles. La tarea queda recuperable en planning; revisa la salida y ejecuta /harness-sdd nuevamente.", "warn");
+          return;
+        }
+        const proposalEvidence = existingArtifacts;
+        const gate = createOpenSpecAuthorizationGate(lastTask, "La propuesta OpenSpec está lista. ¿Apruebas continuar con apply?", [text.slice(0, 2000), ...proposalEvidence, ...detection.findings]);
+        lastTask = { ...lastTask, phase: "awaiting-approval", openspec: { ...lastTask.openspec!, step: "proposed", change, artifacts: proposalEvidence, lastOutput: text }, humanGates: [...lastTask.humanGates, gate] };
+        pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+        showMessage(ctx, "OpenSpec terminó la propuesta. Revisa sus artefactos y usa /harness-decide approve para autorizar apply.");
+        return;
+      }
+      if (step === "apply") {
+        const result = { status: "needs-input" as const, summary: text.slice(0, 500) || "OpenSpec terminó apply sin resumen textual.", artifacts, checks: [], risks: [], nextStep: "Revisar el diff y aprobar para continuar con verify." };
+        const gate = createOpenSpecReviewGate(lastTask, [result.summary, ...artifacts]);
+        lastTask = { ...lastTask, phase: "awaiting-review", result, openspec: { ...lastTask.openspec!, step: "applied", change, artifacts, lastOutput: text }, humanGates: [...lastTask.humanGates, gate] };
+        pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+        showMessage(ctx, "OpenSpec terminó apply. Revisa el diff y usa /harness-decide approve para continuar con verify.");
+        return;
+      }
+      const nextStep = nextOpenSpecStep(step);
+      if (nextStep === "complete") {
+        lastTask = { ...lastTask, phase: "done", result: { status: "completed", summary: `OpenSpec completó ${step}.`, artifacts, checks: [], risks: [] }, openspec: { ...lastTask.openspec!, step: "complete", change, artifacts, lastOutput: text } };
+        pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+        showMessage(ctx, `Workflow SDD completado: ${step}.`);
+        return;
+      }
+      if (step === "sync") {
+        const gate = createOpenSpecAuthorizationGate(lastTask, "OpenSpec sincronizó las especificaciones. ¿Apruebas archivar el change?", [text.slice(0, 2000), ...artifacts]);
+        lastTask = { ...lastTask, phase: "awaiting-approval", openspec: { ...lastTask.openspec!, step: "archive", change, artifacts, lastOutput: text }, humanGates: [...lastTask.humanGates, gate] };
+        pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+        showMessage(ctx, "OpenSpec terminó sync. Usa /harness-decide approve para autorizar archive.");
+        return;
+      }
+      lastTask = { ...lastTask, phase: "planning", openspec: { ...lastTask.openspec!, step: nextStep, change, artifacts, lastOutput: text } };
+      pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+      showMessage(ctx, `OpenSpec terminó ${step}. El siguiente paso es ${nextStep}; ejecuta /harness-sdd.`);
+      return;
+    }
     if (!lastTask || lastTask.route !== "simple" || lastTask.phase !== "implementing") return;
     const messages = (event as unknown as { messages?: unknown[] }).messages ?? [];
     const assistant = [...messages].reverse().find((item) => (item as { role?: string })?.role === "assistant") as { content?: unknown } | undefined;
@@ -167,6 +258,24 @@ export default function (pi: ExtensionAPI) {
     lastTask = { ...lastTask, phase: "awaiting-review", result, humanGates: [...lastTask.humanGates, gate] };
     pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
     showMessage(ctx, `Workflow simple terminado y listo para revisión humana. Usa /harness-decide approve, revise o cancel.\n${result.summary}`);
+  });
+
+  pi.registerCommand("harness-scope", {
+    description: "Solicita un cambio de alcance para la tarea actual y abre un gate HIL",
+    handler: async (args, ctx) => {
+      if (!lastTask) {
+        showMessage(ctx, "No hay ninguna tarea activa de pi-harness.", "warn");
+        return;
+      }
+      try {
+        lastTask = requestScopeChange(lastTask, args);
+        lastTask = await syncTaskArtifact(lastTask);
+        pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+        showMessage(ctx, `Cambio de alcance registrado. Debe aprobarse con /harness-decide approve.\n${formatTaskStatus(lastTask)}`);
+      } catch (error) {
+        showMessage(ctx, error instanceof Error ? error.message : "No se pudo registrar el cambio de alcance.", "warn");
+      }
+    },
   });
 
   pi.registerCommand("harness-work", {

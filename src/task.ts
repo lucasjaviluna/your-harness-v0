@@ -18,6 +18,18 @@ export type TaskPhase =
   | "failed";
 export type HumanGateKind = "clarify" | "authorize" | "review" | "recover";
 export type HumanDecisionValue = "approve" | "reject" | "revise" | "cancel" | "answer";
+export type OpenSpecStep = "propose" | "proposed" | "apply" | "applied" | "verify" | "sync" | "archive" | "complete";
+export type OpenSpecState = {
+  configured: boolean;
+  cliAvailable: boolean;
+  commandStyle: "prompt" | "skill" | "unavailable";
+  commands: Partial<Record<OpenSpecStep, string>>;
+  step?: OpenSpecStep;
+  change?: string;
+  artifacts?: string[];
+  lastOutput?: string;
+  error?: string;
+};
 export type WorkResult = {
   status: "completed" | "blocked" | "needs-input" | "failed";
   summary: string;
@@ -78,6 +90,7 @@ export type HarnessTask = {
   clarifications: string[];
   context?: RepositoryContext;
   result?: WorkResult;
+  openspec?: OpenSpecState;
 };
 
 export const TASK_ENTRY_TYPE = "pi-harness.task";
@@ -127,6 +140,7 @@ export function hydrateHarnessTask(task: HarnessTask): HarnessTask {
     profile: task.profile ?? "developer",
     humanGates: task.humanGates ?? [],
     clarifications: task.clarifications ?? [],
+    openspec: task.openspec,
   };
 }
 
@@ -148,6 +162,7 @@ export function formatTaskStatus(task: HarnessTask): string {
     `Perfil: ${task.profile}`,
     `Modo solicitado: ${task.requestedMode}`,
     `Ruta: ${task.route ?? "sin evaluar"}`,
+    task.openspec ? `OpenSpec: ${task.openspec.step ?? "pendiente"}${task.openspec.change ? `; change ${task.openspec.change}` : ""}` : "OpenSpec: no aplica",
     task.artifactPath ? `Artefacto: ${task.artifactPath}` : "Artefacto: ninguno",
     `Solo análisis: ${task.analyzeOnly ? "sí" : "no"}`,
     `Creada: ${task.createdAt}`,

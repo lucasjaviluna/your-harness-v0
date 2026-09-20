@@ -8,4 +8,5 @@ Documentación del proyecto:
 - [Evaluación y selección de la Fase 3](docs/PHASE_3_ASSESSMENT.md)
 - [Ruta de tarea ligera de la Fase 4](docs/PHASE_4_TASKS.md)
 - [Ruta simple de la Fase 5](docs/PHASE_5_SIMPLE.md)
+- [Ruta SDD con OpenSpec de la Fase 6](docs/PHASE_6_OPENSPEC.md)
 - [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)

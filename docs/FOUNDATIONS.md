@@ -265,8 +265,9 @@ No incluye:
 - La Fase 3 está completada: evaluación explicada, override manual, gates SDD/aclaración y casos frontera validados.
 - La Fase 4 está completada: artefactos Markdown, recuperación, aprobación de plan, cambio de alcance y resultado común implementados.
 - La Fase 5 está completada: `harness-simple` ejecuta el ciclo directo, selecciona verificaciones del repositorio, revisa archivos modificados, exige aprobación humana y puede reencaminar a SDD.
-- Las fases 6 a 8 permanecen pendientes.
-- La próxima unidad de trabajo recomendada es comenzar la Fase 6: integración con OpenSpec para la ruta compleja.
+- La Fase 6 está completada: detección de OpenSpec para Pi, delegación sin duplicación, estado del change y gates HIL para propose, apply, verify, sync y archive.
+- Las fases 7 y 8 permanecen pendientes.
+- La próxima unidad de trabajo recomendada es comenzar la Fase 7: configuración, convivencia y recuperación.
 - El perfil default del MVP es `developer`; el core se mantiene agnóstico para habilitar perfiles funcionales, de producto y marketing en fases posteriores.
 
 ## 14. Fuentes

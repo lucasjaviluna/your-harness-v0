@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: implementación incremental. Fases 0 a 5 completadas; Fase 6 pendiente.
+Estado: implementación incremental. Fases 0 a 6 completadas; Fase 7 pendiente.
 
 ## 1. Objetivo y alcance
 
@@ -265,17 +265,17 @@ Entregable: [docs/PHASE_5_SIMPLE.md](PHASE_5_SIMPLE.md), ejecución de una tarea
 
 ### Fase 6 — Ruta compleja con OpenSpec
 
-- [ ] Detectar si el repositorio tiene OpenSpec configurado para Pi; si falta, mostrar el requisito y el comando de inicialización sin modificar el proyecto automáticamente.
-- [ ] Detectar los prompts/skills generados por OpenSpec y su procedencia antes de invocarlos; en Pi, los prompts se llaman `/opsx-propose`, `/opsx-apply`, etc.
-- [ ] Crear el adaptador que pasa el prompt y el contexto de la tarea a `propose` sin duplicar la lógica de OpenSpec.
-- [ ] Detenerse después de la recomendación hasta que el usuario confirme la creación de artefactos SDD.
-- [ ] Asociar el nombre del change de OpenSpec al estado de la tarea.
-- [ ] Presentar propuesta, especificaciones, diseño y tareas para revisión antes de `apply`.
-- [ ] Requerir autorización explícita para `apply`, cambios de alcance y archivo del change.
-- [ ] Reanudar la tarea tras ajustes de artefactos; ejecutar `apply`, verificar el resultado, sincronizar specs cuando corresponda y archivar solo al terminar.
-- [ ] Manejar comandos ausentes, cambios incompletos y fallos de verificación con un estado recuperable.
+- [x] Detectar si el repositorio tiene OpenSpec configurado para Pi; si falta, mostrar el requisito y el comando de inicialización sin modificar el proyecto automáticamente.
+- [x] Detectar los prompts/skills generados por OpenSpec y su procedencia antes de invocarlos; en Pi, los prompts se llaman `/opsx-propose`, `/opsx-apply`, etc.
+- [x] Crear el adaptador que pasa el prompt y el contexto de la tarea a `propose` sin duplicar la lógica de OpenSpec.
+- [x] Detenerse después de la recomendación hasta que el usuario confirme la creación de artefactos SDD.
+- [x] Asociar el nombre del change de OpenSpec al estado de la tarea.
+- [x] Presentar propuesta, especificaciones, diseño y tareas para revisión antes de `apply`.
+- [x] Requerir autorización explícita para `apply`, cambios de alcance y archivo del change.
+- [x] Reanudar la tarea tras ajustes de artefactos; ejecutar `apply`, verificar el resultado, sincronizar specs cuando corresponda y archivar solo al terminar.
+- [x] Manejar comandos ausentes, cambios incompletos y fallos de verificación con un estado recuperable.
 
-Entregable: una tarea compleja ejecutada a través de OpenSpec en un repositorio de prueba. Cierre: los artefactos viven bajo `openspec/`, se pueden inspeccionar con OpenSpec y el harness muestra en qué paso quedó la tarea.
+Entregable: [docs/PHASE_6_OPENSPEC.md](PHASE_6_OPENSPEC.md), una tarea compleja delegada a OpenSpec. Cierre: los artefactos viven bajo `openspec/`, se pueden inspeccionar con OpenSpec y el harness muestra en qué paso quedó la tarea.
 
 ### Fase 7 — Convivencia, configuración y recuperación
 

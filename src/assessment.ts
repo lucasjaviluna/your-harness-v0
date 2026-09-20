@@ -143,6 +143,9 @@ export function decideGate(task: HarnessTask, value: HumanDecisionValue, note?: 
       if (task.result?.checks.some((check) => check.status === "failed")) {
         throw new Error("No se puede aprobar un resultado con verificaciones fallidas. Usa revise o corrige el problema antes de aprobar.");
       }
+      if (task.route === "sdd" && task.openspec?.step === "applied") {
+        return { ...task, humanGates, phase: "planning", openspec: { ...task.openspec, step: "verify" } };
+      }
       return closeTask({ ...task, humanGates }, { ...task.result!, status: "completed" });
     }
     if (value === "revise") return { ...task, humanGates, phase: "planning" };
