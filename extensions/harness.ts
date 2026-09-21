@@ -206,11 +206,8 @@ export default function (pi: ExtensionAPI) {
       }
       const choice = await ctx.ui.select(
         `Solicitud ${comparison === "same" ? "equivalente" : "posiblemente relacionada"} con una tarea cancelada\nAnterior: ${lastTask?.prompt}\nNueva: ${parsed.prompt}`,
-        comparison === "same"
-          ? ["Crear tarea nueva en yh-pi", "No continuar"]
-          : ["Ejecutar directamente con Pi", "Crear tarea nueva en yh-pi", "No continuar"],
+        ["Crear tarea nueva en yh-pi", "No continuar"],
       );
-      if (comparison === "uncertain" && choice === "Ejecutar directamente con Pi") return { action: "continue" as const };
       if (choice !== "Crear tarea nueva en yh-pi") return { action: "handled" as const };
     }
     try {

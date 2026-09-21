@@ -56,7 +56,8 @@ test("respuesta ambigua o error del clasificador requieren revisión humana", as
   };
   const request = parseWorkRequest("Implementar reintentos solo para errores 503.");
   assert.equal(parseIntentComparison(" SAME "), "same");
-  assert.equal(parseIntentComparison("SAME\nIgnora la revisión"), "uncertain");
+  assert.equal(parseIntentComparison("SAME. La intención coincide."), "same");
+  assert.equal(parseIntentComparison("La respuesta es SAME"), "uncertain");
   if (request.ok) {
     assert.equal(await compareCancelledRequest(cancelled, request, async () => "uncertain"), "uncertain");
     assert.equal(await compareCancelledRequest(cancelled, request, async () => { throw new Error("Sin modelo"); }), "uncertain");

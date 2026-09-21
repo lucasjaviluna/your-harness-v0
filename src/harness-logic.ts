@@ -15,7 +15,7 @@ const VALID_MODES = new Set<WorkMode>(["auto", "simple", "task", "sdd"]);
 export type IntentComparison = "same" | "different" | "uncertain";
 
 export function parseIntentComparison(output: string): IntentComparison {
-  const verdict = output.trim().toUpperCase();
+  const verdict = output.trim().toUpperCase().match(/^(SAME|DIFFERENT|UNCERTAIN)\b/)?.[1];
   if (verdict === "SAME") return "same";
   if (verdict === "DIFFERENT") return "different";
   return "uncertain";

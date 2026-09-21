@@ -53,3 +53,32 @@ test("un prompt equivalente solo permite crear una tarea nueva o no continuar", 
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+test("una comparación incierta tampoco ofrece ejecución directa", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-routing-uncertain-"));
+  try {
+    await mkdir(join(cwd, ".harness"));
+    await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({ captureInput: true }));
+    const previous = { ...createTask({ prompt: "Cambiar el login.", cwd, requestedMode: "auto", analyzeOnly: false }), phase: "cancelled" as const, route: "task" as const };
+    const handlers = new Map<string, (...args: any[]) => Promise<any>>();
+    const pi = {
+      on: (event: string, handler: (...args: any[]) => Promise<any>) => handlers.set(event, handler),
+      registerCommand: () => {}, appendEntry: () => {},
+    } as unknown as ExtensionAPI;
+    registerHarness(pi);
+    const ctx = {
+      cwd, hasUI: true, model: { id: "test-model" }, signal: undefined,
+      sessionManager: { getBranch: () => [{ type: "custom", customType: TASK_ENTRY_TYPE, data: previous }] },
+      modelRegistry: { complete: async () => ({ stopReason: "stop", content: [{ type: "text", text: "UNCERTAIN" }] }) },
+      ui: { notify: () => {}, select: async (_title: string, options: string[]) => {
+        assert.deepEqual(options, ["Crear tarea nueva en yh-pi", "No continuar"]);
+        return "No continuar";
+      } },
+    } as unknown as ExtensionContext;
+    await handlers.get("session_start")!({}, ctx);
+    const outcome = await handlers.get("input")!({ text: "Revisar el acceso.", source: "interactive" }, ctx);
+    assert.deepEqual(outcome, { action: "handled" });
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
