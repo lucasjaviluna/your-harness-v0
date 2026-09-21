@@ -9,7 +9,7 @@ La configuración del proyecto es opcional y vive en:
 La precedencia es:
 
 ```text
-defaults internos < configuración del proyecto
+defaults internos < configuración del proyecto < overrides de la sesión `yh-pi`
 ```
 
 Los valores inválidos no detienen Pi: se ignoran, se conserva el default y `/harness-doctor` muestra una advertencia.
@@ -20,6 +20,7 @@ Los valores inválidos no detienen Pi: se ignoran, se conserva el default y `/ha
 {
   "defaultMode": "auto",
   "profile": "developer",
+  "captureInput": false,
   "hil": {
     "requireApproval": true,
     "requireReview": true,
@@ -31,6 +32,8 @@ Los valores inválidos no detienen Pi: se ignoran, se conserva el default y `/ha
   }
 }
 ```
+
+`captureInput` habilita que los mensajes normales de la TUI entren automáticamente al router de pi-harness. Es `false` por default cuando se carga la extensión directamente en Pi; `yh-pi` lo activa solo para esa sesión. `--profile` y `--mode` también son overrides temporales y no modifican este archivo.
 
 `requireApproval: false` solo puede omitir la aprobación inicial de una tarea `task`; nunca elimina las autorizaciones de SDD ni los gates de cambios de alcance. `requireReview: false` permite cerrar automáticamente la ruta simple, por lo que debe reservarse para repositorios o perfiles con una política explícita de confianza.
 

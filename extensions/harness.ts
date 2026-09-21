@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "../src/assessment.ts";
 import { collectRepositoryContext } from "../src/intake.ts";
 import { buildSimpleWorkflowPrompt, captureRepositorySnapshot, createSimpleReviewGate, parseSimpleAgentResult, reviewChangedFiles, type RepositorySnapshot } from "../src/simple.ts";
@@ -70,6 +70,51 @@ export default function (pi: ExtensionAPI) {
     }
     currentConfig = (await loadConfig(ctx.cwd)).config;
     if (currentConfig.hil.recoverInterrupted && lastTask) lastTask = recoverInterruptedTask(lastTask);
+  });
+
+  async function startSimpleWorkflow(ctx: ExtensionContext): Promise<boolean> {
+    if (!lastTask || lastTask.route !== "simple") return false;
+    if (! ["planning", "implementing"].includes(lastTask.phase)) return false;
+    if (!ctx.isIdle()) {
+      showMessage(ctx, "Pi está ocupado. La tarea queda preparada para ejecutarse cuando termine el turno actual.", "warn");
+      return false;
+    }
+    simpleBaseline = await captureRepositorySnapshot(lastTask.cwd);
+    lastTask = { ...lastTask, phase: "implementing" };
+    pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+    showMessage(ctx, "Workflow simple iniciado automáticamente. Pi inspeccionará, editará y verificará la tarea; luego pedirá revisión humana.");
+    pi.sendUserMessage(buildSimpleWorkflowPrompt(lastTask, simpleBaseline), { deliverAs: "followUp" });
+    return true;
+  }
+
+  pi.on("input", async (event, ctx) => {
+    if (!currentConfig.captureInput || event.source === "extension" || event.streamingBehavior) return { action: "continue" as const };
+    const text = event.text.trim();
+    if (!text || text.startsWith("/")) return { action: "continue" as const };
+    if (lastTask && lastTask.humanGates.some((gate) => gate.blocksProgress && !gate.decision)) {
+      showMessage(ctx, "Hay una decisión HIL pendiente. Usa /harness-decide antes de iniciar otra tarea.", "warn");
+      return { action: "handled" as const };
+    }
+    const loadedConfig = await loadConfig(ctx.cwd);
+    currentConfig = loadedConfig.config;
+    const parsed = parseWorkRequest(text, currentConfig.defaultMode);
+    if (!parsed.ok) {
+      showMessage(ctx, parsed.message, "warn");
+      return { action: "handled" as const };
+    }
+    try {
+      lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask });
+      pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+      showMessage(ctx, `Solicitud capturada por yh-pi: ruta ${lastTask.route}; confianza ${lastTask.assessment?.confidence ?? "n/a"}.`);
+      if (event.images?.length) {
+        return { action: "transform" as const, text: `${event.text}\n\nNota de yh-pi: la solicitud incluye ${event.images.length} imagen(es); se conserva el contenido visual para Pi.`, images: event.images };
+      }
+      await startSimpleWorkflow(ctx);
+      return { action: "handled" as const };
+    } catch (error) {
+      showMessage(ctx, error instanceof Error ? error.message : "No se pudo preparar la tarea.", "error");
+      return { action: "handled" as const };
+    }
   });
 
   pi.registerCommand("harness-sdd", {

@@ -76,7 +76,7 @@ export function run(options) {
   const invocation = resolvePiInvocation();
   const child = spawn(invocation.command, [...invocation.prefix, ...buildPiArgs(options, extensionPath)], {
     cwd: process.cwd(),
-    env: { ...process.env, ...(options.mode ? { PI_HARNESS_MODE: options.mode } : {}), ...(options.profile ? { PI_HARNESS_PROFILE: options.profile } : {}) },
+    env: { ...process.env, PI_HARNESS_CAPTURE_INPUT: "1", ...(options.mode ? { PI_HARNESS_MODE: options.mode } : {}), ...(options.profile ? { PI_HARNESS_PROFILE: options.profile } : {}) },
     shell: invocation.shell,
     stdio: "inherit",
     windowsHide: false,

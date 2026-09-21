@@ -1,6 +1,6 @@
 # Fase 9 — Plan aprobado para CLI y experiencia TUI
 
-Estado: implementación en curso. La lógica común de ingreso y preparación de tareas y el primer CLI funcional están completados. Captura `input`, personalización TUI y validación de instalación limpia siguen pendientes.
+Estado: implementación en curso. La lógica común de ingreso y preparación de tareas, el primer CLI funcional y la captura automática de `input` están completados. Personalización TUI y validación de instalación limpia siguen pendientes.
 
 Este incremento precede a los escenarios de uso y validación descritos en [PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md). Su objetivo es que una instalación limpia permita ejecutar `yh-pi` desde la terminal, abrir la TUI de Pi con identidad visual propia y comenzar una solicitud escribiendo un mensaje normal. Los comandos `/harness-*` deben seguir disponibles para quien cargue la extensión en Pi directamente.
 
@@ -41,6 +41,7 @@ Una instalación mediante `pi install` carga recursos del package en Pi, pero no
 
 - Extraer la lógica del handler `/harness-work` a una entrada compartida: prompt original, modo, perfil, `analyzeOnly`, directorio, configuración y tarea activa. La salida incluirá tarea actualizada, evaluación, acción siguiente y cualquier gate pendiente. El contrato debe impedir duplicados y preservar el texto original.
 - En una sesión abierta con `harness`, `input` capturará solicitudes normales, respetará comandos slash y mensajes originados por extensiones, y llevará la ruta elegida al siguiente paso. En Pi abierto directamente, la captura normal será optativa por configuración; los comandos existentes mantendrán su uso explícito.
+- La implementación actual activa `captureInput` automáticamente desde `yh-pi` mediante un override de runtime. Los mensajes normales crean la tarea compartida; una ruta `simple` comienza automáticamente, mientras que `task`, `sdd` y `clarify` quedan detenidas en su gate HIL. Los mensajes de extensión, steering y comandos slash pasan sin ser reinterpretados.
 - `simple` iniciará el workflow directo; `task` continuará tras aprobar objetivo y plan; `sdd` delegará a OpenSpec después de cada autorización o revisión; `clarify` esperará una respuesta y reevaluará. Un gate bloqueante nunca se resolverá por inferencia de un texto ambiguo: la TUI ofrecerá una decisión explícita y `/harness-decide` conservará su función.
 - Al reabrir Pi, reconstruir la tarea y presentar el gate de recuperación cuando corresponda. Evitar que un mismo evento o respuesta ejecute dos veces un paso. Si una entrada con imágenes u otro contenido no está soportada por el adaptador, dejarla pasar a Pi con una indicación clara, sin descartarla silenciosamente.
 - `developer` seguirá siendo el perfil predeterminado. Añadir un flujo genérico funcional para analistas, producto y marketing que pueda preguntar, planificar, entregar y revisar sin exigir Git, código o tests. Una solicitud no técnica compleja sin OpenSpec se tratará como `task` persistente con plan y revisión HIL, explicando la recomendación.
@@ -58,7 +59,7 @@ La precedencia será: defaults internos < `.harness/config.json` < opciones de l
 
 1. Refactorizar el ingreso y las transiciones hacia `src/harness-logic.ts`, manteniendo los comandos actuales. Verificar que `/harness-work` siga creando la misma evaluación, tarea y gates. **Completado.**
 2. Añadir CLI, manifest y dependencias. **Completado en código:** `bin/yh-pi.js`, `package.json`, precedencia de configuración y tests de parsing/packaging. Pendiente instalar el tarball en un consumidor limpio y comprobar apertura real de la TUI; el tema se incorpora en el siguiente incremento visual.
-3. Incorporar `input` y la continuación automática. Validar equivalencia entre mensaje normal y `/harness-work`, los cuatro destinos `simple`, `task`, `sdd`, `clarify`, y la ausencia de duplicados o saltos de aprobación.
+3. Incorporar `input` y la continuación automática. **Completado en código:** captura opt-in, protección para slash/extension/steering, creación compartida de tareas y arranque automático de `simple`. Pendiente validar en TUI la equivalencia entre mensaje normal y `/harness-work`, los cuatro destinos y la ausencia de duplicados o saltos de aprobación.
 4. Incorporar el flujo genérico para perfiles no técnicos y la presentación TUI. Validar una solicitud sin repositorio Git y un caso complejo que pase a `task` con plan persistente.
 5. Ejecutar los escenarios de [PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md): Windows/PowerShell y Git Bash, OpenSpec real en consumidor, interrupción y recuperación, reencaminamiento y evaluación por una persona distinta del autor. Registrar fricciones y corregir fallos antes de decidir publicación.
 

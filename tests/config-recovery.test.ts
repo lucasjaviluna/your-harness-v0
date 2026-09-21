@@ -35,6 +35,12 @@ test("los overrides de runtime prevalecen sobre la configuración del proyecto",
   assert.equal(result.config.profile, "product-owner");
 });
 
+test("la captura de input queda apagada por default y puede activarse por runtime", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-config-input-"));
+  assert.equal((await loadConfig(cwd, {})).config.captureInput, false);
+  assert.equal((await loadConfig(cwd, { captureInput: true })).config.captureInput, true);
+});
+
 test("una tarea interrumpida vuelve a planificación con gate de recuperación", () => {
   const task = createTask({ prompt: "Actualizar permisos por rol", cwd: ".", requestedMode: "sdd", analyzeOnly: false });
   const interrupted = recoverInterruptedTask({ ...task, phase: "implementing", route: "sdd" });

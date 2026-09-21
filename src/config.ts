@@ -7,16 +7,17 @@ export const HARNESS_CONFIG_PATH = ".harness/config.json";
 export type HarnessConfig = {
   defaultMode: WorkMode;
   profile: UserProfile;
+  captureInput: boolean;
   hil: { requireApproval: boolean; requireReview: boolean; recoverInterrupted: boolean };
   routing: { allowManualOverride: boolean; allowRerouteToSdd: boolean };
 };
 
 export type ConfigResult = { config: HarnessConfig; path?: string; warnings: string[]; source: "defaults" | "project" };
 
-export type HarnessRuntimeOverrides = Partial<Pick<HarnessConfig, "defaultMode" | "profile">>;
+export type HarnessRuntimeOverrides = Partial<Pick<HarnessConfig, "defaultMode" | "profile" | "captureInput">>;
 
 export const DEFAULT_CONFIG: HarnessConfig = {
-  defaultMode: "auto", profile: "developer",
+  defaultMode: "auto", profile: "developer", captureInput: false,
   hil: { requireApproval: true, requireReview: true, recoverInterrupted: true },
   routing: { allowManualOverride: true, allowRerouteToSdd: true },
 };
@@ -31,6 +32,7 @@ export function readRuntimeOverrides(env: NodeJS.ProcessEnv = process.env): Harn
   const overrides: HarnessRuntimeOverrides = {};
   if (env.PI_HARNESS_MODE && isWorkMode(env.PI_HARNESS_MODE)) overrides.defaultMode = env.PI_HARNESS_MODE;
   if (env.PI_HARNESS_PROFILE && isUserProfile(env.PI_HARNESS_PROFILE)) overrides.profile = env.PI_HARNESS_PROFILE;
+  if (env.PI_HARNESS_CAPTURE_INPUT !== undefined) overrides.captureInput = ["1", "true", "yes"].includes(env.PI_HARNESS_CAPTURE_INPUT.toLowerCase());
   return overrides;
 }
 
@@ -53,6 +55,10 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
     else if (parsed.defaultMode !== undefined) warnings.push("defaultMode inválido; se usa auto.");
     if (typeof parsed.profile === "string" && PROFILES.has(parsed.profile as UserProfile)) config.profile = parsed.profile as UserProfile;
     else if (parsed.profile !== undefined) warnings.push("profile inválido; se usa developer.");
+    if (parsed.captureInput !== undefined) {
+      if (typeof parsed.captureInput === "boolean") config.captureInput = parsed.captureInput;
+      else warnings.push("captureInput inválido; se conserva el valor default.");
+    }
     const hil = parsed.hil && typeof parsed.hil === "object" ? parsed.hil as Record<string, unknown> : undefined;
     const routing = parsed.routing && typeof parsed.routing === "object" ? parsed.routing as Record<string, unknown> : undefined;
     for (const key of ["requireApproval", "requireReview", "recoverInterrupted"] as const) {
@@ -67,7 +73,7 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
         else warnings.push(`routing.${key} inválido; se conserva el valor default.`);
       }
     }
-    const known = new Set(["defaultMode", "profile", "hil", "routing"]);
+    const known = new Set(["defaultMode", "profile", "captureInput", "hil", "routing"]);
     for (const key of Object.keys(parsed)) if (!known.has(key)) warnings.push(`Clave desconocida ignorada: ${key}.`);
     return { config: applyRuntimeOverrides(config, runtimeOverrides), path, warnings, source: "project" };
   } catch (error) {
@@ -76,5 +82,5 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
 }
 
 export function formatConfig(result: ConfigResult): string {
-  return [`Configuración: ${result.source}`, `Archivo: ${result.path ?? "defaults internos"}`, `Modo default: ${result.config.defaultMode}`, `Perfil: ${result.config.profile}`, `HIL approval: ${result.config.hil.requireApproval ? "sí" : "no"}`, `HIL review: ${result.config.hil.requireReview ? "sí" : "no"}`, `Recuperar interrupciones: ${result.config.hil.recoverInterrupted ? "sí" : "no"}`, ...result.warnings.map((warning) => `Advertencia: ${warning}`)].join("\n");
+  return [`Configuración: ${result.source}`, `Archivo: ${result.path ?? "defaults internos"}`, `Modo default: ${result.config.defaultMode}`, `Perfil: ${result.config.profile}`, `Captura input: ${result.config.captureInput ? "sí" : "no"}`, `HIL approval: ${result.config.hil.requireApproval ? "sí" : "no"}`, `HIL review: ${result.config.hil.requireReview ? "sí" : "no"}`, `Recuperar interrupciones: ${result.config.hil.recoverInterrupted ? "sí" : "no"}`, ...result.warnings.map((warning) => `Advertencia: ${warning}`)].join("\n");
 }
