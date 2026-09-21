@@ -49,3 +49,16 @@ Para cada ejecución documentar repositorio y commit inicial, prompt, modo y rut
 ## Decisión de alcance
 
 Azure DevOps y otras integraciones externas se mantienen fuera de esta fase. Solo se reconsiderarán después de validar que el flujo basado en prompt, contexto local, routing, HIL, implementación y verificación aporta valor de forma consistente.
+
+## Resultado de la validación automatizada
+
+Última ejecución en Windows:
+
+- `npm run pack:check`: correcto; el tarball contiene el CLI, la extensión, el core, las skills y la documentación.
+- `node bin/yh-pi.js --help`: correcto.
+- `node bin/yh-pi.js --version`: correcto.
+- Pruebas unitarias y de routing: correctas.
+- Instalación del tarball en consumidor: pendiente; la resolución de dependencias no terminó dentro del límite de 30 segundos y el escenario queda marcado como `skip` para evitar bloquear la suite.
+- Git Bash: pendiente; el entorno de validación no expone `pi` en su `PATH`.
+
+La validación manual pendiente debe ejecutarse desde un entorno donde Pi esté instalado y pueda abrir una TUI. Allí se probarán los flujos `simple`, `task`, `sdd`, `clarify`, la recuperación y los checkpoints HIL.
