@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyAssessment, assessTask, decideGate } from "../src/assessment.ts";
-import { createTask, unresolvedGate } from "../src/task.ts";
+import { applyAssessment, assessTask, decideGate, requestScopeChange } from "../src/assessment.ts";
+import { createTask, formatTaskStatus, unresolvedGate } from "../src/task.ts";
 
 function task(prompt: string, requestedMode: "auto" | "simple" | "task" | "sdd" = "auto") {
   return createTask({ prompt, cwd: "C:/fixture", requestedMode, analyzeOnly: false });
@@ -59,6 +59,17 @@ test("una decisión SDD se persiste y desbloquea la planificación", () => {
   assert.equal(approved.phase, "planning");
   assert.equal(unresolvedGate(approved), undefined);
   assert.equal(approved.humanGates[0].decision?.value, "approve");
+});
+
+test("cancelar una tarea resuelve todos los gates pendientes", () => {
+  const assessed = applyAssessment(task("Agregar permisos por rol."));
+  const changedScope = requestScopeChange(assessed, "Agregar permisos y documentar los roles.");
+  const cancelled = decideGate(changedScope, "cancel");
+  assert.equal(cancelled.phase, "cancelled");
+  assert.equal(unresolvedGate(cancelled), undefined);
+  assert.ok(cancelled.humanGates.every((gate) => gate.decision?.value === "cancel"));
+  assert.match(formatTaskStatus(cancelled), /Decisión requerida: ninguna/);
+  assert.throws(() => requestScopeChange(cancelled, "Retomar la tarea"), /no se puede reactivar/);
 });
 
 test("una aclaración se conserva sin alterar el prompt original y se reevalúa", () => {

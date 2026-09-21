@@ -282,7 +282,7 @@ No incluye:
 - La Fase 7 está completada: configuración validada, precedencia, recuperación HIL, idempotencia, diagnósticos y convivencia por prefijo implementados.
 - La Fase 8 está completada técnicamente: pruebas de distribución, consumidores temporales, manifest y documentación ejecutados; la publicación npm requiere una decisión y autorización explícitas.
 - La próxima unidad de trabajo recomendada es la Fase 9: uso y validación operativa en repositorios consumidores, incluyendo el flujo SDD real con OpenSpec.
-- El primer incremento de la Fase 9 tiene un plan aprobado en `docs/PHASE_9_CLI_TUI_PLAN.md`: CLI `yh-pi` con Node, entrada normal y slash unificadas, continuación con gates HIL, perfiles genéricos e identidad visual de la TUI. CLI y captura de `input` ya están implementados; la vista navegable de planes y la aprobación versionada quedan pendientes.
+- El primer incremento de la Fase 9 tiene un plan aprobado en `docs/PHASE_9_CLI_TUI_PLAN.md`: CLI `yh-pi` con Node, entrada normal y slash unificadas, continuación con gates HIL, perfiles genéricos e identidad visual de la TUI. CLI, captura de `input`, contrato `HarnessPlan` y revisión TUI inicial ya están implementados; queda pendiente el overlay navegable enriquecido, la separación explícita del gate de inicio de implementación y la identidad visual final.
 - La publicación npm se decidirá después de la validación operativa, no antes.
 - Azure DevOps y otras integraciones externas quedan postergadas hasta confirmar la utilidad y estabilidad del flujo base.
 - El perfil default del MVP es `developer`; el core se mantiene agnóstico para habilitar perfiles funcionales, de producto y marketing en fases posteriores.

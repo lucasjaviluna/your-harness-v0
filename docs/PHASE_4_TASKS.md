@@ -64,11 +64,16 @@ El cambio crea un nuevo gate bloqueante. No se continúa silenciosamente con un 
 ```text
 /harness-task-resume [task-id]
 /harness-task-status
+/harness-task-delete
 /harness-task-scope <nuevo alcance>
 /harness-task-close <resumen>
 ```
 
 `/harness-task-resume` lee el artefacto desde `.harness/tasks`, reconstruye el estado y lo vuelve a asociar a la sesión de Pi. Si no se pasa un identificador, recupera el último archivo disponible.
+
+Al cancelar, la tarea queda en estado terminal `cancelled`: el Markdown registra la fecha y la decisión humana, y no propone pasos siguientes. El archivo se conserva por defecto como evidencia; para retomar la solicitud se crea otra tarea, no se reactiva la cancelada. La TUI ofrece conservarlo o eliminarlo tras cancelar. Más adelante, `/harness-task-delete` permite eliminar únicamente el archivo de la última tarea ligera cancelada, mostrando su ruta exacta y solicitando confirmación. Esta acción no borra el historial de la sesión de Pi.
+
+Si la persona envía otro prompt después de cancelar, yh-pi compara la intención con la última tarea cancelada. Una repetición literal se reconoce localmente; para otras formulaciones consulta brevemente al modelo configurado en Pi. Si la tarea es idéntica o equivalente, la TUI ofrece crear una tarea nueva en yh-pi o no continuar. Cuando la comparación es incierta, también ofrece ejecutar directamente con Pi. La TUI muestra el pedido anterior y el nuevo antes de elegir. Si el modelo no está disponible, la comparación queda como incierta y se solicita la revisión humana. Un comando explícito `/harness-work ...` inicia una tarea nueva mediante el flujo habitual de yh-pi.
 
 `/harness-task-close` solo funciona desde `awaiting-review`. El resultado común registra estado, resumen, artefactos, verificaciones y riesgos; la implementación real y las verificaciones concretas se completarán en la Fase 5.
 

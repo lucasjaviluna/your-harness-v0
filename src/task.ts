@@ -39,6 +39,20 @@ export type WorkResult = {
   risks: string[];
 };
 
+export type HarnessPlan = {
+  id: string;
+  version: number;
+  objective: string;
+  scope: string;
+  steps: string[];
+  affectedFiles: string[];
+  verificationCommands: string[];
+  risks: string[];
+  assumptions: string[];
+  approvedVersion?: number;
+  approvedAt?: string;
+};
+
 export type RepositoryContext = {
   repoRoot?: string;
   instructionFiles: Array<{ path: string; content: string }>;
@@ -86,6 +100,7 @@ export type HarnessTask = {
   artifactPath?: string;
   scope?: string;
   assessment?: Assessment;
+  plan?: HarnessPlan;
   humanGates: HumanGate[];
   clarifications: string[];
   context?: RepositoryContext;

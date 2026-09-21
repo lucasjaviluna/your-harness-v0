@@ -4,12 +4,36 @@ import { loadConfig, type HarnessConfig } from "./config.ts";
 import { isActiveTask } from "./recovery.ts";
 import { writeTaskArtifact } from "./task-artifact.ts";
 import { createTask, type HarnessTask, type UserProfile, type WorkMode } from "./task.ts";
+import { createHarnessPlan } from "./plan.ts";
 
 export type ParsedWorkRequest =
   | { ok: true; prompt: string; requestedMode: WorkMode; analyzeOnly: boolean }
   | { ok: false; message: string };
 
 const VALID_MODES = new Set<WorkMode>(["auto", "simple", "task", "sdd"]);
+
+export type IntentComparison = "same" | "different" | "uncertain";
+
+export function parseIntentComparison(output: string): IntentComparison {
+  const verdict = output.trim().toUpperCase();
+  if (verdict === "SAME") return "same";
+  if (verdict === "DIFFERENT") return "different";
+  return "uncertain";
+}
+
+export async function compareCancelledRequest(
+  task: HarnessTask | undefined,
+  request: ParsedWorkRequest & { ok: true },
+  classify: (previous: string, current: string) => Promise<IntentComparison>,
+): Promise<IntentComparison | "not-cancelled"> {
+  if (!task || task.phase !== "cancelled") return "not-cancelled";
+  if (task.prompt.trim() === request.prompt.trim()) return "same";
+  try {
+    return await classify(task.prompt, request.prompt);
+  } catch {
+    return "uncertain";
+  }
+}
 
 export function parseWorkRequest(args: string, defaultMode: WorkMode = "auto"): ParsedWorkRequest {
   let remaining = args.trim();
@@ -83,6 +107,7 @@ export async function prepareHarnessTask(input: {
     context,
     profile: input.profile ?? config.profile,
   }));
+  task = { ...task, plan: createHarnessPlan(task) };
   if (!config.hil.requireApproval && task.route === "task" && task.phase === "awaiting-approval") {
     task = { ...task, phase: "planning", humanGates: task.humanGates.filter((gate) => gate.kind !== "authorize") };
   }

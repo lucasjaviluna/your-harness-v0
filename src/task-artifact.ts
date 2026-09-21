@@ -1,6 +1,7 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { lstat, mkdir, readFile, readdir, realpath, unlink, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { hydrateHarnessTask, isHarnessTask, type HarnessTask } from "./task.ts";
+import { formatPlanDetails } from "./plan.ts";
 
 export const TASK_ARTIFACT_DIRECTORY = ".harness/tasks";
 
@@ -43,6 +44,15 @@ function decisions(task: HarnessTask): string {
   return entries.length ? entries.join("\n") : "- No hay decisiones registradas.";
 }
 
+function renderDecisions(task: HarnessTask, previous?: string): string {
+  const current = decisions(task);
+  if (!previous || previous === "- No hay decisiones registradas.") return current;
+  if (current === "- No hay decisiones registradas.") return previous;
+  const previousLines = new Set(previous.split(/\r?\n/));
+  const added = current.split("\n").filter((line) => !previousLines.has(line));
+  return [previous, ...added].join("\n");
+}
+
 function evidence(task: HarnessTask): string {
   const entries = task.assessment?.evidence ?? [];
   return entries.length ? entries.map((item) => `- ${item}`).join("\n") : "- No hay evidencia registrada.";
@@ -60,6 +70,7 @@ export function renderTaskArtifact(task: HarnessTask, previousContent?: string):
     `- Route: **${task.route ?? "task"}**`,
     `- Profile: **${task.profile}**`,
     `- Created: ${task.createdAt}`,
+    ...(task.phase === "cancelled" ? [`- Cancelled: ${[...task.humanGates].reverse().find((gate) => gate.decision?.value === "cancel")?.decision?.decidedAt ?? "fecha no disponible"}`] : []),
     "",
     "<!-- pi-harness-state",
     state,
@@ -73,6 +84,10 @@ export function renderTaskArtifact(task: HarnessTask, previousContent?: string):
     "",
     task.scope ?? task.prompt,
     "",
+    "## Plan",
+    "",
+    task.plan ? formatPlanDetails(task.plan) : "No hay un plan generado todavía.",
+    "",
     "## Constraints",
     "",
     "- Mantener el alcance aprobado.",
@@ -84,7 +99,7 @@ export function renderTaskArtifact(task: HarnessTask, previousContent?: string):
     "",
     "## Decisions",
     "",
-    preservedDecisions || decisions(task),
+    renderDecisions(task, preservedDecisions),
     "",
     "## Evidence",
     "",
@@ -103,11 +118,37 @@ export function renderTaskArtifact(task: HarnessTask, previousContent?: string):
 }
 
 function nextStep(task: HarnessTask): string {
+  if (task.phase === "cancelled") return "Sin próximos pasos. Si se retoma la solicitud, crear una tarea nueva.";
   if (task.phase === "awaiting-approval") return "Esperar aprobación o revisión del alcance y plan mediante `/harness-decide`.";
   if (task.phase === "planning") return "Preparar la implementación y actualizar las tareas del plan.";
   if (task.phase === "blocked") return "Resolver el bloqueo registrado antes de continuar.";
   if (task.phase === "done") return "Tarea cerrada; conservar este archivo como historial breve.";
   return "Continuar desde el último estado persistido.";
+}
+
+export async function deleteCancelledTaskArtifact(task: HarnessTask): Promise<string> {
+  if (task.phase !== "cancelled" || task.route !== "task") {
+    throw new Error("Solo se puede eliminar el artefacto de una tarea ligera cancelada.");
+  }
+  if (!/^harness-\d{14}-[a-z0-9]+$/.test(task.id)) {
+    throw new Error("El identificador de la tarea no es válido para eliminar un artefacto.");
+  }
+  const path = artifactPath(task.cwd, task.id);
+  const expectedDirectory = join(await realpath(task.cwd), TASK_ARTIFACT_DIRECTORY);
+  if (await realpath(dirname(path)) !== expectedDirectory) {
+    throw new Error("El directorio del artefacto no coincide con el directorio de tareas esperado.");
+  }
+  if (task.artifactPath && resolve(task.artifactPath) !== path) {
+    throw new Error("La ruta del artefacto no coincide con la tarea cancelada.");
+  }
+  const stat = await lstat(path);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("El artefacto debe ser un archivo regular, no un enlace.");
+  const recovered = await readTaskArtifact(task.cwd, task.id);
+  if (recovered.path !== path || recovered.task.id !== task.id || recovered.task.phase !== "cancelled" || resolve(recovered.task.cwd) !== resolve(task.cwd)) {
+    throw new Error("El estado del archivo no coincide con la tarea cancelada.");
+  }
+  await unlink(path);
+  return path;
 }
 
 export async function writeTaskArtifact(task: HarnessTask): Promise<string> {

@@ -133,7 +133,13 @@ export function decideGate(task: HarnessTask, value: HumanDecisionValue, note?: 
   if (gate.kind === "clarify" && value === "answer" && !note?.trim()) throw new Error("La respuesta de aclaración no puede estar vacía.");
   const decidedGate: HumanGate = { ...gate, decision: { value, note: note?.trim() || undefined, decidedAt: new Date().toISOString() } };
   const humanGates = task.humanGates.map((item) => item.id === gate.id ? decidedGate : item);
-  if (value === "cancel") return { ...task, humanGates, phase: "cancelled" };
+  if (value === "cancel") {
+    const cancelledAt = new Date().toISOString();
+    const cancelledGates = humanGates.map((item) => item.blocksProgress && !item.decision
+      ? { ...item, decision: { value: "cancel" as const, note: note?.trim() || "Tarea cancelada.", decidedAt: cancelledAt } }
+      : item);
+    return { ...task, humanGates: cancelledGates, phase: "cancelled" };
+  }
   if (gate.kind === "clarify" && value === "answer") {
     return applyAssessment({ ...task, humanGates, clarifications: [...task.clarifications, note!.trim()], phase: "assessing" });
   }
@@ -167,6 +173,7 @@ export function rerouteToSdd(task: HarnessTask, reason: string): HarnessTask {
 }
 
 export function requestScopeChange(task: HarnessTask, newScope: string): HarnessTask {
+  if (task.phase === "cancelled") throw new Error("Una tarea cancelada no se puede reactivar; crea una tarea nueva.");
   const scope = newScope.trim();
   if (!scope) throw new Error("El nuevo alcance no puede estar vacío.");
   const gate: HumanGate = {
