@@ -15,6 +15,9 @@ test("rechaza modos y perfiles inválidos", () => {
 
 test("construye el arranque de Pi con la extensión de harness", () => {
   const options = parseCliArgs(["--", "--no-tools"]);
-  assert.deepEqual(buildPiArgs(options, "C:/pkg/extensions/harness.ts"), ["-e", "C:/pkg/extensions/harness.ts", "--no-tools"]);
+  const args = buildPiArgs(options, "C:/pkg/extensions/harness.ts");
+  assert.deepEqual(args.slice(0, 2), ["-e", "C:/pkg/extensions/harness.ts"]);
+  assert.deepEqual(args.slice(-1), ["--no-tools"]);
+  assert.ok(args.includes("yh-pi"));
   assert.match(helpText(), /yh-pi/);
 });

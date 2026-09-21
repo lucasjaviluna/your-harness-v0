@@ -36,7 +36,8 @@ export function parseCliArgs(args) {
 }
 
 export function buildPiArgs(options, extensionPath) {
-  return ["-e", extensionPath, ...options.passthrough];
+  const themePath = fileURLToPath(new URL("../themes/yh-pi.json", import.meta.url));
+  return ["-e", extensionPath, "--theme", themePath, "--use-theme", "yh-pi", ...options.passthrough];
 }
 
 function resolveBundledPi() {

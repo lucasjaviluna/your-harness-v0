@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "../src/assessment.ts";
 import { collectRepositoryContext } from "../src/intake.ts";
 import { buildSimpleWorkflowPrompt, captureRepositorySnapshot, createSimpleReviewGate, parseSimpleAgentResult, reviewChangedFiles, type RepositorySnapshot } from "../src/simple.ts";
@@ -45,6 +45,18 @@ function updateHarnessTui(ctx: ExtensionContext): void {
   if (ctx.mode !== "tui") return;
   const gate = lastTask?.humanGates.find((item) => item.blocksProgress && !item.decision);
   const ui = ctx.ui;
+  ui.setHeader((_tui, theme: Theme) => ({
+    render(_width: number): string[] {
+      const route = lastTask?.route ?? "sin ruta";
+      const phase = lastTask?.phase ?? "sin tarea activa";
+      return [
+        "",
+        `${theme.fg("accent", "yh-pi")} ${theme.fg("muted", "Your Harness")} ${theme.fg("dim", `· ${currentConfig.profile} · ${route} · ${phase}`)}`,
+        "",
+      ];
+    },
+    invalidate() {},
+  }));
   ui.setTitle(`yh-pi · ${currentConfig.profile}`);
   if (!lastTask) {
     ui.setStatus("yh-pi", `perfil ${currentConfig.profile} · sin tarea activa`);

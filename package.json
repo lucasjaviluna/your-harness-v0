@@ -14,6 +14,7 @@
     "extensions",
     "src",
     "skills",
+    "themes",
     "docs",
     "README.md",
     "package.json"
@@ -35,6 +36,7 @@
   },
   "pi": {
     "extensions": ["./extensions"],
-    "skills": ["./skills"]
+    "skills": ["./skills"],
+    "themes": ["./themes"]
   }
 }

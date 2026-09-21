@@ -1,6 +1,6 @@
 # Fase 9 — Plan aprobado para CLI y experiencia TUI
 
-Estado: implementación en curso. La lógica común de ingreso y preparación de tareas, el primer CLI funcional, la captura automática de `input`, los gates HIL separados y el estado visible de yh-pi en la TUI están completados. La identidad visual final y la validación de instalación limpia siguen pendientes.
+Estado: implementación en curso. La lógica común de ingreso y preparación de tareas, el primer CLI funcional, la captura automática de `input`, los gates HIL separados y la identidad visual base de yh-pi en la TUI están completados. La validación de instalación limpia y una iteración visual basada en uso siguen pendientes.
 
 Este incremento precede a los escenarios de uso y validación descritos en [PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md). Su objetivo es que una instalación limpia permita ejecutar `yh-pi` desde la terminal, abrir la TUI de Pi con identidad visual propia y comenzar una solicitud escribiendo un mensaje normal. Los comandos `/harness-*` deben seguir disponibles para quien cargue la extensión en Pi directamente.
 
@@ -53,7 +53,7 @@ Una instalación mediante `pi install` carga recursos del package en Pi, pero no
 
 La precedencia será: defaults internos < `.harness/config.json` < opciones de la invocación actual de `harness`. El CLI activará la captura de mensajes y la apariencia de harness para su sesión; cargar la extensión en Pi directamente mantendrá el comportamiento habitual, salvo configuración explícita del proyecto. El perfil y modo elegidos al lanzar se aplicarán a esa sesión sin sobrescribir el archivo del proyecto.
 
-- Incluir un tema `harness` en el manifest `pi.themes` y seleccionarlo solo para la invocación del CLI.
+- Incluir el tema `yh-pi` en el manifest `pi.themes` y seleccionarlo solo para la invocación del CLI. El tema usa texto claro, fondos seleccionados contrastantes y colores visibles en terminales oscuras como Git Bash.
 - En `session_start`, mostrar una cabecera breve con nombre del producto, perfil y modo. Usar `setStatus` para ruta, fase y decisión pendiente; usar un widget temporal para gates HIL y retirarlo al resolverlos.
 - Para un gate de autorización, usar una interacción en dos niveles: resumen del plan → vista completa opcional → acciones `Aprobar`, `Modificar` o `Cancelar`. La aprobación del plan abre un checkpoint separado para autorizar el inicio de implementación.
 - Para revisión final, mostrar resultado, diff o artefactos, verificaciones ejecutadas, verificaciones omitidas y riesgos antes de permitir `Aprobar y cerrar` o `Solicitar cambios`.
