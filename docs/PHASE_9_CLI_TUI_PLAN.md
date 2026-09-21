@@ -1,14 +1,14 @@
 # Fase 9 — Plan aprobado para CLI y experiencia TUI
 
-Estado: implementación iniciada. El primer paso, extraer la lógica común de ingreso y preparación de tareas, está completado. CLI, captura `input` y personalización TUI siguen pendientes.
+Estado: implementación en curso. La lógica común de ingreso y preparación de tareas y el primer CLI funcional están completados. Captura `input`, personalización TUI y validación de instalación limpia siguen pendientes.
 
-Este incremento precede a los escenarios de uso y validación descritos en [PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md). Su objetivo es que una instalación limpia permita ejecutar `harness` desde la terminal, abrir la TUI de Pi con identidad visual propia y comenzar una solicitud escribiendo un mensaje normal. Los comandos `/harness-*` deben seguir disponibles para quien cargue la extensión en Pi directamente.
+Este incremento precede a los escenarios de uso y validación descritos en [PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md). Su objetivo es que una instalación limpia permita ejecutar `yh-pi` desde la terminal, abrir la TUI de Pi con identidad visual propia y comenzar una solicitud escribiendo un mensaje normal. Los comandos `/harness-*` deben seguir disponibles para quien cargue la extensión en Pi directamente.
 
 ## 1. Responsabilidades
 
 | Componente | Responsabilidad |
 | --- | --- |
-| CLI `bin/harness.js` | Interpretar opciones de arranque, localizar Pi y el package instalado, iniciar la TUI desde el directorio actual, transmitir señales y devolver el código de salida. No decide rutas ni ejecuta tareas. |
+| CLI `bin/yh-pi.js` | Interpretar opciones de arranque, localizar Pi y el package instalado, iniciar la TUI desde el directorio actual, transmitir señales y devolver el código de salida. No decide rutas ni ejecuta tareas. |
 | `src/harness-logic.ts` | Recibir la solicitud original, perfil, configuración y estado; evaluar la ruta; producir la siguiente transición o acción de workflow. Reutiliza `assessment.ts`, `task.ts`, `simple.ts`, `openspec.ts` y los artefactos existentes. |
 | `extensions/harness.ts` | Adaptar Pi a la lógica compartida: registrar comandos slash, atender `input`, persistir estado en la sesión, delegar trabajos al agente y mostrar decisiones HIL. |
 | Capa de presentación de la extensión | Mostrar cabecera, tema, estado y checkpoints en modo TUI; retirar indicadores cuando ya no correspondan. No contiene reglas de negocio. |
@@ -27,13 +27,15 @@ Pi despacha los comandos de extensión antes del evento `input`. Por eso ambas e
 
 ## 2. Contrato inicial del CLI y distribución
 
-- Declarar `"bin": { "harness": "./bin/harness.js" }` e incluir `bin/` y el tema en `files` del `package.json`.
-- El archivo de entrada será JavaScript ejecutable con `#!/usr/bin/env node`. Comandos iniciales: `harness`, `harness --profile <perfil>`, `harness --mode <auto|simple|task|sdd>`, `harness --help` y `harness --version`. El directorio de trabajo será aquel desde el que se invoque el comando.
+- Declarar `"bin": { "yh-pi": "./bin/yh-pi.js" }` e incluir `bin/` y el tema en `files` del `package.json`.
+- El archivo de entrada será JavaScript ejecutable con `#!/usr/bin/env node`. Comandos iniciales: `yh-pi`, `yh-pi --profile <perfil>`, `yh-pi --mode <auto|simple|task|sdd>`, `yh-pi --help` y `yh-pi --version`. El directorio de trabajo será aquel desde el que se invoque el comando.
 - Usar Node `>=22.19.0` y una dependencia de Pi con rango acotado y verificado a partir de `0.85.1`, en lugar del peer `*` actual. El CLI resolverá el ejecutable de esa instalación para que una instalación npm del package pueda abrir la TUI sin exigir un `pi` global independiente.
+- La implementación actual declara `@earendil-works/pi-coding-agent` como dependencia `^0.85.1`, resuelve su entrypoint con Node y mantiene un fallback al comando `pi` del sistema para desarrollo local sin `node_modules`.
+- Las opciones `--profile` y `--mode` se transportan mediante overrides de runtime (`PI_HARNESS_PROFILE` y `PI_HARNESS_MODE`); la precedencia queda defaults internos < configuración de proyecto < overrides de la invocación.
 - Iniciar Pi con los recursos del propio package y el tema `harness`, conservar entrada/salida interactiva y propagar señales y código de salida. Los indicadores de arranque serán temporales de la invocación; no modificarán la configuración global de Pi.
 - Mantener la distribución por npm con Node como primera vía. Un release compilado con Bun se evaluará después de validar uso e instalación; publicar en npm no forma parte de este incremento.
 
-Una instalación mediante `pi install` carga recursos del package en Pi, pero no crea por sí sola el comando de terminal `harness`. El comando se probará mediante instalación npm desde un tarball local antes de publicarlo.
+Una instalación mediante `pi install` carga recursos del package en Pi, pero no crea por sí sola el comando de terminal `yh-pi`. El comando se probará mediante instalación npm desde un tarball local antes de publicarlo.
 
 ## 3. Ingreso, rutas y Human-in-the-Middle
 
@@ -54,15 +56,15 @@ La precedencia será: defaults internos < `.harness/config.json` < opciones de l
 
 ## 5. Orden de implementación y validación
 
-1. Refactorizar el ingreso y las transiciones hacia `src/harness-logic.ts`, manteniendo los comandos actuales. Verificar que `/harness-work` siga creando la misma evaluación, tarea y gates.
-2. Añadir CLI, manifest, dependencias y tema. Instalar el tarball en un consumidor limpio y comprobar `harness --help`, `--version` y apertura de la TUI desde el directorio consumidor.
+1. Refactorizar el ingreso y las transiciones hacia `src/harness-logic.ts`, manteniendo los comandos actuales. Verificar que `/harness-work` siga creando la misma evaluación, tarea y gates. **Completado.**
+2. Añadir CLI, manifest y dependencias. **Completado en código:** `bin/yh-pi.js`, `package.json`, precedencia de configuración y tests de parsing/packaging. Pendiente instalar el tarball en un consumidor limpio y comprobar apertura real de la TUI; el tema se incorpora en el siguiente incremento visual.
 3. Incorporar `input` y la continuación automática. Validar equivalencia entre mensaje normal y `/harness-work`, los cuatro destinos `simple`, `task`, `sdd`, `clarify`, y la ausencia de duplicados o saltos de aprobación.
 4. Incorporar el flujo genérico para perfiles no técnicos y la presentación TUI. Validar una solicitud sin repositorio Git y un caso complejo que pase a `task` con plan persistente.
 5. Ejecutar los escenarios de [PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md): Windows/PowerShell y Git Bash, OpenSpec real en consumidor, interrupción y recuperación, reencaminamiento y evaluación por una persona distinta del autor. Registrar fricciones y corregir fallos antes de decidir publicación.
 
 ## Criterios de aceptación
 
-- `harness` abre la TUI con el package, tema, cabecera, estado y comandos cargados desde una instalación npm limpia.
+- `yh-pi` abre la TUI con el package, tema, cabecera, estado y comandos cargados desde una instalación npm limpia.
 - La extensión usada directamente desde Pi conserva los comandos slash y no captura mensajes normales sin configuración explícita.
 - Texto normal y `/harness-work` comparten evaluación y estado. Los pasos posteriores avanzan sin exigir comandos manuales innecesarios, respetando todos los gates HIL.
 - El flujo genérico entrega un resultado revisable sin requerir repositorio o verificaciones de código.

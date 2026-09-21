@@ -51,14 +51,14 @@ async function runPi(prefix: string, extension: string, prompt: string): Promise
 
 test("el manifest distribuye el runtime necesario", { concurrency: false }, async () => {
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as { files?: string[]; pi?: { extensions?: string[]; skills?: string[] } };
-  assert.deepEqual(packageJson.files, ["extensions", "src", "skills", "docs", "README.md", "package.json"]);
+  assert.deepEqual(packageJson.files, ["bin", "extensions", "src", "skills", "docs", "README.md", "package.json"]);
   assert.deepEqual(packageJson.pi?.extensions, ["./extensions"]);
   assert.deepEqual(packageJson.pi?.skills, ["./skills"]);
   const cacheDirectory = await mkdtemp(join(tmpdir(), "pi-harness-npm-cache-"));
   const dryRun = await execFile(npmCommand, ["pack", "--dry-run", "--json", "--ignore-scripts"], { cwd: root, windowsHide: true, shell: windowsShell, env: npmEnvironment(cacheDirectory) });
   const entries = JSON.parse(dryRun.stdout) as Array<{ files?: Array<{ path: string }> }>;
   const files = entries[0]?.files?.map((file) => file.path) ?? [];
-  for (const expected of ["extensions/harness.ts", "src/task.ts", "src/openspec.ts", "skills/harness-simple/SKILL.md", "skills/harness-sdd/SKILL.md", "README.md"]) assert.ok(files.includes(expected), `Falta ${expected} en npm pack`);
+  for (const expected of ["bin/yh-pi.js", "extensions/harness.ts", "src/task.ts", "src/openspec.ts", "skills/harness-simple/SKILL.md", "skills/harness-sdd/SKILL.md", "README.md"]) assert.ok(files.includes(expected), `Falta ${expected} en npm pack`);
 });
 
 test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", { concurrency: false }, async (t) => {

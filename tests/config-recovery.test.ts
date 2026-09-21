@@ -26,6 +26,15 @@ test("valida configuración de proyecto y conserva warnings", async () => {
   assert.match(result.warnings.join("\n"), /desconocida/);
 });
 
+test("los overrides de runtime prevalecen sobre la configuración del proyecto", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-config-runtime-"));
+  await mkdir(join(cwd, ".harness"), { recursive: true });
+  await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({ defaultMode: "simple", profile: "developer" }));
+  const result = await loadConfig(cwd, { defaultMode: "sdd", profile: "product-owner" });
+  assert.equal(result.config.defaultMode, "sdd");
+  assert.equal(result.config.profile, "product-owner");
+});
+
 test("una tarea interrumpida vuelve a planificación con gate de recuperación", () => {
   const task = createTask({ prompt: "Actualizar permisos por rol", cwd: ".", requestedMode: "sdd", analyzeOnly: false });
   const interrupted = recoverInterruptedTask({ ...task, phase: "implementing", route: "sdd" });

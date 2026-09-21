@@ -307,7 +307,7 @@ Entregable: [docs/PHASE_8_VALIDATION.md](PHASE_8_VALIDATION.md), package version
 
 El objetivo de esta fase es validar que pi-harness resulta útil, comprensible y recuperable cuando se utiliza como herramienta principal en repositorios reales de prueba. No se incorporan nuevas integraciones externas durante esta fase.
 
-Antes de ejecutar los escenarios de validación, implementar el [plan aprobado de CLI y experiencia TUI](PHASE_9_CLI_TUI_PLAN.md): un comando `harness` instalable, lógica compartida para texto normal y comandos slash, avance de workflows con gates HIL, flujo genérico para perfiles no técnicos e identidad visual propia.
+Antes de ejecutar los escenarios de validación, implementar el [plan aprobado de CLI y experiencia TUI](PHASE_9_CLI_TUI_PLAN.md): un comando `yh-pi` instalable, lógica compartida para texto normal y comandos slash, avance de workflows con gates HIL, flujo genérico para perfiles no técnicos e identidad visual propia.
 
 - [ ] Preparar repositorios consumidores representativos para tareas `simple`, `task` y `sdd`.
 - [ ] Ejecutar escenarios completos desde un prompt inicial hasta el resumen final, registrando decisiones HIL, artefactos y verificaciones.

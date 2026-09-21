@@ -13,6 +13,8 @@ export type HarnessConfig = {
 
 export type ConfigResult = { config: HarnessConfig; path?: string; warnings: string[]; source: "defaults" | "project" };
 
+export type HarnessRuntimeOverrides = Partial<Pick<HarnessConfig, "defaultMode" | "profile">>;
+
 export const DEFAULT_CONFIG: HarnessConfig = {
   defaultMode: "auto", profile: "developer",
   hil: { requireApproval: true, requireReview: true, recoverInterrupted: true },
@@ -22,13 +24,27 @@ export const DEFAULT_CONFIG: HarnessConfig = {
 const MODES = new Set<WorkMode>(["auto", "simple", "task", "sdd"]);
 const PROFILES = new Set<UserProfile>(["developer", "functional-analyst", "product-owner", "marketing", "custom"]);
 
+export function isWorkMode(value: string): value is WorkMode { return MODES.has(value as WorkMode); }
+export function isUserProfile(value: string): value is UserProfile { return PROFILES.has(value as UserProfile); }
+
+export function readRuntimeOverrides(env: NodeJS.ProcessEnv = process.env): HarnessRuntimeOverrides {
+  const overrides: HarnessRuntimeOverrides = {};
+  if (env.PI_HARNESS_MODE && isWorkMode(env.PI_HARNESS_MODE)) overrides.defaultMode = env.PI_HARNESS_MODE;
+  if (env.PI_HARNESS_PROFILE && isUserProfile(env.PI_HARNESS_PROFILE)) overrides.profile = env.PI_HARNESS_PROFILE;
+  return overrides;
+}
+
+function applyRuntimeOverrides(config: HarnessConfig, overrides: HarnessRuntimeOverrides): HarnessConfig {
+  return { ...config, ...overrides };
+}
+
 async function fileExists(path: string): Promise<boolean> {
   try { await access(path); return true; } catch { return false; }
 }
 
-export async function loadConfig(cwd: string): Promise<ConfigResult> {
+export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOverrides = readRuntimeOverrides()): Promise<ConfigResult> {
   const path = join(resolve(cwd), HARNESS_CONFIG_PATH);
-  if (!(await fileExists(path))) return { config: structuredClone(DEFAULT_CONFIG), warnings: [], source: "defaults" };
+  if (!(await fileExists(path))) return { config: applyRuntimeOverrides(structuredClone(DEFAULT_CONFIG), runtimeOverrides), warnings: [], source: "defaults" };
   try {
     const parsed = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
     const warnings: string[] = [];
@@ -53,9 +69,9 @@ export async function loadConfig(cwd: string): Promise<ConfigResult> {
     }
     const known = new Set(["defaultMode", "profile", "hil", "routing"]);
     for (const key of Object.keys(parsed)) if (!known.has(key)) warnings.push(`Clave desconocida ignorada: ${key}.`);
-    return { config, path, warnings, source: "project" };
+    return { config: applyRuntimeOverrides(config, runtimeOverrides), path, warnings, source: "project" };
   } catch (error) {
-    return { config: structuredClone(DEFAULT_CONFIG), path, warnings: [`No se pudo leer la configuración: ${error instanceof Error ? error.message : String(error)}`], source: "defaults" };
+    return { config: applyRuntimeOverrides(structuredClone(DEFAULT_CONFIG), runtimeOverrides), path, warnings: [`No se pudo leer la configuración: ${error instanceof Error ? error.message : String(error)}`], source: "defaults" };
   }
 }
 

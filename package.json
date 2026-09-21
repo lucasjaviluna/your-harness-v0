@@ -10,6 +10,7 @@
   ],
   "license": "MIT",
   "files": [
+    "bin",
     "extensions",
     "src",
     "skills",
@@ -18,13 +19,19 @@
     "package.json"
   ],
   "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "bin": {
+    "yh-pi": "./bin/yh-pi.js"
+  },
   "scripts": {
     "test": "node --experimental-transform-types --test",
     "test:e2e": "node --experimental-transform-types --test tests/e2e.test.ts",
     "pack:check": "node scripts/pack-check.mjs"
   },
-  "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "^0.85.1"
   },
   "pi": {
     "extensions": ["./extensions"],
