@@ -309,6 +309,8 @@ El objetivo de esta fase es validar que pi-harness resulta útil, comprensible y
 
 Antes de ejecutar los escenarios de validación, implementar el [plan aprobado de CLI y experiencia TUI](PHASE_9_CLI_TUI_PLAN.md): un comando `yh-pi` instalable, lógica compartida para texto normal y comandos slash, avance de workflows con gates HIL, flujo genérico para perfiles no técnicos e identidad visual propia.
 
+La experiencia HIL de esta fase debe ser transparente para la persona: antes de aprobar una implementación, `yh-pi` mostrará un resumen del `HarnessPlan`, ofrecerá una vista completa navegable y asociará la decisión a una versión concreta del plan. Modificar el plan invalida la aprobación anterior. Los comandos slash quedarán como fallback avanzado, no como requisito del flujo normal.
+
 - [ ] Preparar repositorios consumidores representativos para tareas `simple`, `task` y `sdd`.
 - [ ] Ejecutar escenarios completos desde un prompt inicial hasta el resumen final, registrando decisiones HIL, artefactos y verificaciones.
 - [ ] Validar el flujo SDD real con OpenSpec en un repositorio consumidor: `propose`, revisión humana, `apply`, verificación, `sync` y `archive`.

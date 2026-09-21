@@ -115,6 +115,10 @@ Human-in-the-Middle es una política transversal del sistema. El agente puede tr
 
 El usuario no debe aprobar cada edición mecánica. Debe aprobar decisiones de alcance, arquitectura, riesgo, efectos externos y cierre. Cada decisión se persiste con su pregunta, evidencia, respuesta, nota y timestamp.
 
+Cuando un checkpoint autoriza una implementación, la autorización debe estar precedida por evidencia visible del plan. La TUI presenta primero un resumen y permite abrir una vista completa navegable antes de ofrecer `Aprobar`, `Modificar` o `Cancelar`. Una aprobación se asocia a la versión exacta del plan; si el plan cambia, la aprobación anterior deja de ser válida.
+
+Los comandos slash son una interfaz de compatibilidad para usuarios avanzados. El flujo principal de `yh-pi` debe expresar estas mismas decisiones mediante diálogos, overlays, widgets y acciones de la TUI.
+
 ## 6. Flujo general
 
 ```text
@@ -128,7 +132,11 @@ recomendación de ruta
   ↓
 checkpoint humano si corresponde
   ↓
-planificación e implementación
+plan resumido y plan completo consultable
+  ↓
+aprobación versionada del plan
+  ↓
+inicio explícito de implementación
   ↓
 verificación basada en evidencia
   ↓
@@ -149,6 +157,7 @@ intake
   → clarifying
   → awaiting-approval
   → planning
+  → awaiting-approval (plan o inicio de implementación)
   → implementing
   → verifying
   → awaiting-review
@@ -172,6 +181,10 @@ Identidad de la tarea, prompt original, directorio, ruta, fase, evaluación, art
 ### Assessment
 
 Ruta recomendada, confianza, razones, áreas afectadas, incógnitas y evidencia consultada.
+
+### HarnessPlan
+
+Plan versionado y visible para la persona: identificador, versión, objetivo, alcance, pasos, archivos potenciales, verificaciones, riesgos y supuestos. La tarea conserva qué versión fue aprobada y qué cambios posteriores requieren una nueva decisión.
 
 ### HumanGate
 
@@ -269,7 +282,7 @@ No incluye:
 - La Fase 7 está completada: configuración validada, precedencia, recuperación HIL, idempotencia, diagnósticos y convivencia por prefijo implementados.
 - La Fase 8 está completada técnicamente: pruebas de distribución, consumidores temporales, manifest y documentación ejecutados; la publicación npm requiere una decisión y autorización explícitas.
 - La próxima unidad de trabajo recomendada es la Fase 9: uso y validación operativa en repositorios consumidores, incluyendo el flujo SDD real con OpenSpec.
-- El primer incremento de la Fase 9 tiene un plan aprobado en `docs/PHASE_9_CLI_TUI_PLAN.md`: CLI `yh-pi` con Node, entrada normal y slash unificadas, continuación con gates HIL, perfiles genéricos e identidad visual de la TUI. Todavía no está implementado.
+- El primer incremento de la Fase 9 tiene un plan aprobado en `docs/PHASE_9_CLI_TUI_PLAN.md`: CLI `yh-pi` con Node, entrada normal y slash unificadas, continuación con gates HIL, perfiles genéricos e identidad visual de la TUI. CLI y captura de `input` ya están implementados; la vista navegable de planes y la aprobación versionada quedan pendientes.
 - La publicación npm se decidirá después de la validación operativa, no antes.
 - Azure DevOps y otras integraciones externas quedan postergadas hasta confirmar la utilidad y estabilidad del flujo base.
 - El perfil default del MVP es `developer`; el core se mantiene agnóstico para habilitar perfiles funcionales, de producto y marketing en fases posteriores.
