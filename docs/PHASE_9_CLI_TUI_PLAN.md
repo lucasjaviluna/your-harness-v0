@@ -55,7 +55,7 @@ La precedencia será: defaults internos < `.harness/config.json` < opciones de l
 
 - Incluir un tema `harness` en el manifest `pi.themes` y seleccionarlo solo para la invocación del CLI.
 - En `session_start`, mostrar una cabecera breve con nombre del producto, perfil y modo. Usar `setStatus` para ruta, fase y decisión pendiente; usar un widget temporal para gates HIL y retirarlo al resolverlos.
-- Para un gate de autorización, usar una interacción en dos niveles: resumen del plan → vista completa opcional → acciones `Aprobar`, `Modificar` o `Cancelar`. Para el inicio de implementación, presentar un checkpoint separado cuando la política HIL lo requiera.
+- Para un gate de autorización, usar una interacción en dos niveles: resumen del plan → vista completa opcional → acciones `Aprobar`, `Modificar` o `Cancelar`. La aprobación del plan abre un checkpoint separado para autorizar el inicio de implementación.
 - Para revisión final, mostrar resultado, diff o artefactos, verificaciones ejecutadas, verificaciones omitidas y riesgos antes de permitir `Aprobar y cerrar` o `Solicitar cambios`.
 - Conservar inicialmente el footer nativo de Pi y añadir allí el estado del harness. Reservar un reemplazo completo mediante `setFooter` para una iteración posterior basada en pruebas de uso.
 - Activar componentes visuales solo cuando `ctx.mode === "tui"`; en modos print, JSON o RPC conservar salidas y diagnósticos adecuados a esos modos.

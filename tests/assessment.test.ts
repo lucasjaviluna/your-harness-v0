@@ -54,11 +54,18 @@ test("un override manual queda registrado, salvo que falte información decisiva
 });
 
 test("una decisión SDD se persiste y desbloquea la planificación", () => {
-  const assessed = applyAssessment(task("Agregar permisos por rol."));
-  const approved = decideGate(assessed, "approve", "Preparar la propuesta.");
-  assert.equal(approved.phase, "planning");
-  assert.equal(unresolvedGate(approved), undefined);
-  assert.equal(approved.humanGates[0].decision?.value, "approve");
+  const assessed = {
+    ...applyAssessment(task("Agregar permisos por rol.")),
+    plan: { id: "plan-1", version: 1, objective: "Permisos", scope: "Permisos por rol", steps: ["Diseñar", "Verificar"], affectedFiles: [], verificationCommands: [], risks: [], assumptions: [] },
+  };
+  const planApproved = decideGate(assessed, "approve", "Preparar la propuesta.");
+  assert.equal(planApproved.phase, "awaiting-approval");
+  assert.equal(planApproved.humanGates[0].decision?.value, "approve");
+  assert.equal(planApproved.plan?.approvedVersion, 1);
+  const implementationApproved = decideGate(planApproved, "approve");
+  assert.equal(implementationApproved.phase, "planning");
+  assert.equal(unresolvedGate(implementationApproved), undefined);
+  assert.equal(implementationApproved.plan?.approvedVersion, 1);
 });
 
 test("cancelar una tarea resuelve todos los gates pendientes", () => {

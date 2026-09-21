@@ -78,6 +78,7 @@ export type Assessment = {
 export type HumanGate = {
   id: string;
   kind: HumanGateKind;
+  stage?: "plan" | "implementation";
   reason: string;
   question: string;
   options?: string[];

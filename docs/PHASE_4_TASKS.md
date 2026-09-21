@@ -39,6 +39,10 @@ crear .harness/tasks/<task-id>.md
         ↓
 awaiting-approval
         ↓
+/harness-decide approve  (aprueba objetivo y plan)
+        ↓
+awaiting-approval       (autorizar inicio)
+        ↓
 /harness-decide approve
         ↓
 planning
@@ -50,7 +54,7 @@ implementing → verifying → awaiting-review
 done
 ```
 
-La aprobación inicial cubre objetivo y plan. Un cambio de alcance se registra con:
+La primera aprobación cubre objetivo y plan. La segunda autoriza iniciar la implementación. Un cambio de alcance se registra con:
 
 ```text
 /harness-task-scope <nuevo alcance>

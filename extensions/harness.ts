@@ -124,7 +124,7 @@ export default function (pi: ExtensionAPI) {
     while (ctx.hasUI && lastTask?.plan && lastTask.humanGates.some((gate) => gate.blocksProgress && !gate.decision)) {
       const choice = await ctx.ui.select("Revisión humana del plan", [
         "Ver plan completo",
-        "Aprobar plan",
+        lastTask.humanGates.find((gate) => gate.blocksProgress && !gate.decision)?.stage === "implementation" ? "Autorizar inicio de implementación" : "Aprobar plan",
         "Modificar plan",
         "Cancelar tarea",
       ]);
@@ -134,13 +134,16 @@ export default function (pi: ExtensionAPI) {
       }
 
       try {
-        if (choice === "Aprobar plan") {
+        if (choice === "Aprobar plan" || choice === "Autorizar inicio de implementación") {
           lastTask = decideGate(lastTask, "approve");
-          if (lastTask.plan) lastTask = { ...lastTask, plan: { ...lastTask.plan, approvedVersion: lastTask.plan.version, approvedAt: new Date().toISOString() } };
+          if (choice === "Aprobar plan" && lastTask.plan) lastTask = { ...lastTask, plan: { ...lastTask.plan, approvedVersion: lastTask.plan.version, approvedAt: new Date().toISOString() } };
           lastTask = await syncTaskArtifact(lastTask);
           pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
-          showMessage(ctx, `Plan aprobado (versión ${lastTask.plan?.approvedVersion ?? "desconocida"}). La tarea queda lista para el siguiente checkpoint.`);
-          break;
+          showMessage(ctx, choice === "Aprobar plan"
+            ? "Plan aprobado. La implementación requiere una autorización separada."
+            : "Inicio de implementación autorizado.");
+          if (choice === "Autorizar inicio de implementación") break;
+          continue;
         }
         if (choice === "Modificar plan") {
           const note = await ctx.ui.input("Cambio de plan", "Describe el nuevo alcance o ajuste requerido");

@@ -105,12 +105,12 @@ export function createAssessmentGate(assessment: Assessment): HumanGate | undefi
     evidence: assessment.evidence, blocksProgress: true,
   };
   if (assessment.route === "sdd") return {
-    id: `gate-${Date.now().toString(36)}`, kind: "authorize", reason: "La tarea requiere una ruta SDD antes de crear artefactos OpenSpec.",
+    id: `gate-${Date.now().toString(36)}`, kind: "authorize", stage: "plan", reason: "La tarea requiere una ruta SDD antes de crear artefactos OpenSpec.",
     question: "La recomendación es SDD. ¿Autorizas preparar la propuesta OpenSpec?", options: ["approve", "reject", "revise", "cancel"],
     evidence: assessment.evidence, blocksProgress: true,
   };
   if (assessment.route === "task") return {
-    id: `gate-${Date.now().toString(36)}`, kind: "authorize", reason: "La tarea ligera necesita aprobación de su objetivo y plan antes de implementar.",
+    id: `gate-${Date.now().toString(36)}`, kind: "authorize", stage: "plan", reason: "La tarea ligera necesita aprobación de su objetivo y plan antes de implementar.",
     question: "¿Apruebas el objetivo y el plan de esta tarea ligera?", options: ["approve", "reject", "revise", "cancel"],
     evidence: assessment.evidence, blocksProgress: true,
   };
@@ -144,7 +144,29 @@ export function decideGate(task: HarnessTask, value: HumanDecisionValue, note?: 
     return applyAssessment({ ...task, humanGates, clarifications: [...task.clarifications, note!.trim()], phase: "assessing" });
   }
   if (gate.kind === "recover" && value === "approve") return { ...task, humanGates, phase: "planning" };
-  if (gate.kind === "authorize" && value === "approve") return { ...task, humanGates, phase: "planning" };
+  if (gate.kind === "authorize" && value === "approve") {
+    const approvedPlan = gate.stage === "plan" && task.plan
+      ? { ...task.plan, approvedVersion: task.plan.version, approvedAt: new Date().toISOString() }
+      : task.plan;
+    if (gate.stage === "plan" && (task.route === "task" || task.route === "sdd")) {
+      const implementationGate: HumanGate = {
+        id: `gate-${Date.now().toString(36)}`,
+        kind: "authorize",
+        stage: "implementation",
+        reason: "El plan fue aprobado y requiere una autorización separada para iniciar la implementación.",
+        question: "¿Autorizas iniciar la implementación del plan aprobado?",
+        options: ["approve", "cancel"],
+        evidence: task.plan ? [
+          `Plan: ${task.plan.id}`,
+          `Versión aprobada: ${approvedPlan?.approvedVersion ?? approvedPlan?.version}`,
+          `Pasos: ${task.plan.steps.join(" | ")}`,
+        ] : [],
+        blocksProgress: true,
+      };
+      return { ...task, plan: approvedPlan, humanGates: [...humanGates, implementationGate], phase: "awaiting-approval" };
+    }
+    return { ...task, plan: approvedPlan, humanGates, phase: "planning" };
+  }
   if (gate.kind === "review") {
     if (value === "approve") {
       if (task.result?.checks.some((check) => check.status === "failed")) {
@@ -177,7 +199,7 @@ export function requestScopeChange(task: HarnessTask, newScope: string): Harness
   const scope = newScope.trim();
   if (!scope) throw new Error("El nuevo alcance no puede estar vacío.");
   const gate: HumanGate = {
-    id: `gate-${Date.now().toString(36)}`, kind: "authorize", reason: "El alcance de la tarea cambió y requiere una nueva aprobación.",
+    id: `gate-${Date.now().toString(36)}`, kind: "authorize", stage: "plan", reason: "El alcance de la tarea cambió y requiere una nueva aprobación.",
     question: `¿Apruebas el nuevo alcance? ${scope}`, options: ["approve", "reject", "revise", "cancel"],
     evidence: [`Alcance anterior: ${task.scope ?? task.prompt}`, `Alcance propuesto: ${scope}`], blocksProgress: true,
   };
