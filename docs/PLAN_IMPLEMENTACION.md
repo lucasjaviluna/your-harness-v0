@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: implementación incremental. Fases 0 a 7 completadas; Fase 8 pendiente.
+Estado: implementación incremental. Fases 0 a 8 completadas técnicamente; Fase 9 enfocada en uso y validación operativa.
 
 ## 1. Objetivo y alcance
 
@@ -303,11 +303,31 @@ Entregable: [docs/PHASE_7_OPERATIONS.md](PHASE_7_OPERATIONS.md), comportamiento 
 
 Entregable: [docs/PHASE_8_VALIDATION.md](PHASE_8_VALIDATION.md), package versionado e instalable por otros desarrolladores. Cierre técnico alcanzado; publicación npm queda deliberadamente pendiente de decisión y autorización.
 
+### Fase 9 — Uso y validación operativa
+
+El objetivo de esta fase es validar que pi-harness resulta útil, comprensible y recuperable cuando se utiliza como herramienta principal en repositorios reales de prueba. No se incorporan nuevas integraciones externas durante esta fase.
+
+Antes de ejecutar los escenarios de validación, implementar el [plan aprobado de CLI y experiencia TUI](PHASE_9_CLI_TUI_PLAN.md): un comando `harness` instalable, lógica compartida para texto normal y comandos slash, avance de workflows con gates HIL, flujo genérico para perfiles no técnicos e identidad visual propia.
+
+- [ ] Preparar repositorios consumidores representativos para tareas `simple`, `task` y `sdd`.
+- [ ] Ejecutar escenarios completos desde un prompt inicial hasta el resumen final, registrando decisiones HIL, artefactos y verificaciones.
+- [ ] Validar el flujo SDD real con OpenSpec en un repositorio consumidor: `propose`, revisión humana, `apply`, verificación, `sync` y `archive`.
+- [ ] Validar recuperación después de cerrar y reabrir Pi, cancelar una operación y dejar una tarea bloqueada.
+- [ ] Validar reencaminamiento: una tarea inicialmente simple que descubre impacto mayor debe pasar a `task` o `sdd` sin perder contexto.
+- [ ] Evaluar la calidad de las recomendaciones de ruta con ejemplos reales y ajustar las reglas solo cuando exista evidencia.
+- [ ] Evaluar la experiencia del usuario: claridad de mensajes, utilidad de los gates HIL, comandos de recuperación y resumen final.
+- [ ] Documentar problemas encontrados, decisiones de uso y criterios de aceptación del MVP.
+- [ ] Ejecutar una prueba de adopción con al menos un usuario distinto del autor del package.
+- [ ] Cerrar las validaciones omitidas de Windows/Git Bash cuando el entorno permita reproducirlas de forma estable.
+
+Entregable: [docs/PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md), informe de escenarios ejecutados, problemas conocidos y criterios para declarar el MVP apto para uso. Cierre: una persona nueva puede instalar el package, completar los flujos principales y recuperarse de una interrupción sin asistencia del autor.
+
 ## 6. Orden de entrega recomendado
 
 1. MVP operativo: fases 0 a 5. Permite validar la entrada, el estado, la evaluación, la ruta simple y la tarea ligera.
 2. SDD: fase 6. Se integra OpenSpec cuando el núcleo ya puede sostener una tarea.
 3. Endurecimiento y distribución: fases 7 y 8.
+4. Uso y validación operativa: fase 9. Se valida el comportamiento real antes de añadir integraciones externas.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 
@@ -343,6 +363,8 @@ La regla de salida del MVP es que una persona pueda iniciar una tarea desde un p
 - Necesidad futura de admitir prompts normales sin `/harness-work`; si se añade, debe ser una opción explícita por proyecto.
 - Forma de seleccionar perfiles: flag, configuración del proyecto o inferencia asistida; el default actual es `developer`.
 - Catálogo final de intenciones y formatos de resultado por perfil.
+- Criterios finales de aceptación del MVP después de completar la Fase 9.
+- Decisión de publicación npm, que se tomará después de la validación operativa y no antes.
 
 ## 9. Fuentes de referencia
 
