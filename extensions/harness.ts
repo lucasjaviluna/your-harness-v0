@@ -1,14 +1,14 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { applyAssessment, decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "../src/assessment.ts";
+import { decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "../src/assessment.ts";
 import { collectRepositoryContext } from "../src/intake.ts";
 import { buildSimpleWorkflowPrompt, captureRepositorySnapshot, createSimpleReviewGate, parseSimpleAgentResult, reviewChangedFiles, type RepositorySnapshot } from "../src/simple.ts";
 import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, detectOpenSpec, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
 import { DEFAULT_CONFIG, loadConfig, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
-import { isActiveTask, recoverInterruptedTask } from "../src/recovery.ts";
+import { parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
+import { recoverInterruptedTask } from "../src/recovery.ts";
 import { readTaskArtifact, writeTaskArtifact } from "../src/task-artifact.ts";
 import {
-  createTask,
   closeTask,
   formatTaskStatus,
   hydrateHarnessTask,
@@ -16,18 +16,12 @@ import {
   TASK_ENTRY_TYPE,
   type HarnessTask,
   type HumanDecisionValue,
-  type WorkMode,
 } from "../src/task.ts";
-
-type ParsedArgs =
-  | { ok: true; prompt: string; requestedMode: WorkMode; analyzeOnly: boolean }
-  | { ok: false; message: string };
 
 let lastTask: HarnessTask | undefined;
 let simpleBaseline: RepositorySnapshot | undefined;
 let sddDetection: OpenSpecDetection | undefined;
 let currentConfig: HarnessConfig = structuredClone(DEFAULT_CONFIG);
-const VALID_MODES = new Set<WorkMode>(["auto", "simple", "task", "sdd"]);
 const VALID_DECISIONS = new Set<HumanDecisionValue>(["approve", "reject", "revise", "cancel", "answer"]);
 
 function assertCompatiblePi(pi: ExtensionAPI): void {
@@ -35,45 +29,6 @@ function assertCompatiblePi(pi: ExtensionAPI): void {
   if (typeof api.registerCommand !== "function") {
     throw new Error("pi-harness requiere una API de Pi compatible con registerCommand().");
   }
-}
-
-function parseArgs(args: string, defaultMode: WorkMode = "auto"): ParsedArgs {
-  let remaining = args.trim();
-  let requestedMode: WorkMode = defaultMode;
-  let analyzeOnly = false;
-
-  while (remaining.startsWith("--")) {
-    const modeMatch = remaining.match(/^--mode(?:=|\s+)(\S+)(?:\s+|$)/);
-    if (modeMatch) {
-      const candidate = modeMatch[1] as WorkMode;
-      if (!VALID_MODES.has(candidate)) {
-        return { ok: false, message: `Modo inválido: ${candidate}. Usa auto, simple, task o sdd.` };
-      }
-      requestedMode = candidate;
-      remaining = remaining.slice(modeMatch[0].length).trim();
-      continue;
-    }
-
-    if (remaining === "--analyze-only" || remaining.startsWith("--analyze-only ")) {
-      analyzeOnly = true;
-      remaining = remaining.slice("--analyze-only".length).trim();
-      continue;
-    }
-
-    return {
-      ok: false,
-      message: "Opción desconocida. Uso: /harness-work [--mode auto|simple|task|sdd] [--analyze-only] <prompt>",
-    };
-  }
-
-  if (!remaining) {
-    return {
-      ok: false,
-      message: "Falta el prompt. Uso: /harness-work [--mode auto|simple|task|sdd] [--analyze-only] <prompt>",
-    };
-  }
-
-  return { ok: true, prompt: remaining, requestedMode, analyzeOnly };
 }
 
 function showMessage(
@@ -295,36 +250,15 @@ export default function (pi: ExtensionAPI) {
     handler: async (args, ctx) => {
       const loadedConfig = await loadConfig(ctx.cwd);
       currentConfig = loadedConfig.config;
-      const parsed = parseArgs(args, currentConfig.defaultMode);
+      const parsed = parseWorkRequest(args, currentConfig.defaultMode);
       if (!parsed.ok) {
         showMessage(ctx, parsed.message, "warn");
         return;
       }
-      if (parsed.requestedMode !== "auto" && !currentConfig.routing.allowManualOverride) {
-        showMessage(ctx, "La configuración del proyecto deshabilita overrides manuales de ruta.", "warn");
-        return;
-      }
-      if (isActiveTask(lastTask) && lastTask?.prompt === parsed.prompt && lastTask.requestedMode === parsed.requestedMode) {
-        showMessage(ctx, `La misma tarea ya está activa (${lastTask.id}); no se creó un duplicado.\n${formatTaskStatus(lastTask)}`, "warn");
-        return;
-      }
-
-      const context = await collectRepositoryContext(ctx.cwd);
-      lastTask = applyAssessment(createTask({
-        prompt: parsed.prompt,
-        cwd: ctx.cwd,
-        requestedMode: parsed.requestedMode,
-        analyzeOnly: parsed.analyzeOnly,
-        context,
-        profile: currentConfig.profile,
-      }));
-      if (!currentConfig.hil.requireApproval && lastTask.route === "task" && lastTask.phase === "awaiting-approval") {
-        lastTask = { ...lastTask, phase: "planning", humanGates: lastTask.humanGates.filter((gate) => gate.kind !== "authorize") };
-      }
       try {
-        lastTask = await syncTaskArtifact(lastTask);
+        lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask });
       } catch (error) {
-        showMessage(ctx, error instanceof Error ? `No se pudo crear el artefacto de tarea: ${error.message}` : "No se pudo crear el artefacto de tarea.", "error");
+        showMessage(ctx, error instanceof Error ? error.message : "No se pudo preparar la tarea.", "error");
         return;
       }
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);

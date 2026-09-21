@@ -1,6 +1,6 @@
 # Fase 9 — Plan aprobado para CLI y experiencia TUI
 
-Estado: aprobado para implementación; todavía no implementado.
+Estado: implementación iniciada. El primer paso, extraer la lógica común de ingreso y preparación de tareas, está completado. CLI, captura `input` y personalización TUI siguen pendientes.
 
 Este incremento precede a los escenarios de uso y validación descritos en [PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md). Su objetivo es que una instalación limpia permita ejecutar `harness` desde la terminal, abrir la TUI de Pi con identidad visual propia y comenzar una solicitud escribiendo un mensaje normal. Los comandos `/harness-*` deben seguir disponibles para quien cargue la extensión en Pi directamente.
 
