@@ -41,6 +41,27 @@ function showMessage(
   else console.log(message);
 }
 
+function updateHarnessTui(ctx: ExtensionContext): void {
+  if (ctx.mode !== "tui") return;
+  const gate = lastTask?.humanGates.find((item) => item.blocksProgress && !item.decision);
+  const ui = ctx.ui;
+  ui.setTitle(`yh-pi · ${currentConfig.profile}`);
+  if (!lastTask) {
+    ui.setStatus("yh-pi", `perfil ${currentConfig.profile} · sin tarea activa`);
+    ui.setWidget("yh-pi-state", undefined);
+    return;
+  }
+  const gateLabel = gate
+    ? `HIL: ${gate.stage === "implementation" ? "autorizar implementación" : gate.kind}`
+    : "HIL: sin decisión pendiente";
+  ui.setStatus("yh-pi", `${lastTask.route ?? "sin ruta"} · ${lastTask.phase} · ${gateLabel}`);
+  ui.setWidget("yh-pi-state", [
+    `yh-pi · perfil ${currentConfig.profile} · modo ${lastTask.requestedMode}`,
+    `Ruta: ${lastTask.route ?? "sin evaluar"} · Fase: ${lastTask.phase}`,
+    gate ? `Checkpoint: ${gate.question}` : "Checkpoint: ninguno",
+  ], { placement: "aboveEditor" });
+}
+
 function parseDecision(args: string): { ok: true; value: HumanDecisionValue; note?: string } | { ok: false; message: string } {
   const [candidate, ...note] = args.trim().split(/\s+/);
   if (!candidate || !VALID_DECISIONS.has(candidate as HumanDecisionValue)) {
@@ -70,7 +91,9 @@ export default function (pi: ExtensionAPI) {
       if (isHarnessTask(entry.data)) lastTask = hydrateHarnessTask(entry.data);
     }
     currentConfig = (await loadConfig(ctx.cwd)).config;
+    updateHarnessTui(ctx);
     if (currentConfig.hil.recoverInterrupted && lastTask) lastTask = recoverInterruptedTask(lastTask);
+    updateHarnessTui(ctx);
   });
 
   async function startSimpleWorkflow(ctx: ExtensionContext): Promise<boolean> {
@@ -83,6 +106,7 @@ export default function (pi: ExtensionAPI) {
     simpleBaseline = await captureRepositorySnapshot(lastTask.cwd);
     lastTask = { ...lastTask, phase: "implementing" };
     pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+    updateHarnessTui(ctx);
     showMessage(ctx, "Workflow simple iniciado automáticamente. Pi inspeccionará, editará y verificará la tarea; luego pedirá revisión humana.");
     pi.sendUserMessage(buildSimpleWorkflowPrompt(lastTask, simpleBaseline), { deliverAs: "followUp" });
     return true;
@@ -139,6 +163,7 @@ export default function (pi: ExtensionAPI) {
           if (choice === "Aprobar plan" && lastTask.plan) lastTask = { ...lastTask, plan: { ...lastTask.plan, approvedVersion: lastTask.plan.version, approvedAt: new Date().toISOString() } };
           lastTask = await syncTaskArtifact(lastTask);
           pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+          updateHarnessTui(ctx);
           showMessage(ctx, choice === "Aprobar plan"
             ? "Plan aprobado. La implementación requiere una autorización separada."
             : "Inicio de implementación autorizado.");
@@ -152,6 +177,7 @@ export default function (pi: ExtensionAPI) {
           if (lastTask.plan) lastTask = { ...lastTask, plan: { ...lastTask.plan, scope: note.trim(), version: lastTask.plan.version + 1, approvedVersion: undefined, approvedAt: undefined } };
           lastTask = await syncTaskArtifact(lastTask);
           pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+          updateHarnessTui(ctx);
           showMessage(ctx, `Plan modificado a la versión ${lastTask.plan?.version ?? "nueva"}. La aprobación anterior quedó invalidada.`);
           continue;
         }
@@ -159,6 +185,7 @@ export default function (pi: ExtensionAPI) {
           lastTask = decideGate(lastTask, "cancel");
           lastTask = await syncTaskArtifact(lastTask);
           pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+          updateHarnessTui(ctx);
           showMessage(ctx, "Tarea cancelada por decisión humana.", "warn");
           await offerCancelledArtifactDeletion(ctx);
           break;
@@ -216,6 +243,7 @@ export default function (pi: ExtensionAPI) {
     try {
       lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask });
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+      updateHarnessTui(ctx);
       showMessage(ctx, `Solicitud capturada por yh-pi: ruta ${lastTask.route}; confianza ${lastTask.assessment?.confidence ?? "n/a"}.`);
       if (event.images?.length) {
         return { action: "transform" as const, text: `${event.text}\n\nNota de yh-pi: la solicitud incluye ${event.images.length} imagen(es); se conserva el contenido visual para Pi.`, images: event.images };
@@ -315,6 +343,7 @@ export default function (pi: ExtensionAPI) {
         const gate = createOpenSpecAuthorizationGate(lastTask, "La propuesta OpenSpec está lista. ¿Apruebas continuar con apply?", [text.slice(0, 2000), ...proposalEvidence, ...detection.findings]);
         lastTask = { ...lastTask, phase: "awaiting-approval", openspec: { ...lastTask.openspec!, step: "proposed", change, artifacts: proposalEvidence, lastOutput: text }, humanGates: [...lastTask.humanGates, gate] };
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+        updateHarnessTui(ctx);
         showMessage(ctx, "OpenSpec terminó la propuesta. Revisa sus artefactos y usa /harness-decide approve para autorizar apply.");
         return;
       }
