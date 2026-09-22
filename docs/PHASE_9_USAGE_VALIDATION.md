@@ -32,6 +32,12 @@ Comprobar que el harness pregunta antes de editar y que la nueva información pe
 
 Comprobar que una tarea inicialmente simple puede pasar a `task` o `sdd` sin perder el prompt original, el contexto ni las decisiones HIL.
 
+### 6. Reevaluación por cambio de alcance
+
+Crear una tarea simple, modificar su alcance agregando varios pasos y comprobar que el harness vuelve a evaluar la ruta, genera una nueva versión del plan, invalida las aprobaciones anteriores y muestra el gate correspondiente. Repetir agregando impacto de permisos, datos, contratos o arquitectura para validar el escalamiento a `sdd`.
+
+La ampliación debe probarse también escribiendo un segundo prompt normal mientras la tarea simple sigue activa. La TUI debe ofrecer ampliar la tarea actual o crear una nueva, sin cambiar silenciosamente el significado de la solicitud.
+
 ## Registro de cada escenario
 
 Para cada ejecución documentar repositorio y commit inicial, prompt, modo y ruta, decisiones HIL, archivos y artefactos, verificaciones, interrupciones, resultado y fricción observada por el usuario.

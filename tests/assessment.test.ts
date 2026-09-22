@@ -74,9 +74,60 @@ test("cancelar una tarea resuelve todos los gates pendientes", () => {
   const cancelled = decideGate(changedScope, "cancel");
   assert.equal(cancelled.phase, "cancelled");
   assert.equal(unresolvedGate(cancelled), undefined);
-  assert.ok(cancelled.humanGates.every((gate) => gate.decision?.value === "cancel"));
+  assert.ok(cancelled.humanGates.every((gate) => gate.decision?.value));
   assert.match(formatTaskStatus(cancelled), /Decisión requerida: ninguna/);
   assert.throws(() => requestScopeChange(cancelled, "Retomar la tarea"), /no se puede reactivar/);
+});
+
+test("reevalúa una tarea simple cuando el nuevo alcance aumenta la complejidad", () => {
+  const assessed = {
+    ...applyAssessment(task("Cambiar el label a un botón.")),
+    plan: {
+      id: "plan-1", version: 1, objective: "Cambiar el label a un botón.", scope: "Cambiar el label a un botón.",
+      steps: ["Cambiar el texto"], affectedFiles: [], verificationCommands: [], risks: [], assumptions: [],
+    },
+  };
+  assert.equal(assessed.route, "simple");
+  const expanded = requestScopeChange(assessed, "Cambiar el label, actualizar el flujo de login, agregar reintentos y cubrirlo con pruebas end-to-end.");
+  assert.equal(expanded.route, "task");
+  assert.deepEqual(expanded.reevaluation && {
+    previousRoute: expanded.reevaluation.previousRoute,
+    newRoute: expanded.reevaluation.newRoute,
+  }, { previousRoute: "simple", newRoute: "task" });
+  assert.equal(expanded.assessment?.recommendedRoute, "task");
+  assert.equal(expanded.plan?.version, 2);
+  assert.equal(expanded.plan?.steps.length, 5);
+  assert.equal(unresolvedGate(expanded)?.stage, "plan");
+});
+
+test("una ampliación con impacto de seguridad escala una tarea a SDD", () => {
+  const assessed = {
+    ...applyAssessment(task("Cambiar el label a un botón.")),
+    plan: {
+      id: "plan-2", version: 1, objective: "Cambiar el label a un botón.", scope: "Cambiar el label a un botón.",
+      steps: ["Cambiar el texto"], affectedFiles: [], verificationCommands: [], risks: [], assumptions: [],
+    },
+  };
+  const expanded = requestScopeChange(assessed, "Cambiar el label y agregar permisos por rol a toda la aplicación.");
+  assert.equal(expanded.route, "sdd");
+  assert.equal(expanded.reevaluation?.previousRoute, "simple");
+  assert.equal(expanded.reevaluation?.newRoute, "sdd");
+  assert.equal(expanded.assessment?.recommendedRoute, "sdd");
+  assert.equal(unresolvedGate(expanded)?.reason, "La tarea requiere una ruta SDD antes de crear artefactos OpenSpec.");
+});
+
+test("una ampliación de seguridad supera un override manual simple", () => {
+  const assessed = {
+    ...applyAssessment(task("Cambiar el label a un botón.", "simple")),
+    plan: {
+      id: "plan-3", version: 1, objective: "Cambiar el label a un botón.", scope: "Cambiar el label a un botón.",
+      steps: ["Cambiar el texto"], affectedFiles: [], verificationCommands: [], risks: [], assumptions: [],
+    },
+  };
+  const expanded = requestScopeChange(assessed, "Cambiar el label y agregar autenticación y permisos por rol.");
+  assert.equal(expanded.requestedMode, "simple");
+  assert.equal(expanded.route, "sdd");
+  assert.equal(expanded.assessment?.recommendedRoute, "sdd");
 });
 
 test("una aclaración se conserva sin alterar el prompt original y se reevalúa", () => {

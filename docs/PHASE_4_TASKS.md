@@ -63,6 +63,8 @@ La primera aprobación cubre objetivo y plan. La segunda autoriza iniciar la imp
 
 El cambio crea un nuevo gate bloqueante. No se continúa silenciosamente con un alcance diferente.
 
+Antes de crear ese gate, el harness vuelve a evaluar la complejidad del alcance acumulado. Puede escalar una ruta de `simple` a `task` o de `task` a `sdd`; una ruta ya escalada no se degrada por una edición posterior. El plan se regenera con una nueva versión y las aprobaciones anteriores quedan invalidadas. Los overrides manuales (`--mode simple|task|sdd`) controlan la ruta inicial, pero no pueden impedir una escalada posterior motivada por seguridad, contratos, datos, arquitectura o alcance transversal.
+
 ## Comandos
 
 ```text

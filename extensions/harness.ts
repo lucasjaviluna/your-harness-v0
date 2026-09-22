@@ -50,6 +50,7 @@ function installHarnessHeader(ctx: ExtensionContext): void {
       return [
         "",
         `${theme.fg("accent", "yh-pi")} ${theme.fg("muted", "Your Harness")} ${theme.fg("dim", `· ${currentConfig.profile} · ${route} · ${phase}`)}`,
+        ...(lastTask?.reevaluation ? [theme.fg("warning", `Esta tarea fue reevaluada: ${lastTask.reevaluation.previousRoute} -> ${lastTask.reevaluation.newRoute}`)] : []),
         "",
       ];
     },
@@ -191,7 +192,6 @@ export default function (pi: ExtensionAPI) {
           const note = await ctx.ui.input("Cambio de plan", "Describe el nuevo alcance o ajuste requerido");
           if (!note?.trim()) continue;
           lastTask = requestScopeChange(lastTask, note);
-          if (lastTask.plan) lastTask = { ...lastTask, plan: { ...lastTask.plan, scope: note.trim(), version: lastTask.plan.version + 1, approvedVersion: undefined, approvedAt: undefined } };
           lastTask = await syncTaskArtifact(lastTask);
           pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
           updateHarnessTui(ctx);
@@ -256,6 +256,26 @@ export default function (pi: ExtensionAPI) {
         ["Crear tarea nueva en yh-pi", "No continuar"],
       );
       if (choice !== "Crear tarea nueva en yh-pi") return { action: "handled" as const };
+    }
+    if (lastTask && lastTask.route === "simple" && ["planning", "implementing"].includes(lastTask.phase) && ctx.hasUI) {
+      const choice = await ctx.ui.select(
+        "Hay una tarea simple activa",
+        ["Ampliar tarea actual", "Crear tarea nueva en yh-pi", "No continuar"],
+      );
+      if (choice === "No continuar") return { action: "handled" as const };
+      if (choice === "Ampliar tarea actual") {
+        try {
+          lastTask = requestScopeChange(lastTask, text);
+          lastTask = await syncTaskArtifact(lastTask);
+          pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+          updateHarnessTui(ctx);
+          showMessage(ctx, `Alcance ampliado. La tarea fue reevaluada como ${lastTask.route}.`);
+          if (["task", "sdd"].includes(lastTask.route ?? "") && lastTask.phase === "awaiting-approval") await presentPlanReview(ctx);
+        } catch (error) {
+          showMessage(ctx, error instanceof Error ? error.message : "No se pudo ampliar la tarea.", "error");
+        }
+        return { action: "handled" as const };
+      }
     }
     try {
       lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask });
@@ -441,7 +461,9 @@ export default function (pi: ExtensionAPI) {
         lastTask = requestScopeChange(lastTask, args);
         lastTask = await syncTaskArtifact(lastTask);
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+        updateHarnessTui(ctx);
         showMessage(ctx, `Cambio de alcance registrado. Debe aprobarse con /harness-decide approve.\n${formatTaskStatus(lastTask)}`);
+        if (["task", "sdd"].includes(lastTask.route ?? "") && lastTask.phase === "awaiting-approval") await presentPlanReview(ctx);
       } catch (error) {
         showMessage(ctx, error instanceof Error ? error.message : "No se pudo registrar el cambio de alcance.", "warn");
       }

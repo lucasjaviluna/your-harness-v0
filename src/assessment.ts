@@ -1,5 +1,6 @@
 import type { Assessment, HarnessTask, HumanDecisionValue, HumanGate, Route, TaskPhase, WorkIntent, WorkResult } from "./task.ts";
 import { closeTask, unresolvedGate } from "./task.ts";
+import { createHarnessPlan, reviseHarnessPlan } from "./plan.ts";
 
 type Signal = { pattern: RegExp; reason: string; area: string };
 
@@ -18,6 +19,7 @@ const TASK_SIGNALS: Signal[] = [
 
 const SIMPLE_SIGNALS: Signal[] = [
   { pattern: /\b(typo|ortograf[ií]a|texto|copy|mensaje de error|literal)\b/i, reason: "Describe un cambio textual o localizado.", area: "local" },
+  { pattern: /\b(label|bot[oó]n|button)\b/i, reason: "Describe un cambio localizado en la interfaz.", area: "local" },
   { pattern: /\b(renombrar|rename)\b.*\b(variable|constante|funci[oó]n local)\b/i, reason: "Describe un cambio mecánico y local.", area: "local" },
   { pattern: /\b(un archivo|archivo .*\.(ts|tsx|js|jsx|css|html|md|json))\b/i, reason: "Acota explícitamente el cambio a un archivo.", area: "local" },
 ];
@@ -191,19 +193,71 @@ export function rerouteToSdd(task: HarnessTask, reason: string): HarnessTask {
     evidence: [...(task.assessment?.evidence ?? []), `Reencaminamiento: ${reason}`],
   };
   const gate = createAssessmentGate(assessment)!;
-  return { ...task, route: "sdd", assessment, phase: "awaiting-approval", humanGates: [...task.humanGates, gate] };
+  return {
+    ...task,
+    route: "sdd",
+    assessment,
+    reevaluation: task.route && task.route !== "sdd"
+      ? { previousRoute: task.route, newRoute: "sdd", at: new Date().toISOString() }
+      : task.reevaluation,
+    phase: "awaiting-approval",
+    humanGates: [...task.humanGates, gate],
+  };
 }
 
 export function requestScopeChange(task: HarnessTask, newScope: string): HarnessTask {
   if (task.phase === "cancelled") throw new Error("Una tarea cancelada no se puede reactivar; crea una tarea nueva.");
   const scope = newScope.trim();
   if (!scope) throw new Error("El nuevo alcance no puede estar vacío.");
-  const gate: HumanGate = {
-    id: `gate-${Date.now().toString(36)}`, kind: "authorize", stage: "plan", reason: "El alcance de la tarea cambió y requiere una nueva aprobación.",
+  const reassessed = assessTask({
+    ...task,
+    scope,
+    clarifications: [...task.clarifications, `Alcance actualizado: ${scope}`],
+  });
+  const routeRank: Record<Route, number> = { clarify: 0, simple: 1, task: 2, sdd: 3 };
+  const currentRoute = task.route ?? reassessed.route;
+  const recommendedRoute = reassessed.recommendedRoute;
+  // A manual mode controls the initial route, but it cannot suppress a later
+  // safety escalation when the approved scope becomes more complex.
+  const route = routeRank[recommendedRoute] > routeRank[currentRoute]
+    ? recommendedRoute
+    : currentRoute;
+  const assessment = { ...reassessed, route, routeSource: route === reassessed.route ? reassessed.routeSource : "automatic" as const };
+  const nextTask = {
+    ...task,
+    scope,
+    assessment,
+    route,
+    intent: assessment.intent,
+    reevaluation: route !== currentRoute
+      ? { previousRoute: currentRoute, newRoute: route, at: new Date().toISOString() }
+      : task.reevaluation,
+    phase: "awaiting-approval" as const,
+    // A scope change invalidates every previous blocking checkpoint. Their
+    // decisions remain in history, but none can authorize the new plan.
+    humanGates: task.humanGates.map((gate) => gate.blocksProgress && !gate.decision
+      ? { ...gate, decision: { value: "revise" as const, note: "Invalidado por cambio de alcance.", decidedAt: new Date().toISOString() } }
+      : gate),
+  };
+  const generatedPlan = createHarnessPlan(nextTask);
+  const plan = task.plan
+    ? reviseHarnessPlan(task.plan, {
+        objective: generatedPlan.objective,
+        scope: generatedPlan.scope,
+        steps: generatedPlan.steps,
+        affectedFiles: generatedPlan.affectedFiles,
+        verificationCommands: generatedPlan.verificationCommands,
+        risks: generatedPlan.risks,
+        assumptions: generatedPlan.assumptions,
+      })
+    : generatedPlan;
+  const gate = createAssessmentGate(assessment) ?? {
+    id: `gate-${Date.now().toString(36)}`, kind: "authorize" as const, stage: "plan" as const,
+    reason: "El alcance de la tarea cambió y requiere una nueva aprobación.",
     question: `¿Apruebas el nuevo alcance? ${scope}`, options: ["approve", "reject", "revise", "cancel"],
     evidence: [`Alcance anterior: ${task.scope ?? task.prompt}`, `Alcance propuesto: ${scope}`], blocksProgress: true,
   };
-  return { ...task, scope, phase: "awaiting-approval", humanGates: [...task.humanGates, gate] };
+  return { ...nextTask, plan, humanGates: [...nextTask.humanGates, gate] };
 }
 
 export function formatAssessment(assessment: Assessment): string {

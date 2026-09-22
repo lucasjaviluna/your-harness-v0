@@ -75,6 +75,12 @@ export type Assessment = {
   evidence: string[];
 };
 
+export type RouteReevaluation = {
+  previousRoute: Route;
+  newRoute: Route;
+  at: string;
+};
+
 export type HumanGate = {
   id: string;
   kind: HumanGateKind;
@@ -101,6 +107,7 @@ export type HarnessTask = {
   artifactPath?: string;
   scope?: string;
   assessment?: Assessment;
+  reevaluation?: RouteReevaluation;
   plan?: HarnessPlan;
   humanGates: HumanGate[];
   clarifications: string[];
