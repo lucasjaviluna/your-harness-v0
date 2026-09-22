@@ -3,7 +3,7 @@ import { decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "
 import { collectRepositoryContext } from "../src/intake.ts";
 import { buildSimpleWorkflowPrompt, captureRepositorySnapshot, createSimpleReviewGate, parseSimpleAgentResult, reviewChangedFiles, type RepositorySnapshot } from "../src/simple.ts";
 import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, detectOpenSpec, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
-import { DEFAULT_CONFIG, loadConfig, type HarnessConfig } from "../src/config.ts";
+import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
 import { compareCancelledRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
 import { formatPlanDetails } from "../src/plan.ts";
@@ -41,11 +41,9 @@ function showMessage(
   else console.log(message);
 }
 
-function updateHarnessTui(ctx: ExtensionContext): void {
+function installHarnessHeader(ctx: ExtensionContext): void {
   if (ctx.mode !== "tui") return;
-  const gate = lastTask?.humanGates.find((item) => item.blocksProgress && !item.decision);
-  const ui = ctx.ui;
-  ui.setHeader((_tui, theme: Theme) => ({
+  ctx.ui.setHeader((_tui, theme: Theme) => ({
     render(_width: number): string[] {
       const route = lastTask?.route ?? "sin ruta";
       const phase = lastTask?.phase ?? "sin tarea activa";
@@ -57,6 +55,12 @@ function updateHarnessTui(ctx: ExtensionContext): void {
     },
     invalidate() {},
   }));
+}
+
+function updateHarnessTui(ctx: ExtensionContext): void {
+  if (ctx.mode !== "tui") return;
+  const gate = lastTask?.humanGates.find((item) => item.blocksProgress && !item.decision);
+  const ui = ctx.ui;
   ui.setTitle(`yh-pi · ${currentConfig.profile}`);
   if (!lastTask) {
     ui.setStatus("yh-pi", `perfil ${currentConfig.profile} · sin tarea activa`);
@@ -98,12 +102,13 @@ export default function (pi: ExtensionAPI) {
     lastTask = undefined;
     simpleBaseline = undefined;
     sddDetection = undefined;
+    currentConfig = { ...structuredClone(DEFAULT_CONFIG), ...readRuntimeOverrides() };
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "custom" || entry.customType !== TASK_ENTRY_TYPE) continue;
       if (isHarnessTask(entry.data)) lastTask = hydrateHarnessTask(entry.data);
     }
+    installHarnessHeader(ctx);
     currentConfig = (await loadConfig(ctx.cwd)).config;
-    updateHarnessTui(ctx);
     if (currentConfig.hil.recoverInterrupted && lastTask) lastTask = recoverInterruptedTask(lastTask);
     updateHarnessTui(ctx);
   });
