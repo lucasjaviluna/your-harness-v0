@@ -1,3 +1,5 @@
+import type { ContextSnapshot } from "./context-engine.ts";
+
 export type WorkMode = "auto" | "simple" | "task" | "sdd";
 export type Route = "simple" | "task" | "sdd" | "clarify";
 export type RouteSource = "automatic" | "manual";
@@ -112,6 +114,7 @@ export type HarnessTask = {
   humanGates: HumanGate[];
   clarifications: string[];
   context?: RepositoryContext;
+  contextSnapshot?: ContextSnapshot;
   result?: WorkResult;
   openspec?: OpenSpecState;
 };

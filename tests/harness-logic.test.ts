@@ -100,6 +100,8 @@ test("preparar una tarea obtiene el contexto mediante RepositoryCapability", asy
     assert.equal(inspections, 1);
     assert.equal(task.context?.git.available, false);
     assert.equal(task.context?.warnings.some((warning) => warning.includes("no pertenece a un repositorio Git")), true);
+    assert.deepEqual(task.contextSnapshot?.includedLevels, [0, 1]);
+    assert.equal(task.contextSnapshot?.entries[0]?.content, "Cambiar el texto del botón.");
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }

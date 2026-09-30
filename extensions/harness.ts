@@ -207,7 +207,7 @@ export default function (pi: ExtensionAPI) {
         "Cancelar tarea",
       ]);
       if (choice === "Ver plan completo") {
-        await ctx.ui.confirm("Plan completo", formatPlanDetails(lastTask.plan));
+        await ctx.ui.confirm("Plan completo", formatPlanDetails(lastTask.plan, lastTask.contextSnapshot));
         continue;
       }
 

@@ -346,6 +346,23 @@ Alcance explícitamente excluido de este incremento: Memory/RAG, MCP, GitHub/Azu
 
 Entregable: [docs/PHASE_10_CAPABILITIES.md](PHASE_10_CAPABILITIES.md), contrato mínimo probado y detección de OpenSpec integrada mediante el registro.
 
+### Fase 11 — Context Engine local
+
+Componer contexto por niveles y relevancia con límites explícitos. El motor selecciona datos locales para cada workflow; no sustituye el runtime ni carga todo el repositorio.
+
+- [x] Definir un contrato tipado de entradas, niveles, snapshot, presupuesto y omisiones.
+- [x] Componer por niveles: solicitud (0), metadatos del repo (1), archivos relevantes (2) y arquitectura condicional (3).
+- [x] Mantener el nivel histórico (4) reservado para Memory/RAG posterior.
+- [x] Limitar profundidad, extensiones, directorios ignorados, archivos seleccionados y caracteres totales.
+- [x] Persistir el snapshot como parte del contexto de la tarea.
+- [x] Inyectar las entradas seleccionadas en el workflow simple sin cambiar el comportamiento de prompts normales de Pi.
+- [x] Probar relevancia, límites, exclusiones, nivel condicional e integración con tests automatizados.
+- [x] Documentar límites, exclusiones y criterios de aceptación.
+
+Estado: implementación local completada técnicamente. No cierra la Fase 9 ni habilita publicación. Memory/RAG, retrieval semántico, MCP y servicios externos siguen para fases posteriores.
+
+Entregable: [docs/PHASE_11_CONTEXT_ENGINE.md](PHASE_11_CONTEXT_ENGINE.md), composición progresiva local conectada al flujo simple y a la preparación de tareas.
+
 ## 6. Orden de entrega recomendado
 
 1. MVP operativo: fases 0 a 5. Permite validar la entrada, el estado, la evaluación, la ruta simple y la tarea ligera.
@@ -353,6 +370,7 @@ Entregable: [docs/PHASE_10_CAPABILITIES.md](PHASE_10_CAPABILITIES.md), contrato 
 3. Endurecimiento y distribución: fases 7 y 8.
 4. Uso y validación operativa: fase 9. Se valida el comportamiento real antes de declarar apto el MVP o publicarlo. El usuario decidió posponer los escenarios manuales; la Fase 10 puede avanzar como trabajo arquitectónico interno, sin considerar la Fase 9 cerrada.
 5. Extensibilidad interna: fase 10. Introducir el registro mínimo de capabilities y migrar OpenSpec como primer vertical, sin agregar integraciones externas.
+6. Contexto progresivo local: fase 11. Componer solicitud, metadatos y fuentes de repo relevantes; dejar Memory/RAG y retrieval histórico para fases posteriores.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 

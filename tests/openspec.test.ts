@@ -33,9 +33,17 @@ test("delega propose al comando generado sin duplicar la lógica de OpenSpec", a
   const detection = await detectOpenSpec(cwd, { probeCli: false });
   detection.configured = true;
   detection.commands.propose = "/opsx-propose";
-  const prompt = buildOpenSpecDelegation(task, detection, "propose");
+  const contextualTask = {
+    ...task,
+    contextSnapshot: {
+      entries: [{ id: "file:openspec/spec.md", level: 2 as const, source: "repository-file", title: "openspec/spec.md", content: "Reglas existentes" }],
+      includedLevels: [2 as const], totalChars: 18, maxChars: 24_000, omitted: 0,
+    },
+  };
+  const prompt = buildOpenSpecDelegation(contextualTask, detection, "propose");
   assert.match(prompt ?? "", /^\/opsx-propose Agregar permisos por rol/);
   assert.match(prompt ?? "", /no ejecutes apply/);
+  assert.match(prompt ?? "", /openspec\/spec\.md/);
 });
 
 test("avanza por el ciclo OpenSpec esperado", () => {

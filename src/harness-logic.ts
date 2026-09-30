@@ -1,6 +1,7 @@
 import { applyAssessment } from "./assessment.ts";
 import { createHarnessCapabilityRegistry, type HarnessCapabilities } from "./capabilities/index.ts";
 import type { CapabilityRegistry } from "./capabilities/registry.ts";
+import { ContextEngine } from "./context-engine.ts";
 import { loadConfig, type HarnessConfig } from "./config.ts";
 import { isActiveTask } from "./recovery.ts";
 import { writeTaskArtifact } from "./task-artifact.ts";
@@ -129,6 +130,15 @@ export async function prepareHarnessTask(input: {
     context,
     profile: input.profile ?? config.profile,
   }));
+  task = {
+    ...task,
+    contextSnapshot: await new ContextEngine().compose({
+      cwd: input.cwd,
+      prompt: request.prompt,
+      repository: context,
+      maxLevel: task.route === "simple" ? 2 : 3,
+    }),
+  };
   task = { ...task, plan: createHarnessPlan(task) };
   if (!config.hil.requireApproval && task.route === "task" && task.phase === "awaiting-approval") {
     task = { ...task, phase: "planning", humanGates: task.humanGates.filter((gate) => gate.kind !== "authorize") };

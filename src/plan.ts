@@ -1,4 +1,5 @@
 import type { HarnessPlan, HarnessTask } from "./task.ts";
+import { formatContextSnapshot, type ContextSnapshot } from "./context-engine.ts";
 
 export function createHarnessPlan(task: HarnessTask): HarnessPlan {
   const route = task.route ?? "task";
@@ -38,7 +39,7 @@ export function formatPlanSummary(plan: HarnessPlan): string {
   ].join("\n");
 }
 
-export function formatPlanDetails(plan: HarnessPlan): string {
+export function formatPlanDetails(plan: HarnessPlan, contextSnapshot?: ContextSnapshot): string {
   return [
     formatPlanSummary(plan),
     "",
@@ -56,5 +57,6 @@ export function formatPlanDetails(plan: HarnessPlan): string {
     "",
     "Supuestos o incógnitas:",
     ...(plan.assumptions.length ? plan.assumptions.map((item) => `- ${item}`) : ["- Ninguno"]),
+    ...(contextSnapshot?.entries.length ? ["", "Contexto seleccionado:", formatContextSnapshot(contextSnapshot)] : []),
   ].join("\n");
 }

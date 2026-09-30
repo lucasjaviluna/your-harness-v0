@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { HarnessTask, HumanGate, OpenSpecState, OpenSpecStep } from "./task.ts";
+import { formatContextSnapshot } from "./context-engine.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -91,10 +92,13 @@ export function nextOpenSpecStep(step: OpenSpecStep | undefined): OpenSpecStep {
 export function buildOpenSpecDelegation(task: HarnessTask, detection: OpenSpecDetection, step: OpenSpecStep): string | undefined {
   const command = detection.commands[step];
   if (!command) return undefined;
+  const context = task.contextSnapshot?.entries.length
+    ? `\n\nContexto local seleccionado por pi-harness (úsalo como punto de partida; inspecciona y valida los archivos antes de cambiar):\n${formatContextSnapshot(task.contextSnapshot, { excludeRequest: true })}`
+    : "";
   if (step === "propose") {
-    return `${command} ${task.prompt}\n\nPi-harness: prepara la propuesta OpenSpec, pero no ejecutes apply. Conserva el nombre del change y entrega un resumen de los artefactos creados para revisión humana.`;
+    return `${command} ${task.prompt}\n\nPi-harness: prepara la propuesta OpenSpec, pero no ejecutes apply. Conserva el nombre del change y entrega un resumen de los artefactos creados para revisión humana.${context}`;
   }
-  return `${command}\n\nPi-harness: ejecuta únicamente el paso ${step} sobre el change OpenSpec aprobado. Informa los archivos y verificaciones reales, y detente si falta información o autorización.`;
+  return `${command}\n\nPi-harness: ejecuta únicamente el paso ${step} sobre el change OpenSpec aprobado. Informa los archivos y verificaciones reales, y detente si falta información o autorización.${context}`;
 }
 
 export function extractOpenSpecChange(text: string, activeChanges: string[]): string | undefined {

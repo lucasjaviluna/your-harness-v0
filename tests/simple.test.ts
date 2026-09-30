@@ -30,9 +30,17 @@ test("detecta archivos nuevos fuera del reporte del agente", () => {
 });
 
 test("el prompt del workflow simple exige revisión y reencaminamiento", () => {
-  const task = createTask({ prompt: "Cambiar el texto del botón", cwd: ".", requestedMode: "simple", analyzeOnly: false });
+  const task = {
+    ...createTask({ prompt: "Cambiar el texto del botón", cwd: ".", requestedMode: "simple", analyzeOnly: false }),
+    contextSnapshot: {
+      entries: [{ id: "file:src/button.ts", level: 2 as const, source: "repository-file", title: "src/button.ts", content: "export const label = 'Guardar';" }],
+      includedLevels: [2 as const], totalChars: 31, maxChars: 24_000, omitted: 0,
+    },
+  };
   const prompt = buildSimpleWorkflowPrompt(task, { available: true, status: [], files: [] });
   assert.match(prompt, /Revisar diff/);
   assert.match(prompt, /HARNESS_RESULT/);
   assert.match(prompt, /reencaminar a sdd/);
+  assert.match(prompt, /Contexto progresivo seleccionado/);
+  assert.match(prompt, /src\/button.ts/);
 });

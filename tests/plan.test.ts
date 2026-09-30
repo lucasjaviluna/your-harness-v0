@@ -15,7 +15,12 @@ test("crea un plan visible a partir de la evaluación de la tarea", () => {
   assert.equal(plan.version, 1);
   assert.equal(plan.scope, "Diseñar y verificar el flujo de reintentos");
   assert.deepEqual(plan.affectedFiles, ["src/retry.ts"]);
-  assert.match(formatPlanDetails(plan), /npm test/);
+  const details = formatPlanDetails(plan, {
+    entries: [{ id: "file:src/retry.ts", level: 2, source: "repository-file", title: "src/retry.ts", content: "retry policy" }],
+    includedLevels: [2], totalChars: 12, maxChars: 24_000, omitted: 0,
+  });
+  assert.match(details, /npm test/);
+  assert.match(details, /Contexto seleccionado/);
 });
 
 test("modificar un plan incrementa la versión e invalida la aprobación", () => {

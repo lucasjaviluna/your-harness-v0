@@ -1,5 +1,6 @@
 import type { HarnessTask, HumanGate, WorkResult } from "./task.ts";
 import type { GitSnapshot } from "./capabilities/git.ts";
+import { formatContextSnapshot } from "./context-engine.ts";
 
 export { captureGitSnapshot as captureRepositorySnapshot } from "./capabilities/git.ts";
 export { reviewChangedFiles } from "./capabilities/verification.ts";
@@ -32,6 +33,7 @@ export function buildSimpleWorkflowPrompt(task: HarnessTask, baseline: Repositor
     `Instrucciones detectadas: ${instructions}`,
     `Archivos modificados antes de comenzar: ${baseline.files.join(", ") || "ninguno"}`,
     `Verificaciones sugeridas por el repositorio: ${checks.join(", ") || "ninguna; explica por qué no hay una disponible"}`,
+    task.contextSnapshot ? `\nContexto progresivo seleccionado:\n${formatContextSnapshot(task.contextSnapshot, { excludeRequest: true })}` : "",
     "",
     "No ejecutes acciones destructivas, no amplíes el alcance y no ocultes una verificación fallida.",
     "Si descubres impacto en contratos, datos, seguridad, arquitectura o varios módulos, detente y recomienda reencaminar a sdd.",
