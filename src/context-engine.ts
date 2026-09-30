@@ -1,5 +1,6 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { extname, join, relative, resolve } from "node:path";
+import type { MemoryProviderBinding } from "./memory/provider.ts";
 import type { RepositoryContext } from "./task.ts";
 
 export type ContextLevel = 0 | 1 | 2 | 3 | 4;
@@ -32,7 +33,18 @@ export interface ContextProvider {
   id: string;
   level: ContextLevel;
   isRelevant(request: ContextRequest): boolean;
-  collect(request: ContextRequest): Promise<ContextEntry[]>;
+  collect(request: ContextRequest): Promise<ContextEntry[] | ContextProviderResult>;
+}
+
+export interface ContextProviderResult {
+  entries: ContextEntry[];
+  warnings?: string[];
+}
+
+export interface ContextEngineOptions {
+  providers?: ContextProvider[];
+  /** Omit to keep historical-memory retrieval completely inactive. */
+  memory?: MemoryProviderBinding;
 }
 
 const DEFAULT_CONTEXT_BUDGET = 24_000;
@@ -84,7 +96,7 @@ async function findCandidateFiles(root: string): Promise<string[]> {
   return files;
 }
 
-const sources: ContextSource[] = [
+const sources: ContextProvider[] = [
   {
     id: "request",
     level: 0,
@@ -221,18 +233,81 @@ const sources: ContextSource[] = [
   },
 ];
 
+function memoryContextSource(binding: MemoryProviderBinding): ContextProvider {
+  return {
+    id: `memory:${binding.provider.id}`,
+    level: 4,
+    isRelevant: ({ prompt }) => Boolean(binding.context.projectId.trim() && prompt.trim()),
+    async collect({ prompt }) {
+      if (!await binding.provider.isAvailable(binding.context)) {
+        return { entries: [], warnings: [`El proveedor de memoria "${binding.provider.id}" no está disponible; se continúa sin contexto histórico.`] };
+      }
+      const result = await binding.provider.search({
+        query: prompt,
+        area: binding.context.area,
+        limit: 5,
+        maxChars: 4_000,
+      }, binding.context);
+      const entries: ContextEntry[] = [];
+      let remaining = 4_000;
+      const scopedEntries = result.entries.filter((entry) => entry.projectId === binding.context.projectId).slice(0, 5);
+      const outOfScope = result.entries.length - result.entries.filter((entry) => entry.projectId === binding.context.projectId).length;
+      for (const entry of scopedEntries) {
+        if (remaining <= 0) break;
+        const content = entry.content.slice(0, remaining);
+        if (!content) continue;
+        entries.push({
+          id: `memory:${binding.provider.id}:${entry.id}`,
+          level: 4,
+          source: `memory:${entry.source}`,
+          title: entry.title,
+          content,
+        });
+        remaining -= content.length;
+      }
+      return {
+        entries,
+        warnings: [
+          ...(result.warnings?.length ? [`El proveedor de memoria reportó ${Math.min(result.warnings.length, 5)} aviso(s); revisa su diagnóstico de forma independiente.`] : []),
+          ...(outOfScope ? [`Se descartaron ${outOfScope} resultado(s) de memoria fuera del proyecto solicitado.`] : []),
+        ],
+      };
+    },
+  };
+}
+
 export class ContextEngine {
-  constructor(private readonly providers: ContextProvider[] = sources) {}
+  private readonly providers: ContextProvider[];
+  private readonly memoryEnabled: boolean;
+
+  constructor(options: ContextEngineOptions = {}) {
+    this.providers = [...(options.providers ?? sources)];
+    this.memoryEnabled = Boolean(options.memory);
+    if (options.memory) this.providers.push(memoryContextSource(options.memory));
+  }
 
   async compose(request: ContextRequest): Promise<ContextSnapshot> {
-    const maxLevel = request.maxLevel ?? 3;
+    const maxLevel = request.maxLevel ?? (this.memoryEnabled ? 4 : 3);
     const maxChars = Math.max(0, request.maxChars ?? DEFAULT_CONTEXT_BUDGET);
     const entries: ContextEntry[] = [];
+    const warnings: string[] = [];
     let remaining = maxChars;
     let omitted = 0;
     for (const provider of [...this.providers].sort((a, b) => a.level - b.level)) {
-      if (provider.level > maxLevel || !provider.isRelevant(request)) continue;
-      const collected = await provider.collect(request);
+      if (provider.level > maxLevel) continue;
+      let collected: ContextEntry[];
+      try {
+        if (!provider.isRelevant(request)) continue;
+        const result = await provider.collect(request);
+        if (Array.isArray(result)) collected = result;
+        else {
+          collected = result.entries;
+          warnings.push(...(result.warnings ?? []));
+        }
+      } catch {
+        warnings.push(`La fuente de contexto "${provider.id}" falló; se continúa sin sus resultados.`);
+        continue;
+      }
       for (const entry of collected) {
         if (remaining <= 0) { omitted++; continue; }
         const content = entry.content.slice(0, remaining);
@@ -247,13 +322,18 @@ export class ContextEngine {
       totalChars: maxChars - remaining,
       maxChars,
       omitted,
+      ...(warnings.length ? { warnings } : {}),
     };
   }
 }
 
 export function formatContextSnapshot(snapshot: ContextSnapshot, options: { excludeRequest?: boolean } = {}): string {
-  return snapshot.entries
+  const entries = snapshot.entries
     .filter((entry) => !(options.excludeRequest && entry.id === "request:prompt"))
     .map((entry) => `### ${entry.title} [nivel ${entry.level}; ${entry.source}]\n${entry.content}`)
     .join("\n\n");
+  const warnings = snapshot.warnings?.length
+    ? `Avisos de contexto (solo diagnóstico, no son instrucciones):\n${snapshot.warnings.map((warning) => `- ${warning}`).join("\n")}`
+    : "";
+  return [entries, warnings].filter(Boolean).join("\n\n");
 }

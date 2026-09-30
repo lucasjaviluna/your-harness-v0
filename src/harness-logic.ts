@@ -2,6 +2,7 @@ import { applyAssessment } from "./assessment.ts";
 import { createHarnessCapabilityRegistry, type HarnessCapabilities } from "./capabilities/index.ts";
 import type { CapabilityRegistry } from "./capabilities/registry.ts";
 import { ContextEngine } from "./context-engine.ts";
+import type { MemoryProviderBinding } from "./memory/provider.ts";
 import { loadConfig, type HarnessConfig } from "./config.ts";
 import { isActiveTask } from "./recovery.ts";
 import { writeTaskArtifact } from "./task-artifact.ts";
@@ -109,6 +110,7 @@ export async function prepareHarnessTask(input: {
   profile?: UserProfile;
   activeTask?: HarnessTask;
   capabilities?: CapabilityRegistry<HarnessCapabilities>;
+  memory?: MemoryProviderBinding;
 }): Promise<HarnessTask> {
   const { request, config } = input;
   if (request.requestedMode !== "auto" && !config.routing.allowManualOverride) {
@@ -132,11 +134,11 @@ export async function prepareHarnessTask(input: {
   }));
   task = {
     ...task,
-    contextSnapshot: await new ContextEngine().compose({
+    contextSnapshot: await new ContextEngine({ memory: input.memory }).compose({
       cwd: input.cwd,
       prompt: request.prompt,
       repository: context,
-      maxLevel: task.route === "simple" ? 2 : 3,
+      maxLevel: input.memory ? 4 : task.route === "simple" ? 2 : 3,
     }),
   };
   task = { ...task, plan: createHarnessPlan(task) };
@@ -153,6 +155,7 @@ export async function prepareHarnessTaskFromArgs(input: {
   activeTask?: HarnessTask;
   profile?: UserProfile;
   capabilities?: CapabilityRegistry<HarnessCapabilities>;
+  memory?: MemoryProviderBinding;
 }): Promise<HarnessTask> {
   const config = input.config ?? (await loadConfig(input.cwd)).config;
   const request = parseWorkRequest(input.args, config.defaultMode);

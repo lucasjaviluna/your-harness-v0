@@ -363,14 +363,32 @@ Estado: implementación local completada técnicamente. No cierra la Fase 9 ni h
 
 Entregable: [docs/PHASE_11_CONTEXT_ENGINE.md](PHASE_11_CONTEXT_ENGINE.md), composición progresiva local conectada al flujo simple y a la preparación de tareas.
 
+### Fase 12 — Contrato opcional de Memory/RAG
+
+Preparar la interfaz y el punto de conexión de memoria histórica al Context Engine sin acoplar el core a un proveedor ni activar consultas/escrituras por defecto.
+
+- [x] Definir `MemoryProvider` con disponibilidad, búsqueda y escritura; modelar consulta, entrada y resultado.
+- [x] Exigir un ámbito `projectId` explícito en el contexto del proveedor y validar de nuevo ese ámbito en cada resultado.
+- [x] Conectar un provider opcional al nivel 4 del Context Engine; sin binding, Memory permanece inactivo.
+- [x] Limitar retrieval a 5 resultados y 4.000 caracteres; omitir resultados de otros proyectos.
+- [x] Continuar la tarea si el provider no está disponible o falla, exponiendo solo un aviso acotado y sin detalles internos.
+- [x] Definir `store` para un backend futuro, pero no invocarlo automáticamente en workflows.
+- [x] Cubrir ausencia, aislamiento, límites, fallos y comportamiento sin escrituras con providers falsos.
+- [x] Documentar explícitamente que esta fase no instala ni configura una solución RAG.
+
+Estado: contrato y punto de integración completados; no hay proveedor productivo conectado. Memory/RAG solo se activa cuando el host inyecta una implementación y un `projectId` explícito. La Fase 9 permanece abierta; no se hacen pruebas manuales ni se autoriza publicación.
+
+Entregable: [docs/PHASE_12_MEMORY_PROVIDER.md](PHASE_12_MEMORY_PROVIDER.md), contrato y fuente opcional de nivel 4 lista para un adapter futuro.
+
 ## 6. Orden de entrega recomendado
 
 1. MVP operativo: fases 0 a 5. Permite validar la entrada, el estado, la evaluación, la ruta simple y la tarea ligera.
 2. SDD: fase 6. Se integra OpenSpec cuando el núcleo ya puede sostener una tarea.
 3. Endurecimiento y distribución: fases 7 y 8.
-4. Uso y validación operativa: fase 9. Se valida el comportamiento real antes de declarar apto el MVP o publicarlo. El usuario decidió posponer los escenarios manuales; la Fase 10 puede avanzar como trabajo arquitectónico interno, sin considerar la Fase 9 cerrada.
+4. Uso y validación operativa: fase 9. Se valida el comportamiento real antes de declarar apto el MVP o publicarlo. El usuario decidió posponer los escenarios manuales; las fases 10 a 12 pueden avanzar como trabajo arquitectónico interno, sin considerar la Fase 9 cerrada.
 5. Extensibilidad interna: fase 10. Introducir el registro mínimo de capabilities y migrar OpenSpec como primer vertical, sin agregar integraciones externas.
 6. Contexto progresivo local: fase 11. Componer solicitud, metadatos y fuentes de repo relevantes; dejar Memory/RAG y retrieval histórico para fases posteriores.
+7. Contrato de memoria: fase 12. Definir el puerto y conectarlo opcionalmente sin backend activo; elegir e integrar una solución RAG requiere una decisión posterior.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 
