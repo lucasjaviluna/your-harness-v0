@@ -29,6 +29,7 @@
   "scripts": {
     "test": "node --experimental-transform-types --test",
     "test:e2e": "node --experimental-transform-types --test tests/e2e.test.ts",
+    "test:e2e:required": "node scripts/run-e2e-required.mjs",
     "pack:check": "node scripts/pack-check.mjs"
   },
   "dependencies": {

@@ -1,0 +1,24 @@
+name: Validate package
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Require clean-consumer smoke test
+        shell: bash
+        run: |
+          npm_cache="$(npm config get cache)"
+          PI_HARNESS_E2E_NPM_CACHE="$npm_cache" npm run test:e2e:required
+      - run: npm run pack:check

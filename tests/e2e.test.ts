@@ -11,9 +11,18 @@ const execFile = promisify(execFileCallback);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const windowsShell = process.platform === "win32";
+const requiredInstall = process.env.PI_HARNESS_E2E_REQUIRE_INSTALL === "1";
+const configuredInstallTimeout = Number.parseInt(process.env.PI_HARNESS_E2E_INSTALL_TIMEOUT_MS ?? "", 10);
+const installTimeout = Number.isFinite(configuredInstallTimeout) && configuredInstallTimeout > 0
+  ? configuredInstallTimeout
+  : requiredInstall ? 120_000 : 30_000;
 
 function npmEnvironment(cacheDirectory: string) {
-  return { ...process.env, npm_config_cache: join(cacheDirectory, "npm-cache") };
+  return {
+    ...process.env,
+    npm_config_cache: process.env.PI_HARNESS_E2E_NPM_CACHE || join(cacheDirectory, "npm-cache"),
+    npm_config_prefer_offline: "true",
+  };
 }
 
 function timedOut(error: unknown): boolean {
@@ -34,7 +43,7 @@ async function makePackageTarball(): Promise<{ directory: string; tarball: strin
 }
 
 async function installConsumer(tarball: string, prefix: string): Promise<void> {
-  await execFile(npmCommand, ["install", tarball, "--ignore-scripts", "--no-audit", "--no-fund", "--legacy-peer-deps", "--package-lock=false"], { cwd: prefix, windowsHide: true, shell: windowsShell, env: npmEnvironment(prefix), maxBuffer: 1024 * 1024, timeout: 30_000, killSignal: "SIGTERM" });
+  await execFile(npmCommand, ["install", tarball, "--ignore-scripts", "--no-audit", "--no-fund", "--legacy-peer-deps", "--package-lock=false"], { cwd: prefix, windowsHide: true, shell: windowsShell, env: npmEnvironment(prefix), maxBuffer: 1024 * 1024, timeout: installTimeout, killSignal: "SIGTERM" });
 }
 
 async function runInstalledHarness(prefix: string, prompt: string): Promise<string> {
@@ -55,6 +64,10 @@ async function runInstalledHarness(prefix: string, prompt: string): Promise<stri
     const failure = error as { stderr?: string; stdout?: string; message?: string };
     throw new Error(`${failure.message ?? "yh-pi falló"}\n${failure.stderr ?? failure.stdout ?? ""}`);
   }
+}
+
+function toGitBashPath(path: string): string {
+  return path.replaceAll("\\", "/");
 }
 
 test("el manifest distribuye el runtime necesario", { concurrency: false }, async () => {
@@ -78,8 +91,8 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
     await installConsumer(tarball, consumerA);
     await installConsumer(tarball, consumerB);
   } catch (error) {
-    if (timedOut(error)) {
-      t.skip("El consumidor no pudo instalar las dependencias dentro del tiempo disponible en este entorno");
+    if (timedOut(error) && !requiredInstall) {
+      t.skip(`El consumidor no pudo instalar las dependencias dentro de ${installTimeout} ms en este entorno`);
       return;
     }
     throw error;
@@ -95,12 +108,20 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   assert.match(sddOutput, /Ruta seleccionada: sdd/);
 });
 
-test("Git Bash puede invocar Pi cuando está disponible", { concurrency: false }, async (t) => {
-  if (process.platform !== "win32" || !(await commandAvailable("bash")) || !(await commandAvailable("pi"))) { t.skip("prueba específica de Windows/Git Bash no disponible"); return; }
+test("Git Bash puede invocar yh-pi instalado sin Pi global", { concurrency: false }, async (t) => {
+  if (process.platform !== "win32" || !(await commandAvailable("bash")) || !(await commandAvailable("npm"))) { t.skip("prueba específica de Windows/Git Bash no disponible"); return; }
+  const { tarball } = await makePackageTarball();
+  const consumer = await mkdtemp(join(tmpdir(), "pi-harness-git-bash-"));
   try {
-    const result = await execFile("bash.exe", ["-lc", "MSYS_NO_PATHCONV=1 pi --version"], { cwd: root, windowsHide: true });
-    assert.match(result.stdout, /\d+\.\d+\.\d+/);
-  } catch {
-    t.skip("Git Bash está disponible, pero no hereda un comando pi ejecutable en su PATH");
+    await installConsumer(tarball, consumer);
+  } catch (error) {
+    if (timedOut(error) && !requiredInstall) {
+      t.skip(`El consumidor no pudo instalar las dependencias dentro de ${installTimeout} ms en este entorno`);
+      return;
+    }
+    throw error;
   }
+  const harness = toGitBashPath(join(consumer, "node_modules", ".bin", "yh-pi"));
+  const result = await execFile("bash.exe", ["-lc", `MSYS_NO_PATHCONV=1 '${harness}' --version`], { cwd: consumer, windowsHide: true });
+  assert.match(result.stdout, /0\.1\.0/);
 });

@@ -7,10 +7,18 @@ La Fase 8 valida el package como artefacto instalable, sin publicar automáticam
 ```text
 npm test
 npm run test:e2e
+npm run test:e2e:required
 npm run pack:check
 ```
 
 `npm test` ejecuta pruebas unitarias y de integración. `npm run test:e2e` crea un tarball, lo instala en dos consumidores temporales y comprueba el manifest, las rutas runtime y la carga de Pi cuando el entorno lo permite. `npm run pack:check` muestra el contenido que se distribuiría.
+
+`npm run test:e2e:required` es la variante para CI o una validación de release: exige que la instalación y el smoke del consumidor terminen correctamente; un timeout ya no se convierte en `skip`. Puede configurarse con estas variables de entorno:
+
+- `PI_HARNESS_E2E_NPM_CACHE`: cache npm previamente restaurado por CI o preparado por el entorno. Si no se define, la prueba usa un cache temporal aislado.
+- `PI_HARNESS_E2E_INSTALL_TIMEOUT_MS`: timeout de instalación en milisegundos. El modo normal usa 30 segundos; el modo requerido, 120 segundos.
+
+El workflow `.github/workflows/validate.yml` restaura el cache npm de GitHub Actions y ejecuta esta variante estricta. Así, una regresión en el paquete distribuido no queda oculta por un `skip` de la validación local.
 
 Los comandos de empaquetado usan un cache npm temporal para no depender de permisos sobre el cache global del usuario.
 
@@ -29,17 +37,7 @@ No se distribuyen `tests/`, `node_modules/` ni archivos temporales.
 
 ## Git Bash y Windows
 
-La prueba de Git Bash es condicional porque Pi puede estar instalado en un PATH visible para PowerShell pero no para Git Bash. Cuando el comando está disponible se ejecuta:
-
-```bash
-MSYS_NO_PATHCONV=1 pi --version
-```
-
-En ese caso, para probar la extensión desde Git Bash:
-
-```bash
-MSYS_NO_PATHCONV=1 pi -e /c/ruta/pi-harness/extensions/harness.ts --approve
-```
+La prueba de Git Bash instala el tarball en un consumidor temporal y ejecuta el wrapper distribuido `node_modules/.bin/yh-pi --version`. No requiere que un comando `pi` global sea visible desde Git Bash: el CLI debe resolver su dependencia local de Pi. La prueba sigue siendo condicional cuando Git Bash o npm no están disponibles, y respeta el mismo modo normal/estricto de la instalación E2E.
 
 ## Publicación
 

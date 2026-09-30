@@ -40,4 +40,5 @@ Documentación del proyecto:
 - [Validación y distribución de la Fase 8](docs/PHASE_8_VALIDATION.md)
 - [Plan aprobado de CLI y experiencia TUI para la Fase 9](docs/PHASE_9_CLI_TUI_PLAN.md)
 - [Uso y validación operativa de la Fase 9](docs/PHASE_9_USAGE_VALIDATION.md)
+- [Registro de validación operativa de la Fase 9](docs/PHASE_9_VALIDATION_LOG.md)
 - [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)
