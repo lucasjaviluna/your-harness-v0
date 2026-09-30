@@ -324,12 +324,31 @@ La experiencia HIL de esta fase debe ser transparente para la persona: antes de 
 
 Entregable: [docs/PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md), informe de escenarios ejecutados, problemas conocidos y criterios para declarar el MVP apto para uso. Cierre: una persona nueva puede instalar el package, completar los flujos principales y recuperarse de una interrupción sin asistencia del autor.
 
+**Estado al 2026-09-30:** el usuario decidió aplazar los recorridos manuales hasta que el sistema esté más maduro. No se marcará la Fase 9 como cerrada ni se decidirá una publicación por avanzar con trabajo arquitectónico; se conservarán los escenarios pendientes en el registro de validación.
+
+### Fase 10 — Sistema mínimo de capabilities
+
+Crear un punto de extensión pequeño para separar la coordinación del harness de la implementación concreta de una integración. Pi continúa siendo el runtime del agente; una capability no reemplaza Pi ni contiene el workflow completo.
+
+- [x] Definir el contrato mínimo `Capability`: identidad, descripción, disponibilidad contextual y ejecución tipada.
+- [x] Crear un registro local que permita registrar, consultar, listar y detectar IDs duplicados.
+- [x] Migrar la detección de OpenSpec a la primera capability y hacer que la extensión consulte el registro.
+- [x] Añadir una capability local de verificación que capture el estado Git y contraste archivos reportados, sin ejecutar comandos arbitrarios.
+- [x] Conectar el workflow simple y los diagnósticos Git a la capability de verificación.
+- [x] Cubrir registro, disponibilidad, ejecución y duplicados con pruebas automatizadas.
+- [ ] Evaluar el contrato después de dos verticales antes de añadir otra capability.
+
+Alcance explícitamente excluido de este incremento: Memory/RAG, MCP, GitHub/Azure DevOps, navegador, políticas genéricas, subagentes, carga dinámica de plugins y un Context Engine completo. La Fase 9 continúa abierta mientras estén pendientes sus escenarios manuales; este trabajo de arquitectura no implica declarar apto el MVP ni publicarlo.
+
+Entregable: [docs/PHASE_10_CAPABILITIES.md](PHASE_10_CAPABILITIES.md), contrato mínimo probado y detección de OpenSpec integrada mediante el registro.
+
 ## 6. Orden de entrega recomendado
 
 1. MVP operativo: fases 0 a 5. Permite validar la entrada, el estado, la evaluación, la ruta simple y la tarea ligera.
 2. SDD: fase 6. Se integra OpenSpec cuando el núcleo ya puede sostener una tarea.
 3. Endurecimiento y distribución: fases 7 y 8.
-4. Uso y validación operativa: fase 9. Se valida el comportamiento real antes de añadir integraciones externas.
+4. Uso y validación operativa: fase 9. Se valida el comportamiento real antes de declarar apto el MVP o publicarlo. El usuario decidió posponer los escenarios manuales; la Fase 10 puede avanzar como trabajo arquitectónico interno, sin considerar la Fase 9 cerrada.
+5. Extensibilidad interna: fase 10. Introducir el registro mínimo de capabilities y migrar OpenSpec como primer vertical, sin agregar integraciones externas.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 

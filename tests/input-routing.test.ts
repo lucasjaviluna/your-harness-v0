@@ -82,3 +82,45 @@ test("una comparación incierta tampoco ofrece ejecución directa", async () => 
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+test("un prompt nuevo mientras una tarea simple espera revisión ofrece ampliarla", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-routing-review-"));
+  try {
+    await mkdir(join(cwd, ".harness"));
+    await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({ captureInput: true }));
+    const reviewGate = {
+      id: "review-1", kind: "review" as const, reason: "Revisión manual", question: "¿Apruebas?",
+      options: ["approve", "revise", "cancel"], evidence: [], blocksProgress: true,
+    };
+    const previous = {
+      ...createTask({ prompt: "Cambiar el texto del botón de login.", cwd, requestedMode: "auto", analyzeOnly: false }),
+      phase: "awaiting-review" as const, route: "simple" as const, humanGates: [reviewGate],
+    };
+    const handlers = new Map<string, (...args: any[]) => Promise<any>>();
+    const entries: Array<[string, any]> = [];
+    const pi = {
+      on: (event: string, handler: (...args: any[]) => Promise<any>) => handlers.set(event, handler),
+      registerCommand: () => {}, appendEntry: (type: string, data: any) => entries.push([type, data]),
+    } as unknown as ExtensionAPI;
+    registerHarness(pi);
+    const ctx = {
+      cwd, hasUI: true, signal: undefined, isIdle: () => false,
+      sessionManager: { getBranch: () => [{ type: "custom", customType: TASK_ENTRY_TYPE, data: previous }] },
+      ui: { notify: () => {}, select: async (_title: string, options: string[]) => {
+        assert.deepEqual(options, ["Ampliar tarea actual", "Crear tarea nueva en yh-pi", "No continuar"]);
+        return "Ampliar tarea actual";
+      } },
+    } as unknown as ExtensionContext;
+    await handlers.get("session_start")!({}, ctx);
+    const outcome = await handlers.get("input")!({ text: "También agrega una confirmación antes de guardar.", source: "interactive" }, ctx);
+    assert.deepEqual(outcome, { action: "handled" });
+    assert.equal(entries.length, 1);
+    const revised = entries[0]![1];
+    assert.equal(revised.id, previous.id);
+    assert.equal(revised.phase, "awaiting-approval");
+    assert.equal(revised.humanGates.find((gate: any) => gate.id === reviewGate.id).decision.value, "revise");
+    assert.equal(revised.humanGates.some((gate: any) => gate.blocksProgress && !gate.decision), true);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});

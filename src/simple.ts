@@ -1,31 +1,10 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import type { HarnessTask, HumanGate, WorkResult } from "./task.ts";
+import type { RepositorySnapshot } from "./capabilities/verification.ts";
 
-const execFileAsync = promisify(execFile);
-
-export type RepositorySnapshot = {
-  available: boolean;
-  status: string[];
-  files: string[];
-  error?: string;
-};
+export { captureRepositorySnapshot, reviewChangedFiles } from "./capabilities/verification.ts";
+export type { RepositorySnapshot } from "./capabilities/verification.ts";
 
 export type SimpleAgentResult = WorkResult & { changedFiles: string[] };
-
-function statusFiles(status: string[]): string[] {
-  return status.map((line) => line.replace(/^..\s+/, "").trim()).filter(Boolean);
-}
-
-export async function captureRepositorySnapshot(cwd: string): Promise<RepositorySnapshot> {
-  try {
-    const result = await execFileAsync("git", ["status", "--short"], { cwd, windowsHide: true });
-    const status = result.stdout.split(/\r?\n/).map((line) => line.trimEnd()).filter(Boolean);
-    return { available: true, status, files: statusFiles(status) };
-  } catch (error) {
-    return { available: false, status: [], files: [], error: error instanceof Error ? error.message : String(error) };
-  }
-}
 
 export function chooseVerificationCommands(task: HarnessTask): string[] {
   const documented = task.context?.verificationCommands ?? [];
@@ -93,14 +72,6 @@ export function parseSimpleAgentResult(text: string): SimpleAgentResult | undefi
   const risks = sectionLines(block, "risks").filter((line) => line.replace(/^[-*]\s*/, "").toLowerCase() !== "none");
   const route = block.match(/^route:\s*(simple|sdd)\s*$/im)?.[1] ?? "simple";
   return { status: "needs-input", summary, artifacts: changedFiles, checks, nextStep: route === "sdd" ? "Reencaminar la tarea a sdd." : "Revisar el diff y aprobar el resultado.", risks, changedFiles };
-}
-
-export function reviewChangedFiles(baseline: RepositorySnapshot, current: RepositorySnapshot, reportedFiles: string[]): { changedFiles: string[]; unexpectedFiles: string[] } {
-  const baselineSet = new Set(baseline.files);
-  const changedFiles = current.files.filter((file) => !baselineSet.has(file));
-  const reportedSet = new Set(reportedFiles);
-  const unexpectedFiles = changedFiles.filter((file) => reportedFiles.length > 0 && !reportedSet.has(file));
-  return { changedFiles, unexpectedFiles };
 }
 
 export function createSimpleReviewGate(task: HarnessTask, result: SimpleAgentResult, unexpectedFiles: string[]): HumanGate {

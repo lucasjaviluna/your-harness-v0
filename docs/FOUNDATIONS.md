@@ -207,6 +207,11 @@ pi-harness/
 │   ├── config.ts
 │   ├── human-gates.ts
 │   ├── result.ts
+│   ├── capabilities/
+│   │   ├── capability.ts
+│   │   ├── registry.ts
+│   │   ├── openspec.ts
+│   │   └── verification.ts
 │   ├── profile.ts
 │   ├── work-context.ts
 │   └── openspec.ts
@@ -223,6 +228,8 @@ pi-harness/
 ├── tests/
 └── docs/
 ```
+
+El registro de capabilities es una frontera interna entre los workflows y las integraciones concretas. En su primer incremento solo registra OpenSpec; no cambia a Pi como runtime ni introduce carga dinámica, MCP o servicios externos. Su contrato actual se detalla en [PHASE_10_CAPABILITIES.md](PHASE_10_CAPABILITIES.md).
 
 ## 10. Persistencia y recuperación
 

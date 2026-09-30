@@ -1,8 +1,9 @@
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "../src/assessment.ts";
 import { collectRepositoryContext } from "../src/intake.ts";
-import { buildSimpleWorkflowPrompt, captureRepositorySnapshot, createSimpleReviewGate, parseSimpleAgentResult, reviewChangedFiles, type RepositorySnapshot } from "../src/simple.ts";
-import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, detectOpenSpec, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
+import { buildSimpleWorkflowPrompt, createSimpleReviewGate, parseSimpleAgentResult, type RepositorySnapshot } from "../src/simple.ts";
+import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
+import { createHarnessCapabilityRegistry } from "../src/capabilities/index.ts";
 import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
 import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
@@ -104,6 +105,29 @@ async function syncTaskArtifact(task: HarnessTask): Promise<HarnessTask> {
 
 export default function (pi: ExtensionAPI) {
   assertCompatiblePi(pi);
+  const capabilities = createHarnessCapabilityRegistry();
+
+  async function detectProjectOpenSpec(cwd: string, probeCli?: boolean): Promise<OpenSpecDetection> {
+    const openspec = capabilities.get("openspec");
+    if (!openspec) throw new Error("La capability OpenSpec no está registrada.");
+    return openspec.execute({ operation: "detect", probeCli }, { cwd });
+  }
+
+  async function captureProjectSnapshot(cwd: string): Promise<RepositorySnapshot> {
+    const verification = capabilities.get("verification");
+    if (!verification) throw new Error("La capability de verificación no está registrada.");
+    const result = await verification.execute({ operation: "snapshot" }, { cwd });
+    if (result.operation !== "snapshot") throw new Error("La capability devolvió un resultado inesperado al capturar el repositorio.");
+    return result.snapshot;
+  }
+
+  async function reviewProjectChanges(cwd: string, baseline: RepositorySnapshot, current: RepositorySnapshot, reportedFiles: string[]) {
+    const verification = capabilities.get("verification");
+    if (!verification) throw new Error("La capability de verificación no está registrada.");
+    const result = await verification.execute({ operation: "review-changed-files", baseline, current, reportedFiles }, { cwd });
+    if (result.operation !== "review-changed-files") throw new Error("La capability devolvió un resultado inesperado al revisar los cambios.");
+    return result;
+  }
 
   pi.on("session_start", async (_event, ctx) => {
     lastTask = undefined;
@@ -132,7 +156,7 @@ export default function (pi: ExtensionAPI) {
       showMessage(ctx, "Pi está ocupado. La tarea queda preparada para ejecutarse cuando termine el turno actual.", "warn");
       return false;
     }
-    simpleBaseline = await captureRepositorySnapshot(lastTask.cwd);
+    simpleBaseline = await captureProjectSnapshot(lastTask.cwd);
     lastTask = { ...lastTask, phase: "implementing" };
     pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
     updateHarnessTui(ctx);
@@ -245,7 +269,12 @@ export default function (pi: ExtensionAPI) {
     if (!currentConfig.captureInput || event.source === "extension" || event.streamingBehavior) return { action: "continue" as const };
     const text = event.text.trim();
     if (!text || text.startsWith("/")) return { action: "continue" as const };
-    if (lastTask && lastTask.humanGates.some((gate) => gate.blocksProgress && !gate.decision)) {
+    const pendingGates = lastTask?.humanGates.filter((gate) => gate.blocksProgress && !gate.decision) ?? [];
+    const simpleTaskCanBeRevised = lastTask?.route === "simple"
+      && ["planning", "implementing", "awaiting-review"].includes(lastTask.phase)
+      && (pendingGates.length === 0
+        || lastTask.phase === "awaiting-review" && pendingGates.every((gate) => gate.kind === "review"));
+    if (pendingGates.length && !simpleTaskCanBeRevised) {
       showMessage(ctx, "Hay una decisión HIL pendiente. Usa /harness-decide antes de iniciar otra tarea.", "warn");
       return { action: "handled" as const };
     }
@@ -256,11 +285,34 @@ export default function (pi: ExtensionAPI) {
       showMessage(ctx, parsed.message, "warn");
       return { action: "handled" as const };
     }
+    if (simpleTaskCanBeRevised) {
+      if (!ctx.hasUI) {
+        showMessage(ctx, "Hay una tarea simple en curso o pendiente de revisión. Usa /harness-scope <nuevo alcance> para ampliarla, o /harness-work para iniciar otra.", "warn");
+        return { action: "handled" as const };
+      }
+      const choice = await ctx.ui.select(
+        lastTask.phase === "awaiting-review" ? "La tarea simple ya terminó y espera revisión" : "Hay una tarea simple activa",
+        ["Ampliar tarea actual", "Crear tarea nueva en yh-pi", "No continuar"],
+      );
+      if (choice === "No continuar") return { action: "handled" as const };
+      if (choice === "Ampliar tarea actual") {
+        try {
+          lastTask = requestScopeChange(lastTask, text);
+          lastTask = await syncTaskArtifact(lastTask);
+          pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+          updateHarnessTui(ctx);
+          showMessage(ctx, `Alcance ampliado y reevaluado como ${lastTask.route}. La revisión anterior quedó invalidada. Aprueba el nuevo alcance con /harness-decide approve antes de continuar.`);
+        } catch (error) {
+          showMessage(ctx, error instanceof Error ? error.message : "No se pudo ampliar la tarea.", "error");
+        }
+        return { action: "handled" as const };
+      }
+    }
     let related: { task: HarnessTask; comparison: "same" | "uncertain" } | undefined;
     const candidates = sessionTasks.filter((candidate) => !(
       candidate.id === lastTask?.id
       && lastTask.route === "simple"
-      && ["planning", "implementing"].includes(lastTask.phase)
+      && ["planning", "implementing", "awaiting-review"].includes(lastTask.phase)
     ));
     for (const candidate of [...candidates].reverse().slice(0, 5)) {
       const comparison = await compareTaskRequest(candidate, parsed, (previous, current) => compareCancelledIntent(previous, current, ctx));
@@ -280,26 +332,6 @@ export default function (pi: ExtensionAPI) {
         ["Crear tarea nueva en yh-pi", "No continuar"],
       );
       if (choice !== "Crear tarea nueva en yh-pi") return { action: "handled" as const };
-    }
-    if (lastTask && lastTask.route === "simple" && ["planning", "implementing"].includes(lastTask.phase) && ctx.hasUI) {
-      const choice = await ctx.ui.select(
-        "Hay una tarea simple activa",
-        ["Ampliar tarea actual", "Crear tarea nueva en yh-pi", "No continuar"],
-      );
-      if (choice === "No continuar") return { action: "handled" as const };
-      if (choice === "Ampliar tarea actual") {
-        try {
-          lastTask = requestScopeChange(lastTask, text);
-          lastTask = await syncTaskArtifact(lastTask);
-          pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
-          updateHarnessTui(ctx);
-          showMessage(ctx, `Alcance ampliado. La tarea fue reevaluada como ${lastTask.route}.`);
-          if (["task", "sdd"].includes(lastTask.route ?? "") && lastTask.phase === "awaiting-approval") await presentPlanReview(ctx);
-        } catch (error) {
-          showMessage(ctx, error instanceof Error ? error.message : "No se pudo ampliar la tarea.", "error");
-        }
-        return { action: "handled" as const };
-      }
     }
     try {
       lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask });
@@ -333,7 +365,7 @@ export default function (pi: ExtensionAPI) {
         showMessage(ctx, "Pi está ocupado. Espera a que termine el turno actual y vuelve a ejecutar /harness-sdd.", "warn");
         return;
       }
-      sddDetection = await detectOpenSpec(lastTask.cwd);
+      sddDetection = await detectProjectOpenSpec(lastTask.cwd);
       if (!sddDetection.configured) {
         showMessage(ctx, `OpenSpec no está configurado para Pi. ${sddDetection.findings.join(" ")} Inicialización sugerida: ${sddDetection.initCommand}`, "warn");
         return;
@@ -371,7 +403,7 @@ export default function (pi: ExtensionAPI) {
         showMessage(ctx, "Pi está ocupado. Espera a que termine el turno actual y vuelve a ejecutar /harness-simple.", "warn");
         return;
       }
-      simpleBaseline = await captureRepositorySnapshot(lastTask.cwd);
+      simpleBaseline = await captureProjectSnapshot(lastTask.cwd);
       lastTask = { ...lastTask, phase: "implementing" };
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
       showMessage(ctx, "Workflow simple iniciado. Pi inspeccionará, editará y verificará la tarea; luego pedirá revisión humana.");
@@ -388,7 +420,7 @@ export default function (pi: ExtensionAPI) {
         : Array.isArray(assistant?.content)
           ? (assistant.content as Array<{ type?: string; text?: string }>).filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n")
           : "";
-      const detection = sddDetection ?? await detectOpenSpec(lastTask.cwd);
+      const detection = sddDetection ?? await detectProjectOpenSpec(lastTask.cwd);
       const step = lastTask.openspec?.step ?? "propose";
       const change = extractOpenSpecChange(text, detection.activeChanges) ?? lastTask.openspec?.change;
       const artifacts = extractOpenSpecArtifacts(lastTask.cwd, change);
@@ -451,8 +483,8 @@ export default function (pi: ExtensionAPI) {
       showMessage(ctx, `${result.summary} ${result.nextStep}`, "warn");
       return;
     }
-    const current = await captureRepositorySnapshot(lastTask.cwd);
-    const review = reviewChangedFiles(simpleBaseline ?? { available: false, status: [], files: [] }, current, parsed.changedFiles);
+    const current = await captureProjectSnapshot(lastTask.cwd);
+    const review = await reviewProjectChanges(lastTask.cwd, simpleBaseline ?? { available: false, status: [], files: [] }, current, parsed.changedFiles);
     const result = review.unexpectedFiles.length
       ? { ...parsed, risks: [...parsed.risks, `Archivos modificados fuera del reporte: ${review.unexpectedFiles.join(", ")}.`] }
       : parsed;
@@ -539,7 +571,7 @@ export default function (pi: ExtensionAPI) {
       const loaded = await loadConfig(ctx.cwd);
       currentConfig = loaded.config;
       const context = await collectRepositoryContext(ctx.cwd);
-      const openSpec = await detectOpenSpec(context.repoRoot ?? ctx.cwd);
+      const openSpec = await detectProjectOpenSpec(context.repoRoot ?? ctx.cwd);
       showMessage(ctx, formatDoctorReport(loaded, context, openSpec, true));
     },
   });
@@ -547,8 +579,8 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("harness-changes", {
     description: "Muestra cambios Git y changes OpenSpec activos",
     handler: async (_args, ctx) => {
-      const snapshot = await captureRepositorySnapshot(ctx.cwd);
-      const openSpec = await detectOpenSpec(ctx.cwd);
+      const snapshot = await captureProjectSnapshot(ctx.cwd);
+      const openSpec = await detectProjectOpenSpec(ctx.cwd);
       showMessage(ctx, formatChangesReport(snapshot, openSpec));
     },
   });
