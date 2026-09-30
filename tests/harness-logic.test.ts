@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
-import { compareCancelledRequest, compareTaskRequest, parseIntentComparison, parseWorkRequest } from "../src/harness-logic.ts";
+import { createHarnessCapabilityRegistry } from "../src/capabilities/index.ts";
+import { DEFAULT_CONFIG } from "../src/config.ts";
+import { compareCancelledRequest, compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
 import { createTask } from "../src/task.ts";
 
 test("parsea una solicitud slash con modo y análisis opcionales", () => {
@@ -73,4 +78,37 @@ test("la comparación global funciona sin depender del estado de la tarea", asyn
     assert.equal(await compareTaskRequest(existing, request, async () => "same"), "same");
     assert.equal(await compareTaskRequest({ ...existing, phase: "done" }, request, async () => "same"), "same");
   }
+});
+
+test("preparar una tarea obtiene el contexto mediante RepositoryCapability", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-repository-routing-"));
+  try {
+    const capabilities = createHarnessCapabilityRegistry();
+    const repository = capabilities.get("repository")!;
+    const execute = repository.execute.bind(repository);
+    let inspections = 0;
+    repository.execute = async (request, context) => {
+      inspections++;
+      return execute(request, context);
+    };
+    const task = await prepareHarnessTask({
+      cwd,
+      request: { ok: true, prompt: "Cambiar el texto del botón.", requestedMode: "simple", analyzeOnly: false },
+      config: structuredClone(DEFAULT_CONFIG),
+      capabilities,
+    });
+    assert.equal(inspections, 1);
+    assert.equal(task.context?.git.available, false);
+    assert.equal(task.context?.warnings.some((warning) => warning.includes("no pertenece a un repositorio Git")), true);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("el contrato del registro impide asociar una capability a un id distinto", () => {
+  const capabilities = createHarnessCapabilityRegistry();
+  assert.throws(
+    () => capabilities.register("git", capabilities.get("openspec")!),
+    /no coincide con la clave/,
+  );
 });

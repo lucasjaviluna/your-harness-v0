@@ -210,6 +210,8 @@ pi-harness/
 │   ├── capabilities/
 │   │   ├── capability.ts
 │   │   ├── registry.ts
+│   │   ├── repository.ts
+│   │   ├── git.ts
 │   │   ├── openspec.ts
 │   │   └── verification.ts
 │   ├── profile.ts

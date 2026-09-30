@@ -1,5 +1,6 @@
 import { applyAssessment } from "./assessment.ts";
-import { collectRepositoryContext } from "./intake.ts";
+import { createHarnessCapabilityRegistry, type HarnessCapabilities } from "./capabilities/index.ts";
+import type { CapabilityRegistry } from "./capabilities/registry.ts";
 import { loadConfig, type HarnessConfig } from "./config.ts";
 import { isActiveTask } from "./recovery.ts";
 import { writeTaskArtifact } from "./task-artifact.ts";
@@ -106,6 +107,7 @@ export async function prepareHarnessTask(input: {
   config: HarnessConfig;
   profile?: UserProfile;
   activeTask?: HarnessTask;
+  capabilities?: CapabilityRegistry<HarnessCapabilities>;
 }): Promise<HarnessTask> {
   const { request, config } = input;
   if (request.requestedMode !== "auto" && !config.routing.allowManualOverride) {
@@ -115,7 +117,10 @@ export async function prepareHarnessTask(input: {
     throw new Error(`La misma tarea ya está activa (${input.activeTask.id}); no se creó un duplicado.`);
   }
 
-  const context = await collectRepositoryContext(input.cwd);
+  const capabilities = input.capabilities ?? createHarnessCapabilityRegistry();
+  const repository = capabilities.get("repository");
+  if (!repository) throw new Error("La capability de repositorio no está registrada.");
+  const context = await repository.execute({ operation: "inspect" }, { cwd: input.cwd });
   let task = applyAssessment(createTask({
     prompt: request.prompt,
     cwd: input.cwd,
@@ -137,6 +142,7 @@ export async function prepareHarnessTaskFromArgs(input: {
   config?: HarnessConfig;
   activeTask?: HarnessTask;
   profile?: UserProfile;
+  capabilities?: CapabilityRegistry<HarnessCapabilities>;
 }): Promise<HarnessTask> {
   const config = input.config ?? (await loadConfig(input.cwd)).config;
   const request = parseWorkRequest(input.args, config.defaultMode);

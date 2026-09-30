@@ -4,22 +4,26 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { CapabilityRegistry, createHarnessCapabilityRegistry } from "../src/capabilities/index.ts";
+import { GitCapability } from "../src/capabilities/git.ts";
 import { OpenSpecCapability } from "../src/capabilities/openspec.ts";
+import { RepositoryCapability } from "../src/capabilities/repository.ts";
 import { RepositoryVerificationCapability } from "../src/capabilities/verification.ts";
 
 test("el registro expone OpenSpec y reporta disponibilidad según el proyecto", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "pi-harness-capabilities-"));
   try {
     const registry = createHarnessCapabilityRegistry();
-    assert.deepEqual(registry.list().map((capability) => capability.id), ["openspec", "verification"]);
+    assert.deepEqual(registry.list().map((capability) => capability.id), ["repository", "git", "openspec", "verification"]);
     assert.equal(registry.get("openspec")?.id, "openspec");
     assert.deepEqual(await registry.available({ cwd }), [
-      { id: "openspec", available: false }, { id: "verification", available: false },
+      { id: "repository", available: true }, { id: "git", available: false },
+      { id: "openspec", available: false }, { id: "verification", available: true },
     ]);
 
     await mkdir(join(cwd, "openspec"));
     assert.deepEqual(await registry.available({ cwd }), [
-      { id: "openspec", available: true }, { id: "verification", available: false },
+      { id: "repository", available: true }, { id: "git", available: false },
+      { id: "openspec", available: true }, { id: "verification", available: true },
     ]);
   } finally {
     await rm(cwd, { recursive: true, force: true });
@@ -50,18 +54,42 @@ test("la capability de verificación revisa cambios sin ejecutar comandos arbitr
   const cwd = await mkdtemp(join(tmpdir(), "pi-harness-verification-capability-"));
   try {
     const capability = new RepositoryVerificationCapability();
-    assert.equal(await capability.isAvailable({ cwd }), false);
+    assert.equal(await capability.isAvailable({ cwd }), true);
     const review = await capability.execute({
-      operation: "review-changed-files",
       baseline: { available: true, status: [], files: ["README.md"] },
       current: { available: true, status: [], files: ["README.md", "src/app.ts", "tmp.log"] },
       reportedFiles: ["src/app.ts"],
     }, { cwd });
     assert.deepEqual(review, {
-      operation: "review-changed-files",
       changedFiles: ["src/app.ts", "tmp.log"],
       unexpectedFiles: ["tmp.log"],
     });
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("la capability de repositorio sigue disponible sin Git y devuelve contexto con advertencias", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-repository-capability-"));
+  try {
+    const capability = new RepositoryCapability();
+    assert.equal(await capability.isAvailable({ cwd }), true);
+    const context = await capability.execute({ operation: "inspect" }, { cwd });
+    assert.equal(context.git.available, false);
+    assert.equal(context.warnings.some((warning) => warning.includes("no pertenece a un repositorio Git")), true);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("la capability Git representa la ausencia del repositorio sin fallar la solicitud", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-git-capability-"));
+  try {
+    const capability = new GitCapability();
+    assert.equal(await capability.isAvailable({ cwd }), false);
+    const snapshot = await capability.execute({ operation: "snapshot" }, { cwd });
+    assert.equal(snapshot.available, false);
+    assert.ok(snapshot.error);
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }

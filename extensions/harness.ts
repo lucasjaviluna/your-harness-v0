@@ -1,6 +1,5 @@
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "../src/assessment.ts";
-import { collectRepositoryContext } from "../src/intake.ts";
 import { buildSimpleWorkflowPrompt, createSimpleReviewGate, parseSimpleAgentResult, type RepositorySnapshot } from "../src/simple.ts";
 import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
 import { createHarnessCapabilityRegistry } from "../src/capabilities/index.ts";
@@ -113,20 +112,22 @@ export default function (pi: ExtensionAPI) {
     return openspec.execute({ operation: "detect", probeCli }, { cwd });
   }
 
+  async function inspectProjectRepository(cwd: string) {
+    const repository = capabilities.get("repository");
+    if (!repository) throw new Error("La capability de repositorio no está registrada.");
+    return repository.execute({ operation: "inspect" }, { cwd });
+  }
+
   async function captureProjectSnapshot(cwd: string): Promise<RepositorySnapshot> {
-    const verification = capabilities.get("verification");
-    if (!verification) throw new Error("La capability de verificación no está registrada.");
-    const result = await verification.execute({ operation: "snapshot" }, { cwd });
-    if (result.operation !== "snapshot") throw new Error("La capability devolvió un resultado inesperado al capturar el repositorio.");
-    return result.snapshot;
+    const git = capabilities.get("git");
+    if (!git) throw new Error("La capability Git no está registrada.");
+    return git.execute({ operation: "snapshot" }, { cwd });
   }
 
   async function reviewProjectChanges(cwd: string, baseline: RepositorySnapshot, current: RepositorySnapshot, reportedFiles: string[]) {
     const verification = capabilities.get("verification");
     if (!verification) throw new Error("La capability de verificación no está registrada.");
-    const result = await verification.execute({ operation: "review-changed-files", baseline, current, reportedFiles }, { cwd });
-    if (result.operation !== "review-changed-files") throw new Error("La capability devolvió un resultado inesperado al revisar los cambios.");
-    return result;
+    return verification.execute({ baseline, current, reportedFiles }, { cwd });
   }
 
   pi.on("session_start", async (_event, ctx) => {
@@ -334,7 +335,7 @@ export default function (pi: ExtensionAPI) {
       if (choice !== "Crear tarea nueva en yh-pi") return { action: "handled" as const };
     }
     try {
-      lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask });
+      lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask, capabilities });
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
       updateHarnessTui(ctx);
       showMessage(ctx, `Solicitud capturada por yh-pi: ruta ${lastTask.route}; confianza ${lastTask.assessment?.confidence ?? "n/a"}.`);
@@ -537,7 +538,7 @@ export default function (pi: ExtensionAPI) {
         return;
       }
       try {
-        lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask });
+        lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask, capabilities });
         rememberTask(lastTask);
       } catch (error) {
         showMessage(ctx, error instanceof Error ? error.message : "No se pudo preparar la tarea.", "error");
@@ -570,7 +571,7 @@ export default function (pi: ExtensionAPI) {
     handler: async (_args, ctx) => {
       const loaded = await loadConfig(ctx.cwd);
       currentConfig = loaded.config;
-      const context = await collectRepositoryContext(ctx.cwd);
+      const context = await inspectProjectRepository(ctx.cwd);
       const openSpec = await detectProjectOpenSpec(context.repoRoot ?? ctx.cwd);
       showMessage(ctx, formatDoctorReport(loaded, context, openSpec, true));
     },

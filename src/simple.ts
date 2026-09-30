@@ -1,8 +1,9 @@
 import type { HarnessTask, HumanGate, WorkResult } from "./task.ts";
-import type { RepositorySnapshot } from "./capabilities/verification.ts";
+import type { GitSnapshot } from "./capabilities/git.ts";
 
-export { captureRepositorySnapshot, reviewChangedFiles } from "./capabilities/verification.ts";
-export type { RepositorySnapshot } from "./capabilities/verification.ts";
+export { captureGitSnapshot as captureRepositorySnapshot } from "./capabilities/git.ts";
+export { reviewChangedFiles } from "./capabilities/verification.ts";
+export type RepositorySnapshot = GitSnapshot;
 
 export type SimpleAgentResult = WorkResult & { changedFiles: string[] };
 

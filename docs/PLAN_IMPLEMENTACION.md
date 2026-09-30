@@ -333,10 +333,14 @@ Crear un punto de extensión pequeño para separar la coordinación del harness 
 - [x] Definir el contrato mínimo `Capability`: identidad, descripción, disponibilidad contextual y ejecución tipada.
 - [x] Crear un registro local que permita registrar, consultar, listar y detectar IDs duplicados.
 - [x] Migrar la detección de OpenSpec a la primera capability y hacer que la extensión consulte el registro.
-- [x] Añadir una capability local de verificación que capture el estado Git y contraste archivos reportados, sin ejecutar comandos arbitrarios.
-- [x] Conectar el workflow simple y los diagnósticos Git a la capability de verificación.
-- [x] Cubrir registro, disponibilidad, ejecución y duplicados con pruebas automatizadas.
-- [ ] Evaluar el contrato después de dos verticales antes de añadir otra capability.
+- [x] Añadir la capability `repository` para recopilar contexto e instrucciones del repositorio.
+- [x] Separar la capability `git`, responsable de los snapshots de estado y archivos.
+- [x] Añadir la capability `verification` para contrastar archivos reportados, sin ejecutar comandos arbitrarios.
+- [x] Conectar intake de tareas, diagnóstico y workflow simple con las capabilities correspondientes.
+- [x] Cubrir registro, disponibilidad, ejecución e integración con pruebas automatizadas.
+- [x] Revisar el contrato con cuatro verticales locales: contexto común mínimo `cwd` y contextos tipados por capability; sin carga dinámica ni backend de plugins.
+
+Estado: completada técnicamente en su alcance local. Fase 9 sigue abierta y la finalización de Fase 10 no declara apto el MVP ni autoriza publicación.
 
 Alcance explícitamente excluido de este incremento: Memory/RAG, MCP, GitHub/Azure DevOps, navegador, políticas genéricas, subagentes, carga dinámica de plugins y un Context Engine completo. La Fase 9 continúa abierta mientras estén pendientes sus escenarios manuales; este trabajo de arquitectura no implica declarar apto el MVP ni publicarlo.
 
