@@ -5,7 +5,7 @@ import { buildSimpleWorkflowPrompt, captureRepositorySnapshot, createSimpleRevie
 import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, detectOpenSpec, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
 import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
-import { compareCancelledRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
+import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
 import { formatPlanDetails } from "../src/plan.ts";
 import { recoverInterruptedTask } from "../src/recovery.ts";
 import { deleteCancelledTaskArtifact, readTaskArtifact, writeTaskArtifact } from "../src/task-artifact.ts";
@@ -20,10 +20,15 @@ import {
 } from "../src/task.ts";
 
 let lastTask: HarnessTask | undefined;
+let sessionTasks: HarnessTask[] = [];
 let simpleBaseline: RepositorySnapshot | undefined;
 let sddDetection: OpenSpecDetection | undefined;
 let currentConfig: HarnessConfig = structuredClone(DEFAULT_CONFIG);
 const VALID_DECISIONS = new Set<HumanDecisionValue>(["approve", "reject", "revise", "cancel", "answer"]);
+
+function rememberTask(task: HarnessTask): void {
+  sessionTasks = [...sessionTasks.filter((item) => item.id !== task.id), task];
+}
 
 function assertCompatiblePi(pi: ExtensionAPI): void {
   const api = pi as unknown as { registerCommand?: unknown };
@@ -60,6 +65,7 @@ function installHarnessHeader(ctx: ExtensionContext): void {
 
 function updateHarnessTui(ctx: ExtensionContext): void {
   if (ctx.mode !== "tui") return;
+  if (lastTask) rememberTask(lastTask);
   const gate = lastTask?.humanGates.find((item) => item.blocksProgress && !item.decision);
   const ui = ctx.ui;
   ui.setTitle(`yh-pi · ${currentConfig.profile}`);
@@ -101,12 +107,17 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("session_start", async (_event, ctx) => {
     lastTask = undefined;
+    sessionTasks = [];
     simpleBaseline = undefined;
     sddDetection = undefined;
     currentConfig = { ...structuredClone(DEFAULT_CONFIG), ...readRuntimeOverrides() };
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "custom" || entry.customType !== TASK_ENTRY_TYPE) continue;
-      if (isHarnessTask(entry.data)) lastTask = hydrateHarnessTask(entry.data);
+      if (isHarnessTask(entry.data)) {
+        const task = hydrateHarnessTask(entry.data);
+        rememberTask(task);
+        lastTask = task;
+      }
     }
     installHarnessHeader(ctx);
     currentConfig = (await loadConfig(ctx.cwd)).config;
@@ -245,14 +256,27 @@ export default function (pi: ExtensionAPI) {
       showMessage(ctx, parsed.message, "warn");
       return { action: "handled" as const };
     }
-    const comparison = await compareCancelledRequest(lastTask, parsed, (previous, current) => compareCancelledIntent(previous, current, ctx));
-    if (comparison === "same" || comparison === "uncertain") {
+    let related: { task: HarnessTask; comparison: "same" | "uncertain" } | undefined;
+    const candidates = sessionTasks.filter((candidate) => !(
+      candidate.id === lastTask?.id
+      && lastTask.route === "simple"
+      && ["planning", "implementing"].includes(lastTask.phase)
+    ));
+    for (const candidate of [...candidates].reverse().slice(0, 5)) {
+      const comparison = await compareTaskRequest(candidate, parsed, (previous, current) => compareCancelledIntent(previous, current, ctx));
+      if (comparison === "same") {
+        related = { task: candidate, comparison };
+        break;
+      }
+      if (comparison === "uncertain" && !related) related = { task: candidate, comparison };
+    }
+    if (related) {
       if (!ctx.hasUI) {
-        showMessage(ctx, "La solicitud puede corresponder a una tarea cancelada. Revisa la decisión en la TUI o usa /harness-work para iniciar una tarea nueva.", "warn");
+        showMessage(ctx, "La solicitud puede corresponder a una tarea existente. Revisa la decisión en la TUI o usa /harness-work para iniciar una tarea nueva.", "warn");
         return { action: "handled" as const };
       }
       const choice = await ctx.ui.select(
-        `Solicitud ${comparison === "same" ? "equivalente" : "posiblemente relacionada"} con una tarea cancelada\nAnterior: ${lastTask?.prompt}\nNueva: ${parsed.prompt}`,
+        `Solicitud ${related.comparison === "same" ? "equivalente" : "posiblemente relacionada"} con una tarea existente\nEstado: ${related.task.phase}\nAnterior: ${related.task.prompt}\nNueva: ${parsed.prompt}`,
         ["Crear tarea nueva en yh-pi", "No continuar"],
       );
       if (choice !== "Crear tarea nueva en yh-pi") return { action: "handled" as const };
@@ -482,6 +506,7 @@ export default function (pi: ExtensionAPI) {
       }
       try {
         lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask });
+        rememberTask(lastTask);
       } catch (error) {
         showMessage(ctx, error instanceof Error ? error.message : "No se pudo preparar la tarea.", "error");
         return;

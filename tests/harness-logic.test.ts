@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compareCancelledRequest, parseIntentComparison, parseWorkRequest } from "../src/harness-logic.ts";
+import { compareCancelledRequest, compareTaskRequest, parseIntentComparison, parseWorkRequest } from "../src/harness-logic.ts";
 import { createTask } from "../src/task.ts";
 
 test("parsea una solicitud slash con modo y análisis opcionales", () => {
@@ -62,5 +62,15 @@ test("respuesta ambigua o error del clasificador requieren revisión humana", as
     assert.equal(await compareCancelledRequest(cancelled, request, async () => "uncertain"), "uncertain");
     assert.equal(await compareCancelledRequest(cancelled, request, async () => { throw new Error("Sin modelo"); }), "uncertain");
     assert.equal(await compareCancelledRequest({ ...cancelled, phase: "planning" }, request, async () => "same"), "not-cancelled");
+  }
+});
+
+test("la comparación global funciona sin depender del estado de la tarea", async () => {
+  const existing = { ...createTask({ prompt: "Cambiar el label del botón de login.", cwd: "C:/fixture", requestedMode: "auto", analyzeOnly: false }), phase: "awaiting-review" as const };
+  const request = parseWorkRequest("Actualizar el texto del botón de acceso.");
+  assert.equal(request.ok, true);
+  if (request.ok) {
+    assert.equal(await compareTaskRequest(existing, request, async () => "same"), "same");
+    assert.equal(await compareTaskRequest({ ...existing, phase: "done" }, request, async () => "same"), "same");
   }
 });

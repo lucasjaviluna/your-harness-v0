@@ -38,6 +38,10 @@ Crear una tarea simple, modificar su alcance agregando varios pasos y comprobar 
 
 La ampliación debe probarse también escribiendo un segundo prompt normal mientras la tarea simple sigue activa. La TUI debe ofrecer ampliar la tarea actual o crear una nueva, sin cambiar silenciosamente el significado de la solicitud.
 
+### 7. Detección global de tareas equivalentes
+
+Comprobar que una solicitud equivalente a una tarea `awaiting-review`, `done`, `failed` o `cancelled` no se ejecuta ni duplica silenciosamente. La TUI debe mostrar el estado de la tarea relacionada y ofrecer crear una tarea nueva o no continuar. La comparación debe admitir reformulaciones semánticas y tratar una respuesta incierta como una decisión humana pendiente.
+
 ## Registro de cada escenario
 
 Para cada ejecución documentar repositorio y commit inicial, prompt, modo y ruta, decisiones HIL, archivos y artefactos, verificaciones, interrupciones, resultado y fricción observada por el usuario.

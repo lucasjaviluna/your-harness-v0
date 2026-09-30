@@ -35,6 +35,23 @@ export async function compareCancelledRequest(
   }
 }
 
+/**
+ * Compares a new request with any existing task, regardless of its phase.
+ * The caller owns the human decision and the resulting state transition.
+ */
+export async function compareTaskRequest(
+  task: HarnessTask,
+  request: ParsedWorkRequest & { ok: true },
+  classify: (previous: string, current: string) => Promise<IntentComparison>,
+): Promise<IntentComparison> {
+  if (task.prompt.trim() === request.prompt.trim()) return "same";
+  try {
+    return await classify(task.prompt, request.prompt);
+  } catch {
+    return "uncertain";
+  }
+}
+
 export function parseWorkRequest(args: string, defaultMode: WorkMode = "auto"): ParsedWorkRequest {
   let remaining = args.trim();
   let requestedMode: WorkMode = defaultMode;
