@@ -3,12 +3,14 @@ import { GitCapability } from "./git.ts";
 import { OpenSpecCapability } from "./openspec.ts";
 import { RepositoryCapability } from "./repository.ts";
 import { RepositoryVerificationCapability } from "./verification.ts";
+import { McpCapability } from "./mcp.ts";
 
 export type HarnessCapabilities = {
   repository: RepositoryCapability;
   git: GitCapability;
   openspec: OpenSpecCapability;
   verification: RepositoryVerificationCapability;
+  mcp: McpCapability;
 };
 
 export function createHarnessCapabilityRegistry(): CapabilityRegistry<HarnessCapabilities> {
@@ -17,6 +19,7 @@ export function createHarnessCapabilityRegistry(): CapabilityRegistry<HarnessCap
   registry.register("git", new GitCapability());
   registry.register("openspec", new OpenSpecCapability());
   registry.register("verification", new RepositoryVerificationCapability());
+  registry.register("mcp", new McpCapability());
   return registry;
 }
 
@@ -26,3 +29,5 @@ export { GitCapability } from "./git.ts";
 export { OpenSpecCapability } from "./openspec.ts";
 export { RepositoryCapability } from "./repository.ts";
 export { RepositoryVerificationCapability } from "./verification.ts";
+export { McpCapability } from "./mcp.ts";
+export type { McpCapabilityContext, McpCapabilityRequest, McpCapabilityResult, McpServerDefinition } from "./mcp.ts";

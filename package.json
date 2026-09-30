@@ -28,16 +28,27 @@
   },
   "scripts": {
     "test": "node --experimental-transform-types --test",
+    "test:mcp": "node --experimental-transform-types --test tests/mcp-everything.test.ts",
     "test:e2e": "node --experimental-transform-types --test tests/e2e.test.ts",
     "test:e2e:required": "node scripts/run-e2e-required.mjs",
     "pack:check": "node scripts/pack-check.mjs"
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "^0.85.1"
+    "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@modelcontextprotocol/sdk": "^1.31.0"
   },
   "pi": {
-    "extensions": ["./extensions"],
-    "skills": ["./skills"],
-    "themes": ["./themes"]
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "themes": [
+      "./themes"
+    ]
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/server-everything": "^2026.8.31"
   }
 }

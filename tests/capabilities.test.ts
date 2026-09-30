@@ -13,17 +13,19 @@ test("el registro expone OpenSpec y reporta disponibilidad según el proyecto", 
   const cwd = await mkdtemp(join(tmpdir(), "pi-harness-capabilities-"));
   try {
     const registry = createHarnessCapabilityRegistry();
-    assert.deepEqual(registry.list().map((capability) => capability.id), ["repository", "git", "openspec", "verification"]);
+    assert.deepEqual(registry.list().map((capability) => capability.id), ["repository", "git", "openspec", "verification", "mcp"]);
     assert.equal(registry.get("openspec")?.id, "openspec");
     assert.deepEqual(await registry.available({ cwd }), [
       { id: "repository", available: true }, { id: "git", available: false },
       { id: "openspec", available: false }, { id: "verification", available: true },
+      { id: "mcp", available: false },
     ]);
 
     await mkdir(join(cwd, "openspec"));
     assert.deepEqual(await registry.available({ cwd }), [
       { id: "repository", available: true }, { id: "git", available: false },
       { id: "openspec", available: true }, { id: "verification", available: true },
+      { id: "mcp", available: false },
     ]);
   } finally {
     await rm(cwd, { recursive: true, force: true });

@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: implementación incremental. Fases 0 a 8 completadas técnicamente; Fase 9 enfocada en uso y validación operativa.
+Estado: implementación incremental. Fases 0 a 8 completadas técnicamente; Fase 9 enfocada en uso y validación operativa. Fases 10 a 13 completadas técnicamente en sus alcances arquitectónicos; Fase 9 sigue pendiente de validación manual.
 
 ## 1. Objetivo y alcance
 
@@ -380,6 +380,21 @@ Estado: contrato y punto de integración completados; no hay proveedor productiv
 
 Entregable: [docs/PHASE_12_MEMORY_PROVIDER.md](PHASE_12_MEMORY_PROVIDER.md), contrato y fuente opcional de nivel 4 lista para un adapter futuro.
 
+### Fase 13 — Adaptador MCP opt-in
+
+Implementar el primer adaptador para que el registro de capabilities se comunique con servidores MCP bajo demanda. Validar el protocolo con Everything, sin credenciales ni activar conexiones en proyectos consumidores.
+
+- [x] Usar el SDK oficial de MCP y transporte local `stdio`.
+- [x] Soportar descubrimiento y operación explícita de tools, resources y prompts.
+- [x] Exigir que el host provea la definición del servidor y no iniciar nada por defecto.
+- [x] Limitar cada operación a un proceso elegido y cerrar la conexión al finalizar.
+- [x] Validar con Everything mediante pruebas unitarias/contrato y una prueba de integración reproducible.
+- [x] Documentar confianza, riesgos, límites y trabajo que requiere una decisión posterior.
+
+Estado: adaptador y validación local completados. Nada de esta fase expone tools MCP automáticamente al agente ni configura servidores por proyecto; se requiere una decisión futura sobre UX, allowlist y gestión de credenciales. La Fase 9 sigue abierta y no se autoriza publicación.
+
+Entregable: [docs/PHASE_13_MCP.md](PHASE_13_MCP.md), adaptador `McpCapability` y pruebas reales contra Everything.
+
 ## 6. Orden de entrega recomendado
 
 1. MVP operativo: fases 0 a 5. Permite validar la entrada, el estado, la evaluación, la ruta simple y la tarea ligera.
@@ -389,6 +404,7 @@ Entregable: [docs/PHASE_12_MEMORY_PROVIDER.md](PHASE_12_MEMORY_PROVIDER.md), con
 5. Extensibilidad interna: fase 10. Introducir el registro mínimo de capabilities y migrar OpenSpec como primer vertical, sin agregar integraciones externas.
 6. Contexto progresivo local: fase 11. Componer solicitud, metadatos y fuentes de repo relevantes; dejar Memory/RAG y retrieval histórico para fases posteriores.
 7. Contrato de memoria: fase 12. Definir el puerto y conectarlo opcionalmente sin backend activo; elegir e integrar una solución RAG requiere una decisión posterior.
+8. Adaptador MCP: fase 13. Validar el protocolo con Everything y dejar la conexión opt-in; exponer herramientas al agente requiere una decisión de permisos/allowlist posterior.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 

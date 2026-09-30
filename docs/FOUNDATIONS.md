@@ -231,7 +231,7 @@ pi-harness/
 └── docs/
 ```
 
-El registro de capabilities es una frontera interna entre los workflows y las integraciones concretas. En su primer incremento solo registra OpenSpec; no cambia a Pi como runtime ni introduce carga dinámica, MCP o servicios externos. Su contrato actual se detalla en [PHASE_10_CAPABILITIES.md](PHASE_10_CAPABILITIES.md).
+El registro de capabilities es una frontera interna entre los workflows y las integraciones concretas. Su primer incremento registra capabilities locales y OpenSpec; la fase 13 añade un adaptador MCP local, explícito y opt-in sin cambiar a Pi como runtime ni activar servidores externos por defecto. Su contrato inicial se detalla en [PHASE_10_CAPABILITIES.md](PHASE_10_CAPABILITIES.md) y la integración MCP en [PHASE_13_MCP.md](PHASE_13_MCP.md).
 
 ## 10. Persistencia y recuperación
 
