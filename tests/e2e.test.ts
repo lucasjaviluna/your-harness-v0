@@ -59,7 +59,8 @@ async function runInstalledHarness(prefix: string, prompt: string): Promise<stri
       timeout: 30_000,
       maxBuffer: 1024 * 1024,
     });
-    return result.stdout;
+    // Pi print mode reserves stdout for model output; extension notifications are written to stderr.
+    return [result.stdout, result.stderr].filter(Boolean).join("\n");
   } catch (error) {
     const failure = error as { stderr?: string; stdout?: string; message?: string };
     throw new Error(`${failure.message ?? "yh-pi falló"}\n${failure.stderr ?? failure.stdout ?? ""}`);
