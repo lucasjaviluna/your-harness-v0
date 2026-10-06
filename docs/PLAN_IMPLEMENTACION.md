@@ -413,6 +413,16 @@ Estado: integración implementada con `pi-mcp-adapter`; no es dependencia obliga
 
 Mejora posterior: el onboarding de MCP presenta desde `/harness-mcp` el snapshot público del adapter por servidor (estado y cantidades), junto con las tools exactas habilitadas por la allowlist de yh-pi. No usa interfaces privadas ni fuerza conexiones lazy.
 
+### Fase 15 — Actividad y recuperación MCP
+
+- [x] Mantener un historial acotado a la sesión de cada llamada MCP, sin argumentos, resultados ni secretos.
+- [x] Exponer `/harness-mcp-history` con servidor, tool, forma de aprobación, resultado y duración cuando existe.
+- [x] Incluir un resumen de actividad reciente en `/harness-mcp`.
+- [x] Diferenciar operaciones bloqueadas, rechazadas, canceladas, completadas y con resultado desconocido.
+- [x] Orientar la recuperación: cuando el adapter no confirma el resultado, pedir confirmar el efecto antes de reintentar y no repetir automáticamente.
+
+Estado: completada. Ver [docs/PHASE_15_MCP_ACTIVITY.md](PHASE_15_MCP_ACTIVITY.md). La actividad vive solo durante la sesión actual y conserva una ventana de 50 registros. El historial persistido de Pi recibe los mismos metadatos seguros, sin argumentos ni contenido de respuesta.
+
 ## 6. Orden de entrega recomendado
 
 1. MVP operativo: fases 0 a 5. Permite validar la entrada, el estado, la evaluación, la ruta simple y la tarea ligera.
@@ -424,6 +434,7 @@ Mejora posterior: el onboarding de MCP presenta desde `/harness-mcp` el snapshot
 7. Contrato de memoria: fase 12. Definir el puerto y conectarlo opcionalmente sin backend activo; elegir e integrar una solución RAG requiere una decisión posterior.
 8. Adaptador MCP: fase 13. Validar el protocolo con Everything y dejar la conexión opt-in.
 9. Integración MCP del agente: fase 14. Reutilizar `pi-mcp-adapter` con allowlist y gates HIL del harness.
+10. Actividad y recuperación MCP: fase 15. Dar trazabilidad local a las llamadas y no reintentar resultados ambiguos.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 

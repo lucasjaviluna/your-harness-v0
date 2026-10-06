@@ -19,6 +19,7 @@ pi-harness consume el API público cross-extension de `pi-mcp-adapter` (`pi-mcp-
 - Mientras la integración de yh-pi está habilitada, se bloquea el proxy MCP directo y las tools del adapter para impedir saltarse la allowlist y el gate de yh-pi.
 - Se escribe una entrada de auditoría en la sesión con servidor, tool, decisión y fecha; no se persisten argumentos ni resultados.
 - `/harness-mcp` muestra si el adapter fue detectado, cada servidor publicado por el adapter, su estado y cantidad de tools, más la allowlist configurada por yh-pi. `/harness-mcp-settings` edita la política y la allowlist desde la TUI. `/harness-doctor` incluye enabled/disabled y cantidad de tools permitidas.
+- `/harness-mcp-history` muestra las últimas llamadas de la sesión: servidor, tool, aprobación humana/automática, resultado y duración cuando se pudo medir. No muestra argumentos ni contenido devuelto. Un resultado `unknown` significa que el adapter no confirmó el resultado; la persona debe comprobar el efecto antes de reintentar.
 
 ## Configuración
 

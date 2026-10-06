@@ -42,4 +42,5 @@ Documentación del proyecto:
 - [Uso y validación operativa de la Fase 9](docs/PHASE_9_USAGE_VALIDATION.md)
 - [Registro de validación operativa de la Fase 9](docs/PHASE_9_VALIDATION_LOG.md)
 - [Integración MCP mediante pi-mcp-adapter de la Fase 14](docs/PHASE_14_MCP_ADAPTER.md)
+- [Actividad y recuperación MCP de la Fase 15](docs/PHASE_15_MCP_ACTIVITY.md)
 - [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)

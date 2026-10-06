@@ -65,6 +65,8 @@ Usa `/harness-mcp` para consultar el estado del adapter, cada servidor detectado
 
 Usa `/harness-mcp-settings` para cambiar MCP sin editar JSON: permite activar o desactivar MCP, elegir la política default, añadir, editar o eliminar entradas allowlisted y guardar el resultado. Cada entrada muestra servidor, tools y política efectiva; se puede renombrar el servidor, cambiar sus tools o su política. El comando preserva los demás settings de `.harness/config.json`, aplica el cambio en la sesión actual y bloquea la activación si no hay tools permitidas.
 
+Usa `/harness-mcp-history` para revisar la actividad MCP de la sesión actual. Conserva hasta 50 registros y muestra los últimos 20: servidor, tool, tipo de aprobación, resultado y duración. No guarda ni presenta argumentos, resultados ni secretos. Si una ejecución queda como `unknown`, yh-pi no la repite: confirma primero en el sistema remoto si la operación tuvo efecto.
+
 ## Diagnóstico
 
 ```text

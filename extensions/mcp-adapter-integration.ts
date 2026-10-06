@@ -6,11 +6,24 @@ import { callPiMcpAdapter, type PiMcpEventBus } from "../src/capabilities/pi-mcp
 const TOOL_NAME = "harness_mcp";
 const AUDIT_ENTRY = "harness-mcp-audit";
 const MAX_RESULT_CHARS = 12_000;
+const MAX_ACTIVITY_ENTRIES = 50;
 const MCP_STATUS_EVENT = "pi-mcp-adapter/status/v1";
 
 type McpServerStatus = { name: string; status: string; toolCount: number; directToolCount: number; disabled: boolean; failedAgoSeconds?: number; blockedReason?: string };
 type McpStatusSnapshot = { version: 1; servers: McpServerStatus[]; totalTools: number; connectedCount: number; disabledCount: number };
 let adapterStatus: McpStatusSnapshot | undefined;
+
+type McpActivityOutcome = "blocked" | "declined" | "cancelled" | "succeeded" | "unknown";
+type McpActivity = {
+  at: string;
+  server: string;
+  tool: string;
+  approval: "human" | "automatic" | "none";
+  outcome: McpActivityOutcome;
+  durationMs?: number;
+};
+
+let activity: McpActivity[] = [];
 
 function approvalFor(config: HarnessConfig, server: string, tool: string): McpApprovalMode | undefined {
   const entry = config.mcp.allowlist.find((candidate) => candidate.server === server && candidate.tools.includes(tool));
@@ -30,8 +43,44 @@ function formatContent(value: unknown[]): string {
   return text.length > MAX_RESULT_CHARS ? `${text.slice(0, MAX_RESULT_CHARS)}\n… (resultado MCP truncado)` : text;
 }
 
-function appendDecision(pi: ExtensionAPI, server: string, tool: string, decision: "approved" | "automatic" | "denied" | "failed"): void {
-  pi.appendEntry(AUDIT_ENTRY, { at: new Date().toISOString(), server, tool, decision });
+function recordActivity(pi: ExtensionAPI, entry: McpActivity): void {
+  activity = [...activity, entry].slice(-MAX_ACTIVITY_ENTRIES);
+  pi.appendEntry(AUDIT_ENTRY, entry);
+}
+
+function recordImmediateActivity(
+  pi: ExtensionAPI,
+  server: string,
+  tool: string,
+  approval: McpActivity["approval"],
+  outcome: McpActivityOutcome,
+): void {
+  recordActivity(pi, { at: new Date().toISOString(), server, tool, approval, outcome });
+}
+
+function activityRecovery(outcome: McpActivityOutcome): string {
+  switch (outcome) {
+    case "succeeded": return "Completada.";
+    case "blocked": return "No se inició; revisa la allowlist o la interfaz disponible.";
+    case "declined": return "No se inició; vuelve a solicitarla solo si corresponde.";
+    case "cancelled": return "No se inició; puedes solicitarla nuevamente.";
+    case "unknown": return "El resultado es desconocido; confirma el efecto antes de reintentar.";
+    default: return "Revisa el estado antes de continuar.";
+  }
+}
+
+function formatMcpActivity(): string[] {
+  if (!activity.length) return ["Actividad de esta sesión: todavía no hubo llamadas MCP."];
+  const recent = activity.slice(-20).reverse();
+  const counts = recent.reduce<Record<McpActivityOutcome, number>>((result, entry) => {
+    result[entry.outcome] += 1;
+    return result;
+  }, { blocked: 0, declined: 0, cancelled: 0, succeeded: 0, unknown: 0 });
+  return [
+    `Actividad MCP de esta sesión: ${activity.length} registro(s); últimas ${recent.length}.`,
+    `Resultados recientes: ${counts.succeeded} completadas, ${counts.unknown} con resultado desconocido, ${counts.declined + counts.blocked + counts.cancelled} no iniciadas.`,
+    ...recent.map((entry) => `${entry.at} · ${entry.server}/${entry.tool} · ${entry.approval} · ${entry.outcome}${entry.durationMs === undefined ? "" : ` · ${entry.durationMs} ms`} · ${activityRecovery(entry.outcome)}`),
+  ];
 }
 
 function errorResult(message: string) {
@@ -56,35 +105,41 @@ export function registerHarnessMcpTool(pi: ExtensionAPI): void {
       const args = params.arguments ?? {};
       const approval = approvalFor(currentConfig, server, tool);
       if (!approval) {
-        appendDecision(pi, server, tool, "denied");
+        recordImmediateActivity(pi, server, tool, "none", "blocked");
         return errorResult(`yh-pi bloqueó ${server}/${tool}: no figura en la allowlist activa.`);
       }
-      if (signal.aborted) return errorResult("La llamada MCP fue cancelada antes de aplicar la política de aprobación.");
+      if (signal.aborted) {
+        recordImmediateActivity(pi, server, tool, "none", "cancelled");
+        return errorResult("La llamada MCP fue cancelada antes de aplicar la política de aprobación.");
+      }
       if (approval === "always" && !ctx.hasUI) {
-        appendDecision(pi, server, tool, "denied");
+        recordImmediateActivity(pi, server, tool, "none", "blocked");
         return errorResult("yh-pi bloqueó la llamada MCP porque no hay una interfaz para pedir aprobación humana.");
       }
+      let activityApproval: McpActivity["approval"];
       if (approval === "always") {
         const approved = await ctx.ui.confirm(
           `Autorizar MCP: ${server}/${tool}`,
           `Servidor: ${server}\nTool: ${tool}\nArgumentos:\n${formatArguments(args)}\n\n¿Permites esta llamada única?`,
         );
         if (!approved || signal.aborted) {
-          appendDecision(pi, server, tool, "denied");
+          recordImmediateActivity(pi, server, tool, "human", signal.aborted ? "cancelled" : "declined");
           return errorResult("La llamada MCP fue rechazada o cancelada por la persona.");
         }
-        appendDecision(pi, server, tool, "approved");
+        activityApproval = "human";
       } else {
-        appendDecision(pi, server, tool, "automatic");
+        activityApproval = "automatic";
       }
 
+      const startedAt = Date.now();
       try {
         const result = await callPiMcpAdapter({ cwd: ctx.cwd, events: pi.events as PiMcpEventBus }, { server, tool, arguments: args });
+        recordActivity(pi, { at: new Date().toISOString(), server, tool, approval: activityApproval, outcome: "succeeded", durationMs: Date.now() - startedAt });
         const output = formatContent(result.content);
         return { content: [{ type: "text" as const, text: output || "La tool MCP terminó sin contenido de texto." }], details: { server, tool } };
       } catch {
-        appendDecision(pi, server, tool, "failed");
-        return errorResult(`Falló la llamada ${server}/${tool} a través de pi-mcp-adapter. Revisa /harness-mcp y el estado del adapter.`);
+        recordActivity(pi, { at: new Date().toISOString(), server, tool, approval: activityApproval, outcome: "unknown", durationMs: Date.now() - startedAt });
+        return errorResult(`El adapter no confirmó el resultado de ${server}/${tool}. Verifica el efecto antes de reintentar y revisa /harness-mcp.`);
       }
     },
   });
@@ -126,6 +181,7 @@ export function formatHarnessMcpStatus(config: HarnessConfig, pi: ExtensionAPI):
     `Política de aprobación default: ${config.mcp.defaultApproval}.`,
     "Tools habilitadas por yh-pi: las indicadas en la allowlist.",
     ...serverStatus,
+    ...formatMcpActivity().slice(0, 2),
     adapterLoaded ? "El proxy/direct tools del adapter quedan bloqueados mientras yh-pi MCP está habilitado." : "Instala el provider con: pi install npm:pi-mcp-adapter",
   ].join("\n");
 }
@@ -166,6 +222,20 @@ export function registerHarnessMcpCommand(pi: ExtensionAPI): void {
       ctx.ui.notify(formatHarnessMcpStatus(currentConfig, pi), "info");
     },
   });
+}
+
+export function registerHarnessMcpHistoryCommand(pi: ExtensionAPI): void {
+  pi.registerCommand("harness-mcp-history", {
+    description: "Muestra la actividad MCP segura de la sesión actual",
+    handler: async (_args, ctx: ExtensionContext) => {
+      ctx.ui.notify(formatMcpActivity().join("\n"), "info");
+    },
+  });
+}
+
+/** Clears session-local activity without affecting Pi's persisted audit entries. */
+export function resetHarnessMcpActivity(): void {
+  activity = [];
 }
 
 function approvalLabel(approval: McpApprovalMode | undefined, fallback: McpApprovalMode): string {
