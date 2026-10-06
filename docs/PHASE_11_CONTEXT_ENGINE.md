@@ -41,4 +41,4 @@ El nivel máximo por workflow se puede reducir; `simple` llega hasta nivel 2 y l
 
 ## Fuera de alcance
 
-Memoria/RAG y retrieval histórico, fuentes conversacionales, MCP, integración de documentos externos, Azure/GitHub, indexación semántica/vectorial, ajuste dinámico de políticas y métricas de tokens reales. La validación manual de Fase 9 permanece aplazada.
+Memoria/RAG y retrieval histórico, fuentes conversacionales, MCP, integración de documentos externos, Azure/GitHub, indexación semántica/vectorial, ajuste dinámico de políticas y métricas de tokens reales. La Fase 9 fue cerrada tras confirmarse su validación manual el 2026-10-06.

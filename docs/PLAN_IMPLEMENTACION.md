@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: implementación incremental. Fases 0 a 8 completadas técnicamente; Fase 9 enfocada en uso y validación operativa. Fases 10 a 13 completadas técnicamente en sus alcances arquitectónicos; Fase 9 sigue pendiente de validación manual.
+Estado: fases 0 a 14 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa; la publicación npm continúa pendiente de decisión y autorización explícitas.
 
 ## 1. Objetivo y alcance
 
@@ -305,26 +305,28 @@ Entregable: [docs/PHASE_8_VALIDATION.md](PHASE_8_VALIDATION.md), package version
 
 ### Fase 9 — Uso y validación operativa
 
+Estado: completada tras la validación manual confirmada por el usuario el 2026-10-06. El detalle de cierre está en [docs/PHASE_9_VALIDATION_LOG.md](PHASE_9_VALIDATION_LOG.md).
+
 El objetivo de esta fase es validar que pi-harness resulta útil, comprensible y recuperable cuando se utiliza como herramienta principal en repositorios reales de prueba. No se incorporan nuevas integraciones externas durante esta fase.
 
 Antes de ejecutar los escenarios de validación, implementar el [plan aprobado de CLI y experiencia TUI](PHASE_9_CLI_TUI_PLAN.md): un comando `yh-pi` instalable, lógica compartida para texto normal y comandos slash, avance de workflows con gates HIL, flujo genérico para perfiles no técnicos e identidad visual propia.
 
 La experiencia HIL de esta fase debe ser transparente para la persona: antes de aprobar una implementación, `yh-pi` mostrará un resumen del `HarnessPlan`, ofrecerá una vista completa navegable y asociará la decisión a una versión concreta del plan. Modificar el plan invalida la aprobación anterior. Los comandos slash quedarán como fallback avanzado, no como requisito del flujo normal.
 
-- [ ] Preparar repositorios consumidores representativos para tareas `simple`, `task` y `sdd`.
-- [ ] Ejecutar escenarios completos desde un prompt inicial hasta el resumen final, registrando decisiones HIL, artefactos y verificaciones.
-- [ ] Validar el flujo SDD real con OpenSpec en un repositorio consumidor: `propose`, revisión humana, `apply`, verificación, `sync` y `archive`.
-- [ ] Validar recuperación después de cerrar y reabrir Pi, cancelar una operación y dejar una tarea bloqueada.
-- [ ] Validar reencaminamiento: una tarea inicialmente simple que descubre impacto mayor debe pasar a `task` o `sdd` sin perder contexto.
-- [ ] Evaluar la calidad de las recomendaciones de ruta con ejemplos reales y ajustar las reglas solo cuando exista evidencia.
-- [ ] Evaluar la experiencia del usuario: claridad de mensajes, utilidad de los gates HIL, comandos de recuperación y resumen final.
-- [ ] Documentar problemas encontrados, decisiones de uso y criterios de aceptación del MVP.
-- [ ] Ejecutar una prueba de adopción con al menos un usuario distinto del autor del package.
-- [ ] Cerrar las validaciones omitidas de Windows/Git Bash cuando el entorno permita reproducirlas de forma estable.
+- [x] Preparar repositorios consumidores representativos para tareas `simple`, `task` y `sdd`.
+- [x] Ejecutar escenarios completos desde un prompt inicial hasta el resumen final, registrando decisiones HIL, artefactos y verificaciones.
+- [x] Validar el flujo SDD real con OpenSpec en un repositorio consumidor: `propose`, revisión humana, `apply`, verificación, `sync` y `archive`.
+- [x] Validar recuperación después de cerrar y reabrir Pi, cancelar una operación y dejar una tarea bloqueada.
+- [x] Validar reencaminamiento: una tarea inicialmente simple que descubre impacto mayor debe pasar a `task` o `sdd` sin perder contexto.
+- [x] Evaluar la calidad de las recomendaciones de ruta con ejemplos reales y ajustar las reglas solo cuando exista evidencia.
+- [x] Evaluar la experiencia del usuario: claridad de mensajes, utilidad de los gates HIL, comandos de recuperación y resumen final.
+- [x] Documentar problemas encontrados, decisiones de uso y criterios de aceptación del MVP.
+- [x] Ejecutar una prueba de adopción con al menos un usuario distinto del autor del package.
+- [x] Cerrar las validaciones omitidas de Windows/Git Bash cuando el entorno permita reproducirlas de forma estable.
 
 Entregable: [docs/PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md), informe de escenarios ejecutados, problemas conocidos y criterios para declarar el MVP apto para uso. Cierre: una persona nueva puede instalar el package, completar los flujos principales y recuperarse de una interrupción sin asistencia del autor.
 
-**Estado al 2026-09-30:** el usuario decidió aplazar los recorridos manuales hasta que el sistema esté más maduro. No se marcará la Fase 9 como cerrada ni se decidirá una publicación por avanzar con trabajo arquitectónico; se conservarán los escenarios pendientes en el registro de validación.
+**Cierre al 2026-10-06:** el usuario confirmó que la validación manual de Fase 9 está completa. Se actualizó el registro de validación; los detalles de ejecución no especificados en esta confirmación no se inventan. Este cierre no implica publicar el package.
 
 ### Fase 10 — Sistema mínimo de capabilities
 
@@ -340,9 +342,9 @@ Crear un punto de extensión pequeño para separar la coordinación del harness 
 - [x] Cubrir registro, disponibilidad, ejecución e integración con pruebas automatizadas.
 - [x] Revisar el contrato con cuatro verticales locales: contexto común mínimo `cwd` y contextos tipados por capability; sin carga dinámica ni backend de plugins.
 
-Estado: completada técnicamente en su alcance local. Fase 9 sigue abierta y la finalización de Fase 10 no declara apto el MVP ni autoriza publicación.
+Estado: completada técnicamente en su alcance local. La Fase 9 también está completa tras su validación manual; la publicación requiere decisión aparte.
 
-Alcance explícitamente excluido de este incremento: Memory/RAG, MCP, GitHub/Azure DevOps, navegador, políticas genéricas, subagentes, carga dinámica de plugins y un Context Engine completo. La Fase 9 continúa abierta mientras estén pendientes sus escenarios manuales; este trabajo de arquitectura no implica declarar apto el MVP ni publicarlo.
+Alcance explícitamente excluido de este incremento: Memory/RAG, MCP, GitHub/Azure DevOps, navegador, políticas genéricas, subagentes, carga dinámica de plugins y un Context Engine completo. La finalización de esta fase no implica publicación.
 
 Entregable: [docs/PHASE_10_CAPABILITIES.md](PHASE_10_CAPABILITIES.md), contrato mínimo probado y detección de OpenSpec integrada mediante el registro.
 
@@ -359,7 +361,7 @@ Componer contexto por niveles y relevancia con límites explícitos. El motor se
 - [x] Probar relevancia, límites, exclusiones, nivel condicional e integración con tests automatizados.
 - [x] Documentar límites, exclusiones y criterios de aceptación.
 
-Estado: implementación local completada técnicamente. No cierra la Fase 9 ni habilita publicación. Memory/RAG, retrieval semántico, MCP y servicios externos siguen para fases posteriores.
+Estado: implementación local completada técnicamente. Memory/RAG, retrieval semántico, MCP y servicios externos siguen para fases posteriores. No habilita publicación.
 
 Entregable: [docs/PHASE_11_CONTEXT_ENGINE.md](PHASE_11_CONTEXT_ENGINE.md), composición progresiva local conectada al flujo simple y a la preparación de tareas.
 
@@ -376,7 +378,7 @@ Preparar la interfaz y el punto de conexión de memoria histórica al Context En
 - [x] Cubrir ausencia, aislamiento, límites, fallos y comportamiento sin escrituras con providers falsos.
 - [x] Documentar explícitamente que esta fase no instala ni configura una solución RAG.
 
-Estado: contrato y punto de integración completados; no hay proveedor productivo conectado. Memory/RAG solo se activa cuando el host inyecta una implementación y un `projectId` explícito. La Fase 9 permanece abierta; no se hacen pruebas manuales ni se autoriza publicación.
+Estado: contrato y punto de integración completados; no hay proveedor productivo conectado. Memory/RAG solo se activa cuando el host inyecta una implementación y un `projectId` explícito. No se autoriza publicación.
 
 Entregable: [docs/PHASE_12_MEMORY_PROVIDER.md](PHASE_12_MEMORY_PROVIDER.md), contrato y fuente opcional de nivel 4 lista para un adapter futuro.
 
@@ -391,9 +393,23 @@ Implementar el primer adaptador para que el registro de capabilities se comuniqu
 - [x] Validar con Everything mediante pruebas unitarias/contrato y una prueba de integración reproducible.
 - [x] Documentar confianza, riesgos, límites y trabajo que requiere una decisión posterior.
 
-Estado: adaptador y validación local completados. Nada de esta fase expone tools MCP automáticamente al agente ni configura servidores por proyecto; se requiere una decisión futura sobre UX, allowlist y gestión de credenciales. La Fase 9 sigue abierta y no se autoriza publicación.
+Estado: adaptador y validación local completados. Nada de esta fase expone tools MCP automáticamente al agente ni configura servidores por proyecto; se requiere una decisión futura sobre UX, allowlist y gestión de credenciales. No se autoriza publicación.
 
 Entregable: [docs/PHASE_13_MCP.md](PHASE_13_MCP.md), adaptador `McpCapability` y pruebas reales contra Everything.
+
+### Fase 14 — Integración MCP mediante pi-mcp-adapter
+
+Usar el adapter MCP con mayor adopción observada en la comunidad Pi como runtime de conexiones, y conectar yh-pi mediante su API pública cross-extension. El objetivo es no mantener un segundo ciclo de vida de conexiones, OAuth y credenciales.
+
+- [x] Elegir `pi-mcp-adapter` con base en actividad/adopción pública observada y compatibilidad con Pi.
+- [x] Delegar llamadas de yh-pi al runtime del adapter mediante su evento público `runtime-tool-call`.
+- [x] Añadir allowlist exacta por servidor y tool, vacía y desactivada por defecto.
+- [x] Pedir aprobación HIL de una llamada por vez y fallar de forma cerrada sin UI.
+- [x] Bloquear la vía directa del adapter cuando MCP de yh-pi está activado para no saltar la allowlist.
+- [x] Registrar decisiones sin almacenar argumentos ni resultados del servidor.
+- [x] Documentar configuración, instalación optativa y límites de responsabilidad.
+
+Estado: integración implementada con `pi-mcp-adapter`; no es dependencia obligatoria ni se instala/configura automáticamente. Ver [docs/PHASE_14_MCP_ADAPTER.md](PHASE_14_MCP_ADAPTER.md). La aprobación y allowlist de yh-pi se aplican antes de delegar; el adapter conserva conexión, OAuth, credenciales y su propia política de trust.
 
 ## 6. Orden de entrega recomendado
 
@@ -404,7 +420,8 @@ Entregable: [docs/PHASE_13_MCP.md](PHASE_13_MCP.md), adaptador `McpCapability` y
 5. Extensibilidad interna: fase 10. Introducir el registro mínimo de capabilities y migrar OpenSpec como primer vertical, sin agregar integraciones externas.
 6. Contexto progresivo local: fase 11. Componer solicitud, metadatos y fuentes de repo relevantes; dejar Memory/RAG y retrieval histórico para fases posteriores.
 7. Contrato de memoria: fase 12. Definir el puerto y conectarlo opcionalmente sin backend activo; elegir e integrar una solución RAG requiere una decisión posterior.
-8. Adaptador MCP: fase 13. Validar el protocolo con Everything y dejar la conexión opt-in; exponer herramientas al agente requiere una decisión de permisos/allowlist posterior.
+8. Adaptador MCP: fase 13. Validar el protocolo con Everything y dejar la conexión opt-in.
+9. Integración MCP del agente: fase 14. Reutilizar `pi-mcp-adapter` con allowlist y gates HIL del harness.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 

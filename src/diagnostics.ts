@@ -15,7 +15,7 @@ export function formatDoctorReport(config: ConfigResult, context: RepositoryCont
 }
 
 function formatConfigShort(result: ConfigResult): string {
-  return `Config: ${result.source}; modo=${result.config.defaultMode}; perfil=${result.config.profile}; HIL approval=${result.config.hil.requireApproval ? "on" : "off"}; HIL review=${result.config.hil.requireReview ? "on" : "off"}`;
+	return `Config: ${result.source}; modo=${result.config.defaultMode}; perfil=${result.config.profile}; HIL approval=${result.config.hil.requireApproval ? "on" : "off"}; HIL review=${result.config.hil.requireReview ? "on" : "off"}; MCP=${result.config.mcp.enabled ? "on" : "off"} (${result.config.mcp.allowlist.reduce((count, entry) => count + entry.tools.length, 0)} allowlisted; approval=${result.config.mcp.defaultApproval})`;
 }
 
 export function formatChangesReport(snapshot: RepositorySnapshot, openSpec: OpenSpecDetection): string {

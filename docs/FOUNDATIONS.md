@@ -290,8 +290,9 @@ No incluye:
 - La Fase 6 está completada: detección de OpenSpec para Pi, delegación sin duplicación, estado del change y gates HIL para propose, apply, verify, sync y archive.
 - La Fase 7 está completada: configuración validada, precedencia, recuperación HIL, idempotencia, diagnósticos y convivencia por prefijo implementados.
 - La Fase 8 está completada técnicamente: pruebas de distribución, consumidores temporales, manifest y documentación ejecutados; la publicación npm requiere una decisión y autorización explícitas.
-- La próxima unidad de trabajo recomendada es la Fase 9: uso y validación operativa en repositorios consumidores, incluyendo el flujo SDD real con OpenSpec.
-- El primer incremento de la Fase 9 tiene un plan aprobado en `docs/PHASE_9_CLI_TUI_PLAN.md`: CLI `yh-pi` con Node, entrada normal y slash unificadas, continuación con gates HIL, perfiles genéricos e identidad visual de la TUI. CLI, captura de `input`, contrato `HarnessPlan`, revisión TUI inicial, gate separado de inicio de implementación, status, widget y header de yh-pi ya están implementados; queda pendiente la validación en una instalación limpia con Pi disponible y una iteración visual basada en uso.
+- La Fase 9 de uso y validación operativa en repositorios consumidores está completa; incluyó la confirmación de validación manual reportada en `docs/PHASE_9_VALIDATION_LOG.md`.
+- La Fase 9 implementó CLI `yh-pi`, captura unificada de entrada normal y slash, workflows con gates HIL, perfiles genéricos e identidad visual de TUI. El usuario confirmó el 2026-10-06 que la validación manual de la fase está completa; el detalle de cierre está en `docs/PHASE_9_VALIDATION_LOG.md`.
+- La Fase 14 integra las llamadas MCP del agente mediante `pi-mcp-adapter`, desactivado por defecto, con allowlist por servidor/tool, aprobación HIL por llamada y auditoría sin argumentos/resultados. La instalación y configuración del adapter siguen siendo optativas.
 - La publicación npm se decidirá después de la validación operativa, no antes.
 - Azure DevOps y otras integraciones externas quedan postergadas hasta confirmar la utilidad y estabilidad del flujo base.
 - El perfil default del MVP es `developer`; el core se mantiene agnóstico para habilitar perfiles funcionales, de producto y marketing en fases posteriores.

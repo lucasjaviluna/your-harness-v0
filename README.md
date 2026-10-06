@@ -41,4 +41,5 @@ Documentación del proyecto:
 - [Plan aprobado de CLI y experiencia TUI para la Fase 9](docs/PHASE_9_CLI_TUI_PLAN.md)
 - [Uso y validación operativa de la Fase 9](docs/PHASE_9_USAGE_VALIDATION.md)
 - [Registro de validación operativa de la Fase 9](docs/PHASE_9_VALIDATION_LOG.md)
+- [Integración MCP mediante pi-mcp-adapter de la Fase 14](docs/PHASE_14_MCP_ADAPTER.md)
 - [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)

@@ -1,6 +1,8 @@
 # Fase 9 — Registro de validación operativa
 
-Estado: pendiente de ejecuciones manuales en un consumidor real.
+Estado: **completada**. El usuario confirmó el 2026-10-06 que la validación manual está OK.
+
+La confirmación cubre el cierre de la fase. En esta actualización no se agregan prompts, commits, nombres de repositorios ni resultados por escenario que no hayan sido proporcionados explícitamente.
 
 Este registro reúne la evidencia que no puede sustituirse con pruebas unitarias o de empaquetado: comportamiento de la TUI, decisiones Human-in-the-Middle, recuperación de una sesión y la integración real con OpenSpec.
 
@@ -15,16 +17,16 @@ Este registro reúne la evidencia que no puede sustituirse con pruebas unitarias
 
 | Escenario | Estado | Evidencia mínima |
 | --- | --- | --- |
-| Instalación limpia desde PowerShell | Pendiente | Tarball, versión de `yh-pi`, arranque de TUI |
-| Instalación limpia desde Git Bash | Pendiente | Tarball, versión de `yh-pi`, arranque de TUI |
-| Ruta `simple` | Pendiente | Diff, checks, gate de revisión y resultado |
-| Ruta `task` | Pendiente | `.harness/tasks/<id>.md`, aprobación de plan, reanudación y cierre |
-| Ruta `clarify` | Pendiente | Pregunta, respuesta y reevaluación resultante |
-| Ruta `sdd` con OpenSpec | Pendiente | Change, gates de propose/apply/sync/archive y resultado |
-| Recuperación tras interrupción | Pendiente | Estado persistido, gate recover y continuación sin duplicados |
-| Cambio de alcance | Pendiente | Ruta anterior/nueva, plan versionado y gate renovado |
-| Solicitud equivalente | Pendiente | Decisión humana y ausencia de ejecución duplicada |
-| Persona no autora | Pendiente | Resultado, comprensión observada y fricciones |
+| Instalación limpia desde PowerShell | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
+| Instalación limpia desde Git Bash | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
+| Ruta `simple` | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
+| Ruta `task` | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
+| Ruta `clarify` | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
+| Ruta `sdd` con OpenSpec | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
+| Recuperación tras interrupción | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
+| Cambio de alcance | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
+| Solicitud equivalente | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
+| Persona no autora | Completado (confirmación del usuario) | Validación manual confirmada; detalles de ejecución no registrados aquí |
 
 ## Plantilla de ejecución
 

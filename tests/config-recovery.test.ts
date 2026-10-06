@@ -41,6 +41,31 @@ test("la captura de input queda apagada por default y puede activarse por runtim
   assert.equal((await loadConfig(cwd, { captureInput: true })).config.captureInput, true);
 });
 
+test("la política MCP admite defaults y excepciones por servidor", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-config-mcp-"));
+  await mkdir(join(cwd, ".harness"), { recursive: true });
+  await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({
+    mcp: {
+      enabled: true,
+      defaultApproval: "always",
+      allowlist: [
+        { server: "github", tools: ["search_issues"], approval: "automatic" },
+        { server: "admin", tools: ["create_issue"] },
+        { server: "invalid", tools: ["read"], approval: "sometimes" },
+      ],
+    },
+  }));
+  const result = await loadConfig(cwd);
+  assert.equal(result.config.mcp.enabled, true);
+  assert.equal(result.config.mcp.defaultApproval, "always");
+  assert.deepEqual(result.config.mcp.allowlist, [
+    { server: "github", tools: ["search_issues"], approval: "automatic" },
+    { server: "admin", tools: ["create_issue"] },
+    { server: "invalid", tools: ["read"] },
+  ]);
+  assert.match(result.warnings.join("\n"), /approval inválido/);
+});
+
 test("una tarea interrumpida vuelve a planificación con gate de recuperación", () => {
   const task = createTask({ prompt: "Actualizar permisos por rol", cwd: ".", requestedMode: "sdd", analyzeOnly: false });
   const interrupted = recoverInterruptedTask({ ...task, phase: "implementing", route: "sdd" });

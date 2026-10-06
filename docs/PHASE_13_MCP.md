@@ -44,4 +44,4 @@ Las pruebas no requieren cuenta, token ni acceso de red una vez instaladas las d
 
 ## Continuación posible
 
-Una fase posterior puede decidir una UX segura para exponer un conjunto allowlisted de tools al agente, añadir configuración y secretos administrados por el host, o soportar Streamable HTTP/OAuth. La Fase 13 no habilita automáticamente esos flujos ni cierra la Fase 9.
+La Fase 14 implementa la UX allowlisted y los gates HIL del agente usando el paquete comunitario `pi-mcp-adapter`. La Fase 13 conserva su alcance como capability autocontenida de validación MCP por stdio.

@@ -3,6 +3,7 @@ import { decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "
 import { buildSimpleWorkflowPrompt, createSimpleReviewGate, parseSimpleAgentResult, type RepositorySnapshot } from "../src/simple.ts";
 import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
 import { createHarnessCapabilityRegistry } from "../src/capabilities/index.ts";
+import { ensureMcpToolActive, installHarnessMcpToolGuard, registerHarnessMcpCommand, registerHarnessMcpTool, setHarnessMcpConfig } from "./mcp-adapter-integration.ts";
 import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
 import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
@@ -105,6 +106,10 @@ async function syncTaskArtifact(task: HarnessTask): Promise<HarnessTask> {
 export default function (pi: ExtensionAPI) {
   assertCompatiblePi(pi);
   const capabilities = createHarnessCapabilityRegistry();
+  let mcpToolRegistered = false;
+  setHarnessMcpConfig(currentConfig);
+  installHarnessMcpToolGuard(pi);
+  registerHarnessMcpCommand(pi);
 
   async function detectProjectOpenSpec(cwd: string, probeCli?: boolean): Promise<OpenSpecDetection> {
     const openspec = capabilities.get("openspec");
@@ -146,6 +151,12 @@ export default function (pi: ExtensionAPI) {
     }
     installHarnessHeader(ctx);
     currentConfig = (await loadConfig(ctx.cwd)).config;
+    setHarnessMcpConfig(currentConfig);
+    if (currentConfig.mcp.enabled && !mcpToolRegistered) {
+      registerHarnessMcpTool(pi);
+      mcpToolRegistered = true;
+    }
+    ensureMcpToolActive(pi, currentConfig.mcp.enabled && mcpToolRegistered);
     if (currentConfig.hil.recoverInterrupted && lastTask) lastTask = recoverInterruptedTask(lastTask);
     updateHarnessTui(ctx);
   });
@@ -571,6 +582,12 @@ export default function (pi: ExtensionAPI) {
     handler: async (_args, ctx) => {
       const loaded = await loadConfig(ctx.cwd);
       currentConfig = loaded.config;
+      setHarnessMcpConfig(currentConfig);
+      if (currentConfig.mcp.enabled && !mcpToolRegistered) {
+        registerHarnessMcpTool(pi);
+        mcpToolRegistered = true;
+      }
+      ensureMcpToolActive(pi, currentConfig.mcp.enabled && mcpToolRegistered);
       const context = await inspectProjectRepository(ctx.cwd);
       const openSpec = await detectProjectOpenSpec(context.repoRoot ?? ctx.cwd);
       showMessage(ctx, formatDoctorReport(loaded, context, openSpec, true));

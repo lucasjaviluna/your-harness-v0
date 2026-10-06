@@ -60,16 +60,18 @@ Para cada ejecución documentar repositorio y commit inicial, prompt, modo y rut
 
 Azure DevOps y otras integraciones externas se mantienen fuera de esta fase. Solo se reconsiderarán después de validar que el flujo basado en prompt, contexto local, routing, HIL, implementación y verificación aporta valor de forma consistente.
 
-## Resultado de la validación automatizada
+## Validación automatizada registrada antes del cierre manual
 
-Última ejecución en Windows:
+La última ejecución automatizada registrada en esta sección fue en Windows y es anterior al cierre manual confirmado el 2026-10-06:
 
 - `npm run pack:check`: correcto; el tarball contiene el CLI, la extensión, el core, las skills y la documentación.
 - `node bin/yh-pi.js --help`: correcto.
 - `node bin/yh-pi.js --version`: correcto.
 - Pruebas unitarias y de routing: correctas.
-- Instalación del tarball en consumidor: pendiente; la resolución de dependencias no terminó dentro del límite de 30 segundos y el escenario queda marcado como `skip` para evitar bloquear la suite.
-- Git Bash: pendiente; el entorno de validación no expone `pi` en su `PATH`.
-- Tema de TUI: implementado en `themes/yh-pi.json`; la validación visual pendiente debe confirmar que las opciones no seleccionadas de los diálogos HIL sean visibles sobre fondo negro.
+- Instalación del tarball en consumidor: en aquella ejecución, la resolución de dependencias no terminó dentro del límite de 30 segundos y el escenario quedó marcado como `skip`.
+- Git Bash: en aquella ejecución, el entorno de validación no exponía `pi` en su `PATH`.
+- Tema de TUI: implementado en `themes/yh-pi.json`; la validación visual de aquella ejecución estaba pendiente de confirmar la visibilidad de las opciones no seleccionadas de los diálogos HIL sobre fondo negro.
 
-La validación manual pendiente debe ejecutarse desde un entorno donde Pi esté instalado y pueda abrir una TUI. Allí se probarán los flujos `simple`, `task`, `sdd`, `clarify`, la recuperación y los checkpoints HIL.
+## Cierre manual — 2026-10-06
+
+El usuario confirmó que la validación manual de Fase 9 está completa y que los flujos quedaron OK. Se marca la fase como completada. El registro de ejecución disponible no contiene los detalles por escenario (prompts, commits, artefactos y checks), por lo que no se atribuyen resultados más específicos en este documento.

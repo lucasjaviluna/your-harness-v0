@@ -4,12 +4,19 @@ import type { UserProfile, WorkMode } from "./task.ts";
 
 export const HARNESS_CONFIG_PATH = ".harness/config.json";
 
+export type McpApprovalMode = "always" | "automatic";
+
 export type HarnessConfig = {
   defaultMode: WorkMode;
   profile: UserProfile;
   captureInput: boolean;
   hil: { requireApproval: boolean; requireReview: boolean; recoverInterrupted: boolean };
   routing: { allowManualOverride: boolean; allowRerouteToSdd: boolean };
+  mcp: {
+    enabled: boolean;
+    defaultApproval: McpApprovalMode;
+    allowlist: Array<{ server: string; tools: string[]; approval?: McpApprovalMode }>;
+  };
 };
 
 export type ConfigResult = { config: HarnessConfig; path?: string; warnings: string[]; source: "defaults" | "project" };
@@ -20,6 +27,7 @@ export const DEFAULT_CONFIG: HarnessConfig = {
   defaultMode: "auto", profile: "developer", captureInput: false,
   hil: { requireApproval: true, requireReview: true, recoverInterrupted: true },
   routing: { allowManualOverride: true, allowRerouteToSdd: true },
+  mcp: { enabled: false, defaultApproval: "always", allowlist: [] },
 };
 
 const MODES = new Set<WorkMode>(["auto", "simple", "task", "sdd"]);
@@ -73,7 +81,42 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
         else warnings.push(`routing.${key} inválido; se conserva el valor default.`);
       }
     }
-    const known = new Set(["defaultMode", "profile", "captureInput", "hil", "routing"]);
+    const mcp = parsed.mcp && typeof parsed.mcp === "object" ? parsed.mcp as Record<string, unknown> : undefined;
+    if (mcp?.enabled !== undefined) {
+      if (typeof mcp.enabled === "boolean") config.mcp.enabled = mcp.enabled;
+      else warnings.push("mcp.enabled inválido; se conserva desactivado.");
+    }
+    if (mcp?.defaultApproval !== undefined) {
+      if (mcp.defaultApproval === "always" || mcp.defaultApproval === "automatic") config.mcp.defaultApproval = mcp.defaultApproval;
+      else warnings.push("mcp.defaultApproval inválido; se conserva always.");
+    }
+    if (mcp?.allowlist !== undefined) {
+      if (Array.isArray(mcp.allowlist)) {
+        config.mcp.allowlist = mcp.allowlist.flatMap((entry) => {
+          if (!entry || typeof entry !== "object") {
+            warnings.push("Entrada MCP inválida; se ignora.");
+            return [];
+          }
+          const candidate = entry as Record<string, unknown>;
+          const server = typeof candidate.server === "string" ? candidate.server.trim() : "";
+          const tools = Array.isArray(candidate.tools)
+            ? [...new Set(candidate.tools.filter((tool): tool is string => typeof tool === "string").map((tool) => tool.trim()).filter(Boolean))]
+            : [];
+          if (!server || tools.length === 0 || tools.length !== (candidate.tools as unknown[] | undefined)?.length) {
+            warnings.push("Entrada MCP inválida (requiere server y tools no vacíos); se ignora.");
+            return [];
+          }
+          const approval = candidate.approval;
+          if (approval !== undefined && approval !== "always" && approval !== "automatic") {
+            warnings.push(`mcp.allowlist[${server}].approval inválido; se aplica la política default.`);
+            return [{ server, tools }];
+          }
+          return [{ server, tools, ...(approval ? { approval } : {}) }];
+        });
+      } else warnings.push("mcp.allowlist inválida; se conserva vacía.");
+    }
+    if (config.mcp.allowlist.length === 0) config.mcp.enabled = false;
+    const known = new Set(["defaultMode", "profile", "captureInput", "hil", "routing", "mcp"]);
     for (const key of Object.keys(parsed)) if (!known.has(key)) warnings.push(`Clave desconocida ignorada: ${key}.`);
     return { config: applyRuntimeOverrides(config, runtimeOverrides), path, warnings, source: "project" };
   } catch (error) {
@@ -82,5 +125,5 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
 }
 
 export function formatConfig(result: ConfigResult): string {
-  return [`Configuración: ${result.source}`, `Archivo: ${result.path ?? "defaults internos"}`, `Modo default: ${result.config.defaultMode}`, `Perfil: ${result.config.profile}`, `Captura input: ${result.config.captureInput ? "sí" : "no"}`, `HIL approval: ${result.config.hil.requireApproval ? "sí" : "no"}`, `HIL review: ${result.config.hil.requireReview ? "sí" : "no"}`, `Recuperar interrupciones: ${result.config.hil.recoverInterrupted ? "sí" : "no"}`, ...result.warnings.map((warning) => `Advertencia: ${warning}`)].join("\n");
+  return [`Configuración: ${result.source}`, `Archivo: ${result.path ?? "defaults internos"}`, `Modo default: ${result.config.defaultMode}`, `Perfil: ${result.config.profile}`, `Captura input: ${result.config.captureInput ? "sí" : "no"}`, `HIL approval: ${result.config.hil.requireApproval ? "sí" : "no"}`, `HIL review: ${result.config.hil.requireReview ? "sí" : "no"}`, `Recuperar interrupciones: ${result.config.hil.recoverInterrupted ? "sí" : "no"}`, `MCP: ${result.config.mcp.enabled ? "habilitado" : "deshabilitado"} (${result.config.mcp.allowlist.reduce((count, entry) => count + entry.tools.length, 0)} tools allowlisted; aprobación default: ${result.config.mcp.defaultApproval})`, ...result.warnings.map((warning) => `Advertencia: ${warning}`)].join("\n");
 }
