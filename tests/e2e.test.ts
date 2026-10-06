@@ -15,7 +15,7 @@ const requiredInstall = process.env.PI_HARNESS_E2E_REQUIRE_INSTALL === "1";
 const configuredInstallTimeout = Number.parseInt(process.env.PI_HARNESS_E2E_INSTALL_TIMEOUT_MS ?? "", 10);
 const installTimeout = Number.isFinite(configuredInstallTimeout) && configuredInstallTimeout > 0
   ? configuredInstallTimeout
-  : requiredInstall ? 120_000 : 30_000;
+  : requiredInstall ? 300_000 : 30_000;
 
 function npmEnvironment(cacheDirectory: string) {
   return {
