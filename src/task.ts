@@ -2,7 +2,7 @@ import type { ContextSnapshot } from "./context-engine.ts";
 
 export type WorkMode = "auto" | "simple" | "task" | "sdd";
 export type Route = "simple" | "task" | "sdd" | "clarify";
-export type RouteSource = "automatic" | "manual";
+export type RouteSource = "automatic" | "manual" | "agent" | "fallback";
 export type UserProfile = "developer" | "functional-analyst" | "product-owner" | "marketing" | "custom";
 export type WorkIntent = "understand" | "analyze" | "define" | "plan" | "create" | "implement" | "review" | "decide";
 export type TaskPhase =
@@ -18,7 +18,7 @@ export type TaskPhase =
   | "done"
   | "cancelled"
   | "failed";
-export type HumanGateKind = "clarify" | "authorize" | "review" | "recover";
+export type HumanGateKind = "assessment" | "clarify" | "authorize" | "review" | "recover";
 export type HumanDecisionValue = "approve" | "reject" | "revise" | "cancel" | "answer";
 export type OpenSpecStep = "propose" | "proposed" | "apply" | "applied" | "verify" | "sync" | "archive" | "complete";
 export type OpenSpecState = {

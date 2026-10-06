@@ -107,6 +107,26 @@ test("preparar una tarea obtiene el contexto mediante RepositoryCapability", asy
   }
 });
 
+test("una evaluación inyectada deja la tarea bloqueada hasta una decisión humana", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-agent-assessment-"));
+  try {
+    const task = await prepareHarnessTask({
+      cwd,
+      request: { ok: true, prompt: "Cambiar el texto del botón.", requestedMode: "auto", analyzeOnly: false },
+      config: structuredClone(DEFAULT_CONFIG),
+      evaluateAssessment: async (intake) => ({
+        recommendedRoute: "simple", route: "simple", routeSource: "agent", profile: intake.profile,
+        intent: "implement", confidence: "high", reasons: ["Es un cambio local."], affectedAreas: ["ui"], unknowns: [], evidence: ["Modelo activo de Pi"],
+      }),
+    });
+    assert.equal(task.phase, "awaiting-approval");
+    assert.equal(task.route, "simple");
+    assert.equal(task.humanGates.at(-1)?.kind, "assessment");
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
 test("el contrato del registro impide asociar una capability a un id distinto", () => {
   const capabilities = createHarnessCapabilityRegistry();
   assert.throws(

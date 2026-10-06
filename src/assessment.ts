@@ -118,14 +118,92 @@ export function createAssessmentGate(assessment: Assessment): HumanGate | undefi
   };
 }
 
-export function applyAssessment(task: HarnessTask): HarnessTask {
-  const assessment = assessTask(task);
+export function parseAgentAssessment(output: string): Pick<Assessment, "recommendedRoute" | "confidence" | "reasons" | "affectedAreas" | "unknowns"> | undefined {
+  const text = output.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return undefined;
+  try {
+    const value = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
+    const routes: Route[] = ["simple", "task", "sdd", "clarify"];
+    const confidence = value.confidence;
+    const list = (item: unknown, max = 8): string[] | undefined => Array.isArray(item)
+      && item.length <= max && item.every((part) => typeof part === "string" && part.trim().length > 0 && part.length <= 500)
+      ? item.map((part) => (part as string).trim()) : undefined;
+    const reasons = list(value.reasons);
+    const affectedAreas = list(value.affectedAreas);
+    const unknowns = list(value.unknowns);
+    if (!routes.includes(value.route as Route) || !["high", "medium", "low"].includes(confidence as string)
+      || !reasons?.length || !affectedAreas || !unknowns) return undefined;
+    return { recommendedRoute: value.route as Route, confidence: confidence as Assessment["confidence"], reasons, affectedAreas, unknowns };
+  } catch {
+    return undefined;
+  }
+}
+
+export function assessmentFromAgent(task: HarnessTask, candidate: ReturnType<typeof parseAgentAssessment>): Assessment | undefined {
+  if (!candidate) return undefined;
+  const deterministic = assessTask(task);
+  // These existing rules are safety floors: the model cannot skip an explicit
+  // high-impact change or make a materially underspecified request executable.
+  const guarded = deterministic.recommendedRoute === "sdd" || deterministic.recommendedRoute === "clarify";
+  const recommendedRoute = guarded ? deterministic.recommendedRoute : candidate.recommendedRoute;
+  const requestedRoute = task.requestedMode === "auto" ? recommendedRoute : task.requestedMode;
+  const route = guarded ? deterministic.recommendedRoute : requestedRoute;
+  return {
+    ...deterministic,
+    recommendedRoute,
+    route,
+    routeSource: guarded ? "fallback" : task.requestedMode === "auto" ? "agent" : "manual",
+    confidence: guarded ? deterministic.confidence : candidate.confidence,
+    reasons: guarded
+      ? [...deterministic.reasons, `Salvaguarda determinista aplicada frente a la recomendación del modelo (${candidate.recommendedRoute}).`]
+      : candidate.reasons,
+    affectedAreas: [...new Set([...deterministic.affectedAreas, ...candidate.affectedAreas])],
+    unknowns: guarded ? deterministic.unknowns : candidate.unknowns,
+    evidence: [...deterministic.evidence, `Evaluación del modelo: ${candidate.recommendedRoute}.`],
+  };
+}
+
+export function applyAssessment(task: HarnessTask, supplied?: Assessment, requireDecision = false): HarnessTask {
+  const assessment = supplied ?? assessTask(task);
+  if (requireDecision && !task.analyzeOnly) {
+    const gate: HumanGate = {
+      id: `gate-${Date.now().toString(36)}`, kind: "assessment",
+      reason: "La ruta recomendada debe confirmarse antes de iniciar cualquier workflow.",
+      question: `¿Cómo quieres continuar con la ruta ${assessment.route}?`,
+      options: ["approve", "revise", "cancel"], evidence: assessment.evidence, blocksProgress: true,
+    };
+    return { ...task, assessment, intent: assessment.intent, route: assessment.route, phase: "awaiting-approval", humanGates: [...task.humanGates, gate] };
+  }
   const gate = task.analyzeOnly ? undefined : createAssessmentGate(assessment);
   const phase: TaskPhase = task.analyzeOnly ? "done" : gate?.kind === "clarify" ? "clarifying" : gate ? "awaiting-approval" : "planning";
   return {
     ...task, assessment, intent: assessment.intent, route: assessment.route, phase,
     humanGates: gate ? [...task.humanGates, gate] : task.humanGates,
   };
+}
+
+export function chooseAssessmentRoute(task: HarnessTask, route: Route): HarnessTask {
+  const gate = unresolvedGate(task);
+  if (!gate || gate.kind !== "assessment") throw new Error("No hay una clasificación pendiente para confirmar.");
+  const assessment = task.assessment;
+  if (!assessment) throw new Error("La tarea no contiene una evaluación para confirmar.");
+  const decidedAt = new Date().toISOString();
+  const selected = { ...assessment, route, routeSource: route === assessment.recommendedRoute ? assessment.routeSource : "manual" as const };
+  const humanGates = task.humanGates.map((item) => item.id === gate.id
+    ? { ...item, decision: { value: route === assessment.route ? "approve" as const : "revise" as const, note: `Ruta seleccionada: ${route}`, decidedAt } }
+    : item);
+  const next: HarnessTask = { ...task, assessment: selected, route, intent: selected.intent, humanGates };
+  const downstreamGate = createAssessmentGate(selected);
+  return { ...next, phase: downstreamGate?.kind === "clarify" ? "clarifying" : downstreamGate ? "awaiting-approval" : "planning", humanGates: downstreamGate ? [...humanGates, downstreamGate] : humanGates };
+}
+
+export function requireAssessmentDecision(task: HarnessTask, assessment: Assessment): HarnessTask {
+  const invalidated = task.humanGates.map((gate) => gate.blocksProgress && !gate.decision
+    ? { ...gate, decision: { value: "revise" as const, note: "Invalidado por reevaluación del alcance.", decidedAt: new Date().toISOString() } }
+    : gate);
+  return applyAssessment({ ...task, humanGates: invalidated, phase: "assessing" }, assessment, true);
 }
 
 export function decideGate(task: HarnessTask, value: HumanDecisionValue, note?: string): HarnessTask {

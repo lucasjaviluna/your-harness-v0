@@ -21,8 +21,9 @@ Para probar una tarea:
 
 ```text
 /harness-work --mode simple Cambiar un texto localizado
-/harness-simple
 ```
+
+Antes de iniciar un workflow, yh-pi muestra la ruta recomendada por el modelo activo y espera confirmación. En TUI el flujo continúa después de aceptar; en modo sin TUI puedes usar `/harness-decide approve`, `/harness-route <simple|task|sdd|clarify>` o `/harness-decide cancel`.
 
 En Git Bash, si Pi no recibe correctamente una ruta Windows, usa `MSYS_NO_PATHCONV=1`.
 
@@ -43,4 +44,6 @@ Documentación del proyecto:
 - [Registro de validación operativa de la Fase 9](docs/PHASE_9_VALIDATION_LOG.md)
 - [Integración MCP mediante pi-mcp-adapter de la Fase 14](docs/PHASE_14_MCP_ADAPTER.md)
 - [Actividad y recuperación MCP de la Fase 15](docs/PHASE_15_MCP_ACTIVITY.md)
+- [Clasificación asistida por modelo de la Fase 16](docs/PHASE_16_AGENT_ASSESSMENT.md)
+- [Clasificación asistida por modelo de la Fase 16](docs/PHASE_16_AGENT_ASSESSMENT.md)
 - [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)

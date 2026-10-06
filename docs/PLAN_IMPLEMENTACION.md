@@ -423,6 +423,29 @@ Mejora posterior: el onboarding de MCP presenta desde `/harness-mcp` el snapshot
 
 Estado: completada. Ver [docs/PHASE_15_MCP_ACTIVITY.md](PHASE_15_MCP_ACTIVITY.md). La actividad vive solo durante la sesión actual y conserva una ventana de 50 registros. El historial persistido de Pi recibe los mismos metadatos seguros, sin argumentos ni contenido de respuesta.
 
+### Pendiente de CI — smoke test de consumidor
+
+- [ ] Resolver el fallo de `tests/e2e.test.ts` en el job `Require clean-consumer smoke test`. El último log recibido falla en la aserción `/Ruta seleccionada: simple/` porque la salida inspeccionada está vacía. El cambio reciente combina `stdout` y `stderr`, pero todavía no está confirmado en CI.
+- [ ] Reproducir el comando del job en Linux y validar la invocación real del paquete instalado; cerrar este pendiente solo cuando el smoke test obligatorio pase en CI.
+
+### Fase 16 — Clasificación asistida por el modelo con decisión humana
+
+Estado: completada el 2026-10-06.
+
+**Objetivo:** que el modelo activo de Pi analice la solicitud y el contexto básico del repositorio, explique la ruta recomendada y espere una decisión explícita del desarrollador antes de iniciar cualquier workflow, incluida la ruta `simple`.
+
+- [x] Solicitar al modelo una evaluación estructurada: ruta (`simple`, `task`, `sdd` o `clarify`), razones y dudas pendientes. La llamada de clasificación no tendrá herramientas de ejecución.
+- [x] Mantener las reglas deterministas actuales como salvaguarda de riesgos y fallback si no hay modelo, hay timeout o la respuesta no es válida.
+- [x] Mostrar la recomendación en la TUI y permitir aceptarla, escoger otra ruta, aclarar el alcance o cancelar antes de iniciar trabajo.
+- [x] Aplicar la confirmación previa también a `simple`; conservar sin cambios los gates posteriores de plan, SDD y revisión.
+- [x] Persistir evaluación y decisión humana en la tarea. Si cambia el alcance, reevaluar y volver a pedir aprobación.
+- [x] Probar respuestas válidas e inválidas, salvaguardas de riesgo, override manual, cancelación y que ninguna ruta avance antes de la confirmación.
+- [x] Actualizar documentación de routing, CLI/TUI y criterios de aceptación.
+
+**Criterio de salida:** toda solicitud nueva muestra una recomendación explicada y no ejecuta su workflow hasta que el desarrollador confirma la clasificación o elige otra opción. Los controles de seguridad existentes siguen vigentes.
+
+Validación: `npm test` (80 aprobados, 2 omitidos porque los consumidores temporales no pudieron instalar dependencias en 30 s), `npm run pack:check` y `git diff --check` completados. El pendiente de CI del smoke test de consumidor se mantiene separado y abierto hasta validarlo en Linux/CI.
+
 ## 6. Orden de entrega recomendado
 
 1. MVP operativo: fases 0 a 5. Permite validar la entrada, el estado, la evaluación, la ruta simple y la tarea ligera.

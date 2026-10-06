@@ -6,7 +6,7 @@ import type { MemoryProviderBinding } from "./memory/provider.ts";
 import { loadConfig, type HarnessConfig } from "./config.ts";
 import { isActiveTask } from "./recovery.ts";
 import { writeTaskArtifact } from "./task-artifact.ts";
-import { createTask, type HarnessTask, type UserProfile, type WorkMode } from "./task.ts";
+import { createTask, type Assessment, type HarnessTask, type UserProfile, type WorkMode } from "./task.ts";
 import { createHarnessPlan } from "./plan.ts";
 
 export type ParsedWorkRequest =
@@ -111,6 +111,7 @@ export async function prepareHarnessTask(input: {
   activeTask?: HarnessTask;
   capabilities?: CapabilityRegistry<HarnessCapabilities>;
   memory?: MemoryProviderBinding;
+  evaluateAssessment?: (task: HarnessTask) => Promise<Assessment | undefined>;
 }): Promise<HarnessTask> {
   const { request, config } = input;
   if (request.requestedMode !== "auto" && !config.routing.allowManualOverride) {
@@ -124,14 +125,16 @@ export async function prepareHarnessTask(input: {
   const repository = capabilities.get("repository");
   if (!repository) throw new Error("La capability de repositorio no está registrada.");
   const context = await repository.execute({ operation: "inspect" }, { cwd: input.cwd });
-  let task = applyAssessment(createTask({
+  const intake = createTask({
     prompt: request.prompt,
     cwd: input.cwd,
     requestedMode: request.requestedMode,
     analyzeOnly: request.analyzeOnly,
     context,
     profile: input.profile ?? config.profile,
-  }));
+  });
+  const assessment = await input.evaluateAssessment?.(intake);
+  let task = applyAssessment(intake, assessment, Boolean(input.evaluateAssessment));
   task = {
     ...task,
     contextSnapshot: await new ContextEngine({ memory: input.memory }).compose({
@@ -145,7 +148,9 @@ export async function prepareHarnessTask(input: {
   if (!config.hil.requireApproval && task.route === "task" && task.phase === "awaiting-approval") {
     task = { ...task, phase: "planning", humanGates: task.humanGates.filter((gate) => gate.kind !== "authorize") };
   }
-  return persistTaskArtifact(task);
+  return task.humanGates.some((gate) => gate.kind === "assessment" && gate.blocksProgress && !gate.decision)
+    ? task
+    : persistTaskArtifact(task);
 }
 
 export async function prepareHarnessTaskFromArgs(input: {

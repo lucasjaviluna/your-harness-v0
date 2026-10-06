@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyAssessment, assessTask, decideGate, requestScopeChange } from "../src/assessment.ts";
+import { applyAssessment, assessmentFromAgent, assessTask, chooseAssessmentRoute, decideGate, parseAgentAssessment, requestScopeChange, requireAssessmentDecision } from "../src/assessment.ts";
 import { createTask, formatTaskStatus, unresolvedGate } from "../src/task.ts";
 
 function task(prompt: string, requestedMode: "auto" | "simple" | "task" | "sdd" = "auto") {
@@ -160,4 +160,39 @@ test("el core no necesita repositorio para evaluar otro perfil", () => {
   }));
   assert.equal(result.profile, "marketing");
   assert.equal(result.recommendedRoute, "simple");
+});
+
+test("parsea la evaluación estructurada del modelo y rechaza respuestas inválidas", () => {
+  const valid = parseAgentAssessment('{"route":"simple","confidence":"high","reasons":["Cambio localizado"],"affectedAreas":["ui"],"unknowns":[]}');
+  assert.equal(valid?.recommendedRoute, "simple");
+  assert.equal(parseAgentAssessment("No tengo certeza"), undefined);
+  assert.equal(parseAgentAssessment('{"route":"dangerous","confidence":"high","reasons":[],"affectedAreas":[],"unknowns":[]}'), undefined);
+});
+
+test("la recomendación del modelo conserva la salvaguarda determinista de riesgo", () => {
+  const input = task("Agregar permisos por rol a toda la aplicación.");
+  const candidate = parseAgentAssessment('{"route":"simple","confidence":"high","reasons":["Parece acotado"],"affectedAreas":[],"unknowns":[]}');
+  const assessment = assessmentFromAgent(input, candidate)!;
+  assert.equal(assessment.recommendedRoute, "sdd");
+  assert.equal(assessment.route, "sdd");
+  assert.match(assessment.routeSource, /fallback/);
+});
+
+test("toda clasificación asistida espera decisión y permite escoger ruta o cancelar", () => {
+  const input = task("Cambiar el texto de un botón.");
+  const recommendation = assessmentFromAgent(input, parseAgentAssessment('{"route":"simple","confidence":"high","reasons":["Cambio local"],"affectedAreas":["ui"],"unknowns":[]}'))!;
+  const pending = applyAssessment(input, recommendation, true);
+  assert.equal(pending.phase, "awaiting-approval");
+  assert.equal(unresolvedGate(pending)?.kind, "assessment");
+  assert.equal(chooseAssessmentRoute(pending, "task").phase, "awaiting-approval");
+  assert.equal(chooseAssessmentRoute(pending, "simple").phase, "planning");
+  assert.equal(decideGate(pending, "cancel").phase, "cancelled");
+});
+
+test("una reevaluación del alcance vuelve a exigir decisión antes de cualquier ruta", () => {
+  const accepted = chooseAssessmentRoute(applyAssessment(task("Cambiar el texto del botón."), undefined, true), "simple");
+  const assessment = assessTask({ ...accepted, prompt: "Agregar permisos por rol a toda la aplicación." });
+  const pending = requireAssessmentDecision(requestScopeChange(accepted, "Agregar permisos por rol a toda la aplicación."), assessment);
+  assert.equal(pending.phase, "awaiting-approval");
+  assert.equal(unresolvedGate(pending)?.kind, "assessment");
 });

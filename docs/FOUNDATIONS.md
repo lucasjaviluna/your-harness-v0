@@ -90,6 +90,7 @@ Human-in-the-Middle es una política transversal del sistema. El agente puede tr
 ### 5.1 Tipos de checkpoint
 
 - `clarify`: solicita información faltante.
+- `assessment`: solicita confirmar la ruta recomendada antes de iniciar cualquier workflow.
 - `authorize`: pide permiso para iniciar un plan, aplicar un cambio o ampliar el alcance.
 - `review`: presenta resultados, diffs, artefactos y verificaciones para revisión.
 - `recover`: solicita una decisión después de una interrupción, error o estado inconsistente.
@@ -126,7 +127,9 @@ prompt
   ↓
 contexto del repositorio
   ↓
-evaluación explicada
+evaluación del modelo sin herramientas + salvaguardas deterministas
+  ↓
+confirmación humana de ruta (`simple`, `task`, `sdd` o `clarify`)
   ↓
 recomendación de ruta
   ↓
@@ -253,6 +256,7 @@ Incluye:
 - evaluación explicada;
 - perfil HIL `balanced`;
 - gates de autorización, revisión, aclaración y recuperación;
+- clasificación sugerida por el modelo, con confirmación humana antes de ejecutar;
 - persistencia de tareas ligeras;
 - verificación y resumen con evidencia;
 - recuperación básica de estado.
@@ -293,6 +297,7 @@ No incluye:
 - La Fase 9 de uso y validación operativa en repositorios consumidores está completa; incluyó la confirmación de validación manual reportada en `docs/PHASE_9_VALIDATION_LOG.md`.
 - La Fase 9 implementó CLI `yh-pi`, captura unificada de entrada normal y slash, workflows con gates HIL, perfiles genéricos e identidad visual de TUI. El usuario confirmó el 2026-10-06 que la validación manual de la fase está completa; el detalle de cierre está en `docs/PHASE_9_VALIDATION_LOG.md`.
 - La Fase 14 integra las llamadas MCP del agente mediante `pi-mcp-adapter`, desactivado por defecto, con allowlist por servidor/tool, aprobación HIL por llamada y auditoría sin argumentos/resultados. La instalación y configuración del adapter siguen siendo optativas. La Fase 15 expone esa auditoría de forma segura dentro de la sesión: servidor, tool, tipo de aprobación, resultado y duración, sin argumentos ni contenido remoto. Un resultado no confirmado requiere comprobar el efecto antes de reintentar.
+- La Fase 16 clasifica con el modelo activo de Pi mediante una llamada sin herramientas, mantiene las reglas deterministas como salvaguarda/fallback y exige confirmar o cambiar la ruta antes de iniciar cualquier workflow.
 - La publicación npm se decidirá después de la validación operativa, no antes.
 - Azure DevOps y otras integraciones externas quedan postergadas hasta confirmar la utilidad y estabilidad del flujo base.
 - El perfil default del MVP es `developer`; el core se mantiene agnóstico para habilitar perfiles funcionales, de producto y marketing en fases posteriores.
