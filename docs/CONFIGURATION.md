@@ -61,6 +61,10 @@ La integración MCP de yh-pi usa el paquete comunitario [pi-mcp-adapter](https:/
 
 Usa `/harness-mcp` para consultar el estado del adapter, la allowlist y la política efectiva. Cuando la integración esté habilitada, yh-pi bloquea las llamadas MCP directas que evitarían la allowlist y la política configurada.
 
+### Editar desde la TUI
+
+Usa `/harness-mcp-settings` para cambiar MCP sin editar JSON: permite activar o desactivar MCP, elegir la política default, añadir, editar o eliminar entradas allowlisted y guardar el resultado. Cada entrada muestra servidor, tools y política efectiva; se puede renombrar el servidor, cambiar sus tools o su política. El comando preserva los demás settings de `.harness/config.json`, aplica el cambio en la sesión actual y bloquea la activación si no hay tools permitidas.
+
 ## Diagnóstico
 
 ```text

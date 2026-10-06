@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { DEFAULT_CONFIG, loadConfig } from "../src/config.ts";
+import { DEFAULT_CONFIG, loadConfig, saveMcpConfig } from "../src/config.ts";
 import { isActiveTask, recoverInterruptedTask } from "../src/recovery.ts";
 import { createTask } from "../src/task.ts";
 
@@ -64,6 +64,22 @@ test("la política MCP admite defaults y excepciones por servidor", async () => 
     { server: "invalid", tools: ["read"] },
   ]);
   assert.match(result.warnings.join("\n"), /approval inválido/);
+});
+
+test("guardar MCP preserva otros settings del proyecto", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-config-mcp-save-"));
+  await mkdir(join(cwd, ".harness"), { recursive: true });
+  await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({ profile: "marketing", custom: { keep: true } }));
+  const saved = await saveMcpConfig(cwd, {
+    enabled: true,
+    defaultApproval: "always",
+    allowlist: [{ server: "github", tools: ["search_issues"], approval: "automatic" }],
+  });
+  const raw = JSON.parse(await readFile(join(cwd, ".harness", "config.json"), "utf8"));
+  assert.equal(raw.profile, "marketing");
+  assert.deepEqual(raw.custom, { keep: true });
+  assert.equal(saved.config.mcp.enabled, true);
+  assert.equal(saved.config.mcp.allowlist[0]?.approval, "automatic");
 });
 
 test("una tarea interrumpida vuelve a planificación con gate de recuperación", () => {

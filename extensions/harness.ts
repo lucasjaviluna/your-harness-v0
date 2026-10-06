@@ -3,7 +3,7 @@ import { decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "
 import { buildSimpleWorkflowPrompt, createSimpleReviewGate, parseSimpleAgentResult, type RepositorySnapshot } from "../src/simple.ts";
 import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
 import { createHarnessCapabilityRegistry } from "../src/capabilities/index.ts";
-import { ensureMcpToolActive, installHarnessMcpToolGuard, registerHarnessMcpCommand, registerHarnessMcpTool, setHarnessMcpConfig } from "./mcp-adapter-integration.ts";
+import { ensureMcpToolActive, installHarnessMcpToolGuard, registerHarnessMcpCommand, registerHarnessMcpSettingsCommand, registerHarnessMcpTool, setHarnessMcpConfig } from "./mcp-adapter-integration.ts";
 import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
 import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
@@ -110,6 +110,15 @@ export default function (pi: ExtensionAPI) {
   setHarnessMcpConfig(currentConfig);
   installHarnessMcpToolGuard(pi);
   registerHarnessMcpCommand(pi);
+  registerHarnessMcpSettingsCommand(pi, async (config) => {
+    currentConfig = config;
+    setHarnessMcpConfig(currentConfig);
+    if (currentConfig.mcp.enabled && !mcpToolRegistered) {
+      registerHarnessMcpTool(pi);
+      mcpToolRegistered = true;
+    }
+    ensureMcpToolActive(pi, currentConfig.mcp.enabled && mcpToolRegistered);
+  });
 
   async function detectProjectOpenSpec(cwd: string, probeCli?: boolean): Promise<OpenSpecDetection> {
     const openspec = capabilities.get("openspec");

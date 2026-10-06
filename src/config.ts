@@ -1,5 +1,5 @@
-import { access, readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import type { UserProfile, WorkMode } from "./task.ts";
 
 export const HARNESS_CONFIG_PATH = ".harness/config.json";
@@ -22,6 +22,7 @@ export type HarnessConfig = {
 export type ConfigResult = { config: HarnessConfig; path?: string; warnings: string[]; source: "defaults" | "project" };
 
 export type HarnessRuntimeOverrides = Partial<Pick<HarnessConfig, "defaultMode" | "profile" | "captureInput">>;
+export type McpConfig = HarnessConfig["mcp"];
 
 export const DEFAULT_CONFIG: HarnessConfig = {
   defaultMode: "auto", profile: "developer", captureInput: false,
@@ -50,6 +51,35 @@ function applyRuntimeOverrides(config: HarnessConfig, overrides: HarnessRuntimeO
 
 async function fileExists(path: string): Promise<boolean> {
   try { await access(path); return true; } catch { return false; }
+}
+
+/** Writes only the MCP section and preserves the project's other yh-pi settings. */
+export async function saveMcpConfig(cwd: string, mcp: McpConfig): Promise<ConfigResult> {
+  const path = join(resolve(cwd), HARNESS_CONFIG_PATH);
+  let parsed: Record<string, unknown> = {};
+  if (await fileExists(path)) {
+    try {
+      const value = JSON.parse(await readFile(path, "utf8"));
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("la raíz debe ser un objeto JSON");
+      parsed = value as Record<string, unknown>;
+    } catch (error) {
+      throw new Error(`No se pudo actualizar ${HARNESS_CONFIG_PATH}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify({
+    ...parsed,
+    mcp: {
+      enabled: mcp.enabled,
+      defaultApproval: mcp.defaultApproval,
+      allowlist: mcp.allowlist.map((entry) => ({
+        server: entry.server,
+        tools: entry.tools,
+        ...(entry.approval ? { approval: entry.approval } : {}),
+      })),
+    },
+  }, null, 2)}\n`, "utf8");
+  return loadConfig(cwd, {});
 }
 
 export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOverrides = readRuntimeOverrides()): Promise<ConfigResult> {
