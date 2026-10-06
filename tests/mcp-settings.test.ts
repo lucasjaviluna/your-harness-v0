@@ -5,6 +5,8 @@ import { join } from "node:path";
 import test from "node:test";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import registerHarness from "../extensions/harness.ts";
+import { formatHarnessMcpStatus, installHarnessMcpStatusListener } from "../extensions/mcp-adapter-integration.ts";
+import { DEFAULT_CONFIG } from "../src/config.ts";
 
 test("el asistente MCP crea una allowlist y la activa desde la TUI", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "pi-harness-mcp-settings-"));
@@ -47,4 +49,25 @@ test("el asistente MCP crea una allowlist y la activa desde la TUI", async () =>
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }
+});
+
+test("el estado MCP muestra servidores conectados y tools habilitadas", () => {
+  const listeners = new Map<string, (snapshot: unknown) => void>();
+  const pi = {
+    events: { on: (channel: string, listener: (snapshot: unknown) => void) => listeners.set(channel, listener) },
+    getAllTools: () => [],
+  } as unknown as ExtensionAPI;
+  installHarnessMcpStatusListener(pi);
+  listeners.get("pi-mcp-adapter/status/v1")!({
+    version: 1,
+    servers: [{ name: "github", status: "connected", toolCount: 12, directToolCount: 0, disabled: false }],
+    totalTools: 12,
+    connectedCount: 1,
+    disabledCount: 0,
+  });
+  const config = structuredClone(DEFAULT_CONFIG);
+  config.mcp = { enabled: true, defaultApproval: "always", allowlist: [{ server: "github", tools: ["search_issues"] }] };
+  const report = formatHarnessMcpStatus(config, pi);
+  assert.match(report, /github\/search_issues/);
+  assert.match(report, /github: connected; 12 tools detectadas/);
 });

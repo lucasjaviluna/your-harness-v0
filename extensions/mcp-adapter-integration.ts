@@ -6,6 +6,11 @@ import { callPiMcpAdapter, type PiMcpEventBus } from "../src/capabilities/pi-mcp
 const TOOL_NAME = "harness_mcp";
 const AUDIT_ENTRY = "harness-mcp-audit";
 const MAX_RESULT_CHARS = 12_000;
+const MCP_STATUS_EVENT = "pi-mcp-adapter/status/v1";
+
+type McpServerStatus = { name: string; status: string; toolCount: number; directToolCount: number; disabled: boolean; failedAgoSeconds?: number; blockedReason?: string };
+type McpStatusSnapshot = { version: 1; servers: McpServerStatus[]; totalTools: number; connectedCount: number; disabledCount: number };
+let adapterStatus: McpStatusSnapshot | undefined;
 
 function approvalFor(config: HarnessConfig, server: string, tool: string): McpApprovalMode | undefined {
   const entry = config.mcp.allowlist.find((candidate) => candidate.server === server && candidate.tools.includes(tool));
@@ -111,13 +116,36 @@ export function formatHarnessMcpStatus(config: HarnessConfig, pi: ExtensionAPI):
     const sourcePath = (tool as unknown as { sourceInfo?: { path?: string } }).sourceInfo?.path?.toLowerCase() ?? "";
     return sourcePath.includes("pi-mcp-adapter");
   });
+  const serverStatus = adapterStatus?.servers.length
+    ? adapterStatus.servers.map((server) => `${server.name}: ${server.status}; ${server.toolCount} tools detectadas; ${server.directToolCount} directas${server.failedAgoSeconds !== undefined ? `; fallo hace ${server.failedAgoSeconds}s` : ""}${server.blockedReason ? `; ${server.blockedReason}` : ""}`)
+    : ["Estado de servidores: todavía no informado por pi-mcp-adapter."];
   return [
     `yh-pi MCP: ${config.mcp.enabled ? "habilitado" : "deshabilitado"}`,
     `Provider pi-mcp-adapter: ${adapterLoaded ? "detectado" : "no detectado"}`,
     `Allowlist: ${allowed.length ? allowed.join(", ") : "vacía"}`,
     `Política de aprobación default: ${config.mcp.defaultApproval}.`,
+    "Tools habilitadas por yh-pi: las indicadas en la allowlist.",
+    ...serverStatus,
     adapterLoaded ? "El proxy/direct tools del adapter quedan bloqueados mientras yh-pi MCP está habilitado." : "Instala el provider con: pi install npm:pi-mcp-adapter",
   ].join("\n");
+}
+
+/** Subscribes to the adapter's read-only public runtime snapshot. */
+export function installHarnessMcpStatusListener(pi: ExtensionAPI): void {
+  const events = (pi as ExtensionAPI & { events?: unknown }).events as { on?: (channel: string, listener: (snapshot: unknown) => void) => void } | undefined;
+  if (!events?.on) return;
+  events.on(MCP_STATUS_EVENT, (snapshot) => {
+    if (!snapshot || typeof snapshot !== "object") return;
+    const candidate = snapshot as Partial<McpStatusSnapshot>;
+    if (candidate.version !== 1 || !Array.isArray(candidate.servers)) return;
+    adapterStatus = {
+      version: 1,
+      servers: candidate.servers.filter((server): server is McpServerStatus => Boolean(server) && typeof server.name === "string" && typeof server.status === "string" && typeof server.toolCount === "number" && typeof server.directToolCount === "number" && typeof server.disabled === "boolean"),
+      totalTools: typeof candidate.totalTools === "number" ? candidate.totalTools : 0,
+      connectedCount: typeof candidate.connectedCount === "number" ? candidate.connectedCount : 0,
+      disabledCount: typeof candidate.disabledCount === "number" ? candidate.disabledCount : 0,
+    };
+  });
 }
 
 export function ensureMcpToolActive(pi: ExtensionAPI, enabled: boolean): void {

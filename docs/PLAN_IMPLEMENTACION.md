@@ -411,6 +411,8 @@ Usar el adapter MCP con mayor adopción observada en la comunidad Pi como runtim
 
 Estado: integración implementada con `pi-mcp-adapter`; no es dependencia obligatoria ni se instala/configura automáticamente. Ver [docs/PHASE_14_MCP_ADAPTER.md](PHASE_14_MCP_ADAPTER.md). La aprobación y allowlist de yh-pi se aplican antes de delegar; el adapter conserva conexión, OAuth, credenciales y su propia política de trust.
 
+Mejora posterior: el onboarding de MCP presenta desde `/harness-mcp` el snapshot público del adapter por servidor (estado y cantidades), junto con las tools exactas habilitadas por la allowlist de yh-pi. No usa interfaces privadas ni fuerza conexiones lazy.
+
 ## 6. Orden de entrega recomendado
 
 1. MVP operativo: fases 0 a 5. Permite validar la entrada, el estado, la evaluación, la ruta simple y la tarea ligera.

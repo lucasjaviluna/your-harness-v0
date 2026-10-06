@@ -3,7 +3,7 @@ import { decideGate, formatAssessment, requestScopeChange, rerouteToSdd } from "
 import { buildSimpleWorkflowPrompt, createSimpleReviewGate, parseSimpleAgentResult, type RepositorySnapshot } from "../src/simple.ts";
 import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
 import { createHarnessCapabilityRegistry } from "../src/capabilities/index.ts";
-import { ensureMcpToolActive, installHarnessMcpToolGuard, registerHarnessMcpCommand, registerHarnessMcpSettingsCommand, registerHarnessMcpTool, setHarnessMcpConfig } from "./mcp-adapter-integration.ts";
+import { ensureMcpToolActive, installHarnessMcpStatusListener, installHarnessMcpToolGuard, registerHarnessMcpCommand, registerHarnessMcpSettingsCommand, registerHarnessMcpTool, setHarnessMcpConfig } from "./mcp-adapter-integration.ts";
 import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
 import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
@@ -109,6 +109,7 @@ export default function (pi: ExtensionAPI) {
   let mcpToolRegistered = false;
   setHarnessMcpConfig(currentConfig);
   installHarnessMcpToolGuard(pi);
+  installHarnessMcpStatusListener(pi);
   registerHarnessMcpCommand(pi);
   registerHarnessMcpSettingsCommand(pi, async (config) => {
     currentConfig = config;

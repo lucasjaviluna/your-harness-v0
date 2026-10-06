@@ -59,7 +59,7 @@ La integración MCP de yh-pi usa el paquete comunitario [pi-mcp-adapter](https:/
 
 `defaultApproval` admite `"always"` y `"automatic"`; el default es `"always"`. Cada entrada de la allowlist puede declarar `approval` para reemplazarlo. `always` muestra una confirmación HIL por llamada y falla si no hay UI. `automatic` delega sin confirmación de yh-pi, incluso en modo sin UI, pero `pi-mcp-adapter` conserva su propia política de trust y aprobación. Configura `automatic` solo para pares servidor/tool que el usuario considere seguros.
 
-Usa `/harness-mcp` para consultar el estado del adapter, la allowlist y la política efectiva. Cuando la integración esté habilitada, yh-pi bloquea las llamadas MCP directas que evitarían la allowlist y la política configurada.
+Usa `/harness-mcp` para consultar el estado del adapter, cada servidor detectado, su estado de conexión, cantidad de tools detectadas y las tools habilitadas por yh-pi en la allowlist. El adapter publica esos datos sin conectar servidores lazy ni exponer credenciales. Cuando la integración esté habilitada, yh-pi bloquea las llamadas MCP directas que evitarían la allowlist y la política configurada.
 
 ### Editar desde la TUI
 
