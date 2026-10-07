@@ -69,7 +69,7 @@ function activityRecovery(outcome: McpActivityOutcome): string {
   }
 }
 
-function formatMcpActivity(): string[] {
+export function formatMcpActivity(): string[] {
   if (!activity.length) return ["Actividad de esta sesión: todavía no hubo llamadas MCP."];
   const recent = activity.slice(-20).reverse();
   const counts = recent.reduce<Record<McpActivityOutcome, number>>((result, entry) => {
@@ -259,111 +259,117 @@ export function registerHarnessMcpSettingsCommand(
 ): void {
   pi.registerCommand("harness-mcp-settings", {
     description: "Edita la configuración MCP de yh-pi desde la TUI",
-    handler: async (_args, ctx) => {
-      if (!ctx.hasUI) {
-        ctx.ui.notify("/harness-mcp-settings requiere la TUI de Pi.", "warn");
-        return;
-      }
-      const working = structuredClone(currentConfig);
-      let changed = false;
-      while (true) {
-        const options = [
-          working.mcp.enabled ? "Desactivar MCP" : "Activar MCP",
-          `Aprobación default: ${working.mcp.defaultApproval}`,
-          "Añadir servidor y tools",
-          "Editar entrada allowlisted",
-          "Eliminar entrada allowlisted",
-          "Guardar cambios",
-          "Cancelar",
-        ];
-        const choice = await ctx.ui.select(
-          `MCP ${working.mcp.enabled ? "habilitado" : "deshabilitado"}; ${working.mcp.allowlist.reduce((count, entry) => count + entry.tools.length, 0)} tools permitidas.`,
-          options,
-        );
-        if (choice === "Cancelar") {
-          ctx.ui.notify(changed ? "Cambios MCP descartados." : "Configuración MCP sin cambios.", "info");
-          return;
-        }
-        if (choice === "Guardar cambios") {
-          if (working.mcp.enabled && working.mcp.allowlist.length === 0) {
-            ctx.ui.notify("Añade al menos una entrada allowlisted antes de habilitar MCP.", "warn");
-            continue;
-          }
-          try {
-            const saved = await saveMcpConfig(ctx.cwd, working.mcp);
-            await applyConfig(saved.config, ctx);
-            ctx.ui.notify(`Configuración MCP guardada en ${saved.path}.`, "info");
-          } catch (error) {
-            ctx.ui.notify(error instanceof Error ? error.message : "No se pudo guardar la configuración MCP.", "error");
-          }
-          return;
-        }
-        if (choice === "Activar MCP" || choice === "Desactivar MCP") {
-          if (choice === "Activar MCP" && working.mcp.allowlist.length === 0) {
-            ctx.ui.notify("Primero añade un servidor y al menos una tool a la allowlist.", "warn");
-            continue;
-          }
-          working.mcp.enabled = choice === "Activar MCP";
-          changed = true;
-          continue;
-        }
-        if (choice.startsWith("Aprobación default:")) {
-          working.mcp.defaultApproval = (await chooseApproval(ctx, working.mcp.defaultApproval, working.mcp.defaultApproval)) ?? working.mcp.defaultApproval;
-          changed = true;
-          continue;
-        }
-        if (choice === "Añadir servidor y tools") {
-          const server = (await ctx.ui.input("Servidor MCP", "Nombre configurado en pi-mcp-adapter, por ejemplo: github"))?.trim();
-          const toolInput = (await ctx.ui.input("Tools MCP", "Nombres separados por comas, por ejemplo: search_issues, get_issue"))?.trim();
-          if (!server || !toolInput) {
-            ctx.ui.notify("No se añadió la entrada: servidor y tools son obligatorios.", "warn");
-            continue;
-          }
-          const tools = [...new Set(toolInput.split(",").map((tool) => tool.trim()).filter(Boolean))];
-          if (!tools.length) {
-            ctx.ui.notify("No se añadió la entrada: indica al menos una tool válida.", "warn");
-            continue;
-          }
-          const approval = await chooseApproval(ctx, undefined, working.mcp.defaultApproval);
-          working.mcp.allowlist.push({ server, tools, ...(approval ? { approval } : {}) });
-          changed = true;
-          continue;
-        }
-        if (working.mcp.allowlist.length === 0) {
-          ctx.ui.notify("La allowlist está vacía.", "info");
-          continue;
-        }
-        const labels = working.mcp.allowlist.map((entry, index) => `${index + 1}. ${entry.server}: ${entry.tools.join(", ")} [${approvalLabel(entry.approval, working.mcp.defaultApproval)}]`);
-        const selected = await ctx.ui.select("Selecciona una entrada MCP", labels);
-        const index = labels.indexOf(selected);
-        if (index < 0) continue;
-        if (choice === "Eliminar entrada allowlisted") {
-          const confirmed = await ctx.ui.confirm("Eliminar entrada MCP", labels[index]!);
-          if (confirmed) {
-            working.mcp.allowlist.splice(index, 1);
-            if (working.mcp.allowlist.length === 0) working.mcp.enabled = false;
-            changed = true;
-          }
-          continue;
-        }
-        const entry = working.mcp.allowlist[index]!;
-        const editChoice = await ctx.ui.select("Editar entrada MCP", ["Cambiar servidor", "Cambiar tools", "Cambiar política de aprobación", "Volver"]);
-        if (editChoice === "Cambiar servidor") {
-          const server = (await ctx.ui.input("Servidor MCP", entry.server))?.trim();
-          if (!server) ctx.ui.notify("La entrada conserva su servidor actual.", "warn");
-          else { entry.server = server; changed = true; }
-        } else if (editChoice === "Cambiar tools") {
-          const toolInput = (await ctx.ui.input("Tools MCP", entry.tools.join(", ")))?.trim();
-          const tools = toolInput ? [...new Set(toolInput.split(",").map((tool) => tool.trim()).filter(Boolean))] : [];
-          if (!tools.length) ctx.ui.notify("La entrada conserva sus tools: indica al menos una.", "warn");
-          else { entry.tools = tools; changed = true; }
-        } else if (editChoice === "Cambiar política de aprobación") {
-          entry.approval = await chooseApproval(ctx, entry.approval, working.mcp.defaultApproval);
-          changed = true;
-        }
-      }
-    },
+    handler: async (_args, ctx) => openHarnessMcpSettings(ctx, applyConfig),
   });
+}
+
+/** Opens the settings flow so hosts can load this integration only when it is used. */
+export async function openHarnessMcpSettings(
+  ctx: ExtensionContext,
+  applyConfig: (config: HarnessConfig, ctx: ExtensionContext) => Promise<void> | void,
+): Promise<void> {
+  if (!ctx.hasUI) {
+    ctx.ui.notify("/harness-mcp-settings requiere la TUI de Pi.", "warn");
+    return;
+  }
+  const working = structuredClone(currentConfig);
+  let changed = false;
+  while (true) {
+    const options = [
+      working.mcp.enabled ? "Desactivar MCP" : "Activar MCP",
+      `Aprobación default: ${working.mcp.defaultApproval}`,
+      "Añadir servidor y tools",
+      "Editar entrada allowlisted",
+      "Eliminar entrada allowlisted",
+      "Guardar cambios",
+      "Cancelar",
+    ];
+    const choice = await ctx.ui.select(
+      `MCP ${working.mcp.enabled ? "habilitado" : "deshabilitado"}; ${working.mcp.allowlist.reduce((count, entry) => count + entry.tools.length, 0)} tools permitidas.`,
+      options,
+    );
+    if (choice === "Cancelar") {
+      ctx.ui.notify(changed ? "Cambios MCP descartados." : "Configuración MCP sin cambios.", "info");
+      return;
+    }
+    if (choice === "Guardar cambios") {
+      if (working.mcp.enabled && working.mcp.allowlist.length === 0) {
+        ctx.ui.notify("Añade al menos una entrada allowlisted antes de habilitar MCP.", "warn");
+        continue;
+      }
+      try {
+        const saved = await saveMcpConfig(ctx.cwd, working.mcp);
+        await applyConfig(saved.config, ctx);
+        ctx.ui.notify(`Configuración MCP guardada en ${saved.path}.`, "info");
+      } catch (error) {
+        ctx.ui.notify(error instanceof Error ? error.message : "No se pudo guardar la configuración MCP.", "error");
+      }
+      return;
+    }
+    if (choice === "Activar MCP" || choice === "Desactivar MCP") {
+      if (choice === "Activar MCP" && working.mcp.allowlist.length === 0) {
+        ctx.ui.notify("Primero añade un servidor y al menos una tool a la allowlist.", "warn");
+        continue;
+      }
+      working.mcp.enabled = choice === "Activar MCP";
+      changed = true;
+      continue;
+    }
+    if (choice.startsWith("Aprobación default:")) {
+      working.mcp.defaultApproval = (await chooseApproval(ctx, working.mcp.defaultApproval, working.mcp.defaultApproval)) ?? working.mcp.defaultApproval;
+      changed = true;
+      continue;
+    }
+    if (choice === "Añadir servidor y tools") {
+      const server = (await ctx.ui.input("Servidor MCP", "Nombre configurado en pi-mcp-adapter, por ejemplo: github"))?.trim();
+      const toolInput = (await ctx.ui.input("Tools MCP", "Nombres separados por comas, por ejemplo: search_issues, get_issue"))?.trim();
+      if (!server || !toolInput) {
+        ctx.ui.notify("No se añadió la entrada: servidor y tools son obligatorios.", "warn");
+        continue;
+      }
+      const tools = [...new Set(toolInput.split(",").map((tool) => tool.trim()).filter(Boolean))];
+      if (!tools.length) {
+        ctx.ui.notify("No se añadió la entrada: indica al menos una tool válida.", "warn");
+        continue;
+      }
+      const approval = await chooseApproval(ctx, undefined, working.mcp.defaultApproval);
+      working.mcp.allowlist.push({ server, tools, ...(approval ? { approval } : {}) });
+      changed = true;
+      continue;
+    }
+    if (working.mcp.allowlist.length === 0) {
+      ctx.ui.notify("La allowlist está vacía.", "info");
+      continue;
+    }
+    const labels = working.mcp.allowlist.map((entry, index) => `${index + 1}. ${entry.server}: ${entry.tools.join(", ")} [${approvalLabel(entry.approval, working.mcp.defaultApproval)}]`);
+    const selected = await ctx.ui.select("Selecciona una entrada MCP", labels);
+    const index = labels.indexOf(selected);
+    if (index < 0) continue;
+    if (choice === "Eliminar entrada allowlisted") {
+      const confirmed = await ctx.ui.confirm("Eliminar entrada MCP", labels[index]!);
+      if (confirmed) {
+        working.mcp.allowlist.splice(index, 1);
+        if (working.mcp.allowlist.length === 0) working.mcp.enabled = false;
+        changed = true;
+      }
+      continue;
+    }
+    const entry = working.mcp.allowlist[index]!;
+    const editChoice = await ctx.ui.select("Editar entrada MCP", ["Cambiar servidor", "Cambiar tools", "Cambiar política de aprobación", "Volver"]);
+    if (editChoice === "Cambiar servidor") {
+      const server = (await ctx.ui.input("Servidor MCP", entry.server))?.trim();
+      if (!server) ctx.ui.notify("La entrada conserva su servidor actual.", "warn");
+      else { entry.server = server; changed = true; }
+    } else if (editChoice === "Cambiar tools") {
+      const toolInput = (await ctx.ui.input("Tools MCP", entry.tools.join(", ")))?.trim();
+      const tools = toolInput ? [...new Set(toolInput.split(",").map((tool) => tool.trim()).filter(Boolean))] : [];
+      if (!tools.length) ctx.ui.notify("La entrada conserva sus tools: indica al menos una.", "warn");
+      else { entry.tools = tools; changed = true; }
+    } else if (editChoice === "Cambiar política de aprobación") {
+      entry.approval = await chooseApproval(ctx, entry.approval, working.mcp.defaultApproval);
+      changed = true;
+    }
+  }
 }
 
 let currentConfig: HarnessConfig = structuredClone(DEFAULT_CONFIG);

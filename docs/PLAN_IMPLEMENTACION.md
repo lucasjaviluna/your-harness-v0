@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: fases 0 a 14 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa; la publicación npm continúa pendiente de decisión y autorización explícitas.
+Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque posterior a la Fase 16 está completado; el smoke test obligatorio de CI sigue pendiente. La publicación npm continúa pendiente de decisión y autorización explícitas.
 
 ## 1. Objetivo y alcance
 
@@ -431,6 +431,18 @@ Estado: completada. Ver [docs/PHASE_15_MCP_ACTIVITY.md](PHASE_15_MCP_ACTIVITY.md
 ### Fase 16 — Clasificación asistida por el modelo con decisión humana
 
 Estado: completada el 2026-10-06.
+
+### Mejora posterior a Fase 16 — Recorte de carga de arranque
+
+Estado: completada el 2026-10-07. Detalle en [docs/STARTUP_PERFORMANCE.md](STARTUP_PERFORMANCE.md).
+
+- [x] Diferir el SDK y la integración MCP hasta habilitar MCP o usar un comando MCP.
+- [x] Diferir Git, OpenSpec, verificación y el workflow `simple` hasta que un workflow o diagnóstico los necesite.
+- [x] Diferir el motor de contexto, los artefactos de tareas y el render detallado de planes hasta crear, revisar, persistir o recuperar una tarea.
+- [x] Mantener disponibles los comandos y aplicar las mismas políticas HIL y de seguridad después de la carga diferida.
+- [x] Validar con pruebas de inicio, MCP, capabilities, workflows, planes y artefactos; además de `npm test`, `npm run pack:check` y `git diff --check`.
+
+Pendiente posterior: medir el arranque real de `yh-pi` y decidir si una distribución JavaScript compilada justifica agregar un build. El fallo intermitente o pendiente del smoke test obligatorio de CI sigue registrado en la Fase 15 y no se considera resuelto por este cambio.
 
 **Objetivo:** que el modelo activo de Pi analice la solicitud y el contexto básico del repositorio, explique la ruta recomendada y espere una decisión explícita del desarrollador antes de iniciar cualquier workflow, incluida la ruta `simple`.
 

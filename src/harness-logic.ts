@@ -1,11 +1,9 @@
 import { applyAssessment } from "./assessment.ts";
-import { createHarnessCapabilityRegistry, type HarnessCapabilities } from "./capabilities/index.ts";
+import { createCoreHarnessCapabilityRegistry, type CoreHarnessCapabilities } from "./capabilities/core.ts";
 import type { CapabilityRegistry } from "./capabilities/registry.ts";
-import { ContextEngine } from "./context-engine.ts";
 import type { MemoryProviderBinding } from "./memory/provider.ts";
 import { loadConfig, type HarnessConfig } from "./config.ts";
 import { isActiveTask } from "./recovery.ts";
-import { writeTaskArtifact } from "./task-artifact.ts";
 import { createTask, type Assessment, type HarnessTask, type UserProfile, type WorkMode } from "./task.ts";
 import { createHarnessPlan } from "./plan.ts";
 
@@ -96,6 +94,7 @@ export function parseWorkRequest(args: string, defaultMode: WorkMode = "auto"): 
 
 async function persistTaskArtifact(task: HarnessTask): Promise<HarnessTask> {
   if (task.route !== "task") return task;
+  const { writeTaskArtifact } = await import("./task-artifact.ts");
   const path = await writeTaskArtifact(task);
   if (task.artifactPath === path) return task;
   const withPath = { ...task, artifactPath: path };
@@ -109,7 +108,7 @@ export async function prepareHarnessTask(input: {
   config: HarnessConfig;
   profile?: UserProfile;
   activeTask?: HarnessTask;
-  capabilities?: CapabilityRegistry<HarnessCapabilities>;
+  capabilities?: CapabilityRegistry<CoreHarnessCapabilities>;
   memory?: MemoryProviderBinding;
   evaluateAssessment?: (task: HarnessTask) => Promise<Assessment | undefined>;
 }): Promise<HarnessTask> {
@@ -121,7 +120,7 @@ export async function prepareHarnessTask(input: {
     throw new Error(`La misma tarea ya está activa (${input.activeTask.id}); no se creó un duplicado.`);
   }
 
-  const capabilities = input.capabilities ?? createHarnessCapabilityRegistry();
+  const capabilities = input.capabilities ?? createCoreHarnessCapabilityRegistry();
   const repository = capabilities.get("repository");
   if (!repository) throw new Error("La capability de repositorio no está registrada.");
   const context = await repository.execute({ operation: "inspect" }, { cwd: input.cwd });
@@ -135,6 +134,7 @@ export async function prepareHarnessTask(input: {
   });
   const assessment = await input.evaluateAssessment?.(intake);
   let task = applyAssessment(intake, assessment, Boolean(input.evaluateAssessment));
+  const { ContextEngine } = await import("./context-engine.ts");
   task = {
     ...task,
     contextSnapshot: await new ContextEngine({ memory: input.memory }).compose({
@@ -159,7 +159,7 @@ export async function prepareHarnessTaskFromArgs(input: {
   config?: HarnessConfig;
   activeTask?: HarnessTask;
   profile?: UserProfile;
-  capabilities?: CapabilityRegistry<HarnessCapabilities>;
+  capabilities?: CapabilityRegistry<CoreHarnessCapabilities>;
   memory?: MemoryProviderBinding;
 }): Promise<HarnessTask> {
   const config = input.config ?? (await loadConfig(input.cwd)).config;

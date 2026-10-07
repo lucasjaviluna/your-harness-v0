@@ -1,15 +1,14 @@
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { assessmentFromAgent, assessTask, chooseAssessmentRoute, decideGate, formatAssessment, parseAgentAssessment, requestScopeChange, rerouteToSdd, requireAssessmentDecision } from "../src/assessment.ts";
-import { buildSimpleWorkflowPrompt, createSimpleReviewGate, parseSimpleAgentResult, type RepositorySnapshot } from "../src/simple.ts";
-import { buildOpenSpecDelegation, createOpenSpecAuthorizationGate, createOpenSpecReviewGate, existingOpenSpecArtifacts, extractOpenSpecArtifacts, extractOpenSpecChange, nextOpenSpecStep, type OpenSpecDetection } from "../src/openspec.ts";
-import { createHarnessCapabilityRegistry } from "../src/capabilities/index.ts";
-import { ensureMcpToolActive, installHarnessMcpStatusListener, installHarnessMcpToolGuard, registerHarnessMcpCommand, registerHarnessMcpHistoryCommand, registerHarnessMcpSettingsCommand, registerHarnessMcpTool, resetHarnessMcpActivity, setHarnessMcpConfig } from "./mcp-adapter-integration.ts";
+import type { RepositorySnapshot } from "../src/simple.ts";
+import type { OpenSpecDetection } from "../src/openspec.ts";
+import { createCoreHarnessCapabilityRegistry, registerDeferredWorkflowCapabilities } from "../src/capabilities/core.ts";
+import type * as McpIntegration from "./mcp-adapter-integration.ts";
 import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
 import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
-import { createHarnessPlan, formatPlanDetails, reviseHarnessPlan } from "../src/plan.ts";
+import { createHarnessPlan, reviseHarnessPlan } from "../src/plan.ts";
 import { recoverInterruptedTask } from "../src/recovery.ts";
-import { deleteCancelledTaskArtifact, readTaskArtifact, writeTaskArtifact } from "../src/task-artifact.ts";
 import {
   closeTask,
   formatTaskStatus,
@@ -108,6 +107,7 @@ function parseDecision(args: string): { ok: true; value: HumanDecisionValue; not
 
 async function syncTaskArtifact(task: HarnessTask): Promise<HarnessTask> {
   if (task.route !== "task") return task;
+  const { writeTaskArtifact } = await import("../src/task-artifact.ts");
   const path = await writeTaskArtifact(task);
   if (task.artifactPath === path) return task;
   const withPath = { ...task, artifactPath: path };
@@ -117,24 +117,81 @@ async function syncTaskArtifact(task: HarnessTask): Promise<HarnessTask> {
 
 export default function (pi: ExtensionAPI) {
   assertCompatiblePi(pi);
-  const capabilities = createHarnessCapabilityRegistry();
+  const capabilities = createCoreHarnessCapabilityRegistry();
+  let deferredCapabilitiesLoading: Promise<void> | undefined;
   let mcpToolRegistered = false;
-  setHarnessMcpConfig(currentConfig);
-  installHarnessMcpToolGuard(pi);
-  installHarnessMcpStatusListener(pi);
-  registerHarnessMcpCommand(pi);
-  registerHarnessMcpHistoryCommand(pi);
-  registerHarnessMcpSettingsCommand(pi, async (config) => {
+  let mcpIntegration: typeof McpIntegration | undefined;
+  let mcpIntegrationLoading: Promise<typeof McpIntegration> | undefined;
+  let simpleWorkflowLoading: Promise<typeof import("../src/simple.ts")> | undefined;
+  let openSpecLoading: Promise<typeof import("../src/openspec.ts")> | undefined;
+  let planDetailsLoading: Promise<typeof import("../src/plan-details.ts")> | undefined;
+
+  function loadSimpleWorkflow(): Promise<typeof import("../src/simple.ts")> {
+    return simpleWorkflowLoading ??= import("../src/simple.ts");
+  }
+
+  function loadOpenSpecWorkflow(): Promise<typeof import("../src/openspec.ts")> {
+    return openSpecLoading ??= import("../src/openspec.ts");
+  }
+
+  function loadPlanDetails(): Promise<typeof import("../src/plan-details.ts")> {
+    return planDetailsLoading ??= import("../src/plan-details.ts");
+  }
+
+  async function ensureWorkflowCapabilities(): Promise<void> {
+    deferredCapabilitiesLoading ??= registerDeferredWorkflowCapabilities(capabilities);
+    await deferredCapabilitiesLoading;
+  }
+
+  async function loadMcpIntegration(): Promise<typeof McpIntegration> {
+    if (!mcpIntegrationLoading) {
+      mcpIntegrationLoading = import("./mcp-adapter-integration.ts").then((integration) => {
+        mcpIntegration = integration;
+        integration.installHarnessMcpToolGuard(pi);
+        integration.installHarnessMcpStatusListener(pi);
+        return integration;
+      });
+    }
+    const integration = await mcpIntegrationLoading;
+    integration.setHarnessMcpConfig(currentConfig);
+    return integration;
+  }
+
+  async function applyMcpConfig(config: HarnessConfig): Promise<void> {
     currentConfig = config;
-    setHarnessMcpConfig(currentConfig);
+    if (!currentConfig.mcp.enabled && !mcpIntegration) return;
+    const integration = await loadMcpIntegration();
     if (currentConfig.mcp.enabled && !mcpToolRegistered) {
-      registerHarnessMcpTool(pi);
+      integration.registerHarnessMcpTool(pi);
       mcpToolRegistered = true;
     }
-    ensureMcpToolActive(pi, currentConfig.mcp.enabled && mcpToolRegistered);
+    integration.ensureMcpToolActive(pi, currentConfig.mcp.enabled && mcpToolRegistered);
+  }
+
+  pi.registerCommand("harness-mcp", {
+    description: "Muestra el estado MCP de yh-pi y su allowlist",
+    handler: async (_args, ctx) => {
+      const integration = await loadMcpIntegration();
+      ctx.ui.notify(integration.formatHarnessMcpStatus(currentConfig, pi), "info");
+    },
+  });
+  pi.registerCommand("harness-mcp-history", {
+    description: "Muestra la actividad MCP segura de la sesión actual",
+    handler: async (_args, ctx) => {
+      const integration = await loadMcpIntegration();
+      ctx.ui.notify(integration.formatMcpActivity().join("\n"), "info");
+    },
+  });
+  pi.registerCommand("harness-mcp-settings", {
+    description: "Edita la configuración MCP de yh-pi desde la TUI",
+    handler: async (_args, ctx) => {
+      const integration = await loadMcpIntegration();
+      await integration.openHarnessMcpSettings(ctx, applyMcpConfig);
+    },
   });
 
   async function detectProjectOpenSpec(cwd: string, probeCli?: boolean): Promise<OpenSpecDetection> {
+    await ensureWorkflowCapabilities();
     const openspec = capabilities.get("openspec");
     if (!openspec) throw new Error("La capability OpenSpec no está registrada.");
     return openspec.execute({ operation: "detect", probeCli }, { cwd });
@@ -147,6 +204,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function captureProjectSnapshot(cwd: string): Promise<RepositorySnapshot> {
+    await ensureWorkflowCapabilities();
     const git = capabilities.get("git");
     if (!git) throw new Error("La capability Git no está registrada.");
     return git.execute({ operation: "snapshot" }, { cwd });
@@ -193,13 +251,13 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function reviewProjectChanges(cwd: string, baseline: RepositorySnapshot, current: RepositorySnapshot, reportedFiles: string[]) {
+    await ensureWorkflowCapabilities();
     const verification = capabilities.get("verification");
     if (!verification) throw new Error("La capability de verificación no está registrada.");
     return verification.execute({ baseline, current, reportedFiles }, { cwd });
   }
 
   pi.on("session_start", async (_event, ctx) => {
-    resetHarnessMcpActivity();
     lastTask = undefined;
     sessionTasks = [];
     simpleBaseline = undefined;
@@ -215,12 +273,8 @@ export default function (pi: ExtensionAPI) {
     }
     installHarnessHeader(ctx);
     currentConfig = (await loadConfig(ctx.cwd)).config;
-    setHarnessMcpConfig(currentConfig);
-    if (currentConfig.mcp.enabled && !mcpToolRegistered) {
-      registerHarnessMcpTool(pi);
-      mcpToolRegistered = true;
-    }
-    ensureMcpToolActive(pi, currentConfig.mcp.enabled && mcpToolRegistered);
+    await applyMcpConfig(currentConfig);
+    mcpIntegration?.resetHarnessMcpActivity();
     if (currentConfig.hil.recoverInterrupted && lastTask) lastTask = recoverInterruptedTask(lastTask);
     updateHarnessTui(ctx);
   });
@@ -237,6 +291,7 @@ export default function (pi: ExtensionAPI) {
     pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
     updateHarnessTui(ctx);
     showMessage(ctx, "Workflow simple iniciado automáticamente. Pi inspeccionará, editará y verificará la tarea; luego pedirá revisión humana.");
+    const { buildSimpleWorkflowPrompt } = await loadSimpleWorkflow();
     pi.sendUserMessage(buildSimpleWorkflowPrompt(lastTask, simpleBaseline), { deliverAs: "followUp" });
     return true;
   }
@@ -322,6 +377,7 @@ export default function (pi: ExtensionAPI) {
     const confirmed = await ctx.ui.confirm("Eliminar artefacto de tarea cancelada", `Archivo: ${path}\nLa tarea seguirá en el historial de la sesión de Pi. ¿Eliminar este archivo?`);
     if (!confirmed) return;
     try {
+      const { deleteCancelledTaskArtifact } = await import("../src/task-artifact.ts");
       const removed = await deleteCancelledTaskArtifact(lastTask);
       lastTask = { ...lastTask, artifactPath: undefined };
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
@@ -346,6 +402,7 @@ export default function (pi: ExtensionAPI) {
         "Cancelar tarea",
       ]);
       if (choice === "Ver plan completo") {
+        const { formatPlanDetails } = await loadPlanDetails();
         await ctx.ui.confirm("Plan completo", formatPlanDetails(lastTask.plan, lastTask.contextSnapshot));
         continue;
       }
@@ -512,6 +569,7 @@ export default function (pi: ExtensionAPI) {
       }
       const previousStep = lastTask.openspec?.step;
       const step = previousStep === "proposed" ? "apply" : previousStep === "applied" ? "verify" : previousStep ?? "propose";
+      const { buildOpenSpecDelegation } = await loadOpenSpecWorkflow();
       const message = buildOpenSpecDelegation(lastTask, sddDetection, step);
       if (!message) {
         showMessage(ctx, `Falta el comando OpenSpec para el paso ${step}. Ejecuta "openspec update" o revisa la configuración de Pi.`, "warn");
@@ -547,12 +605,21 @@ export default function (pi: ExtensionAPI) {
       lastTask = { ...lastTask, phase: "implementing" };
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
       showMessage(ctx, "Workflow simple iniciado. Pi inspeccionará, editará y verificará la tarea; luego pedirá revisión humana.");
+      const { buildSimpleWorkflowPrompt } = await loadSimpleWorkflow();
       pi.sendUserMessage(buildSimpleWorkflowPrompt(lastTask, simpleBaseline), { deliverAs: "followUp" });
     },
   });
 
   pi.on("agent_end", async (event, ctx) => {
     if (lastTask?.route === "sdd" && lastTask.phase === "implementing") {
+      const {
+        createOpenSpecAuthorizationGate,
+        createOpenSpecReviewGate,
+        existingOpenSpecArtifacts,
+        extractOpenSpecArtifacts,
+        extractOpenSpecChange,
+        nextOpenSpecStep,
+      } = await loadOpenSpecWorkflow();
       const messages = (event as unknown as { messages?: unknown[] }).messages ?? [];
       const assistant = [...messages].reverse().find((item) => (item as { role?: string })?.role === "assistant") as { content?: unknown } | undefined;
       const text = typeof assistant?.content === "string"
@@ -615,6 +682,7 @@ export default function (pi: ExtensionAPI) {
       : Array.isArray(assistant?.content)
         ? (assistant.content as Array<{ type?: string; text?: string }>).filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n")
         : "";
+    const { createSimpleReviewGate, parseSimpleAgentResult } = await loadSimpleWorkflow();
     const parsed = parseSimpleAgentResult(text);
     if (!parsed) {
       const result = { status: "failed" as const, summary: "El agente no entregó un bloque HARNESS_RESULT válido.", artifacts: [], checks: [], risks: ["No se pudo verificar el resumen estructurado del workflow simple."], nextStep: "Revisar la salida del agente y ejecutar /harness-simple nuevamente." };
@@ -714,13 +782,7 @@ export default function (pi: ExtensionAPI) {
     description: "Diagnostica la configuración y capacidades de pi-harness",
     handler: async (_args, ctx) => {
       const loaded = await loadConfig(ctx.cwd);
-      currentConfig = loaded.config;
-      setHarnessMcpConfig(currentConfig);
-      if (currentConfig.mcp.enabled && !mcpToolRegistered) {
-        registerHarnessMcpTool(pi);
-        mcpToolRegistered = true;
-      }
-      ensureMcpToolActive(pi, currentConfig.mcp.enabled && mcpToolRegistered);
+      await applyMcpConfig(loaded.config);
       const context = await inspectProjectRepository(ctx.cwd);
       const openSpec = await detectProjectOpenSpec(context.repoRoot ?? ctx.cwd);
       showMessage(ctx, formatDoctorReport(loaded, context, openSpec, true));
@@ -801,6 +863,7 @@ export default function (pi: ExtensionAPI) {
     description: "Recupera una tarea ligera desde .harness/tasks",
     handler: async (args, ctx) => {
       try {
+        const { readTaskArtifact } = await import("../src/task-artifact.ts");
         const recovered = await readTaskArtifact(ctx.cwd, args.trim() || undefined);
         if (recovered.task.phase === "cancelled") {
           showMessage(ctx, `La tarea ${recovered.task.id} está cancelada y no se puede reactivar. Crea una tarea nueva.`, "warn");

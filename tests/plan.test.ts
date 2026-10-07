@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createHarnessPlan, formatPlanDetails, reviseHarnessPlan } from "../src/plan.ts";
+import { createHarnessPlan, reviseHarnessPlan } from "../src/plan.ts";
+import { formatPlanDetails } from "../src/plan-details.ts";
 import { createTask } from "../src/task.ts";
 
 test("crea un plan visible a partir de la evaluación de la tarea", () => {

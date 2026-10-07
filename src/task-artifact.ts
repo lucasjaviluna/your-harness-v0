@@ -1,7 +1,7 @@
 import { lstat, mkdir, readFile, readdir, realpath, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { hydrateHarnessTask, isHarnessTask, type HarnessTask } from "./task.ts";
-import { formatPlanDetails } from "./plan.ts";
+import { formatPlanDetails } from "./plan-details.ts";
 
 export const TASK_ARTIFACT_DIRECTORY = ".harness/tasks";
 

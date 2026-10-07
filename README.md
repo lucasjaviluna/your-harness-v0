@@ -45,5 +45,5 @@ Documentación del proyecto:
 - [Integración MCP mediante pi-mcp-adapter de la Fase 14](docs/PHASE_14_MCP_ADAPTER.md)
 - [Actividad y recuperación MCP de la Fase 15](docs/PHASE_15_MCP_ACTIVITY.md)
 - [Clasificación asistida por modelo de la Fase 16](docs/PHASE_16_AGENT_ASSESSMENT.md)
-- [Clasificación asistida por modelo de la Fase 16](docs/PHASE_16_AGENT_ASSESSMENT.md)
+- [Rendimiento de arranque](docs/STARTUP_PERFORMANCE.md)
 - [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)

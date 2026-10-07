@@ -1,5 +1,4 @@
 import type { HarnessPlan, HarnessTask } from "./task.ts";
-import { formatContextSnapshot, type ContextSnapshot } from "./context-engine.ts";
 
 export function createHarnessPlan(task: HarnessTask): HarnessPlan {
   const route = task.route ?? "task";
@@ -36,27 +35,5 @@ export function formatPlanSummary(plan: HarnessPlan): string {
     `Archivos potenciales: ${plan.affectedFiles.length || "no determinados"}`,
     `Verificaciones: ${plan.verificationCommands.length || "por determinar"}`,
     `Riesgos: ${plan.risks.length || "ninguno detectado"}`,
-  ].join("\n");
-}
-
-export function formatPlanDetails(plan: HarnessPlan, contextSnapshot?: ContextSnapshot): string {
-  return [
-    formatPlanSummary(plan),
-    "",
-    "Pasos:",
-    ...plan.steps.map((step, index) => `${index + 1}. ${step}`),
-    "",
-    "Archivos potenciales:",
-    ...(plan.affectedFiles.length ? plan.affectedFiles.map((file) => `- ${file}`) : ["- Todavía no determinados"]),
-    "",
-    "Verificaciones:",
-    ...(plan.verificationCommands.length ? plan.verificationCommands.map((command) => `- ${command}`) : ["- Se determinarán durante el análisis"]),
-    "",
-    "Riesgos:",
-    ...(plan.risks.length ? plan.risks.map((risk) => `- ${risk}`) : ["- Ninguno detectado"]),
-    "",
-    "Supuestos o incógnitas:",
-    ...(plan.assumptions.length ? plan.assumptions.map((item) => `- ${item}`) : ["- Ninguno"]),
-    ...(contextSnapshot?.entries.length ? ["", "Contexto seleccionado:", formatContextSnapshot(contextSnapshot)] : []),
   ].join("\n");
 }
