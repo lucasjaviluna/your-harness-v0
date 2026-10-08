@@ -29,7 +29,7 @@ Lograr que `yh-pi` sea un producto estable y usable: instalable en un repositori
 
 Validar desde el package instalado: `simple`; `task` con reinicio y recuperación; `sdd` con y sin OpenSpec; cancelación y cambio de alcance; error del modelo; artefacto corrupto; MCP con resultado incierto. Registrar estado y evidencia final, convertir cada fallo reproducible en una regresión y evitar aserciones basadas en tiempos de UI. Completar la validación manual de carga diferida documentada en `STARTUP_PERFORMANCE.md`.
 
-Progreso: `simple` y `sdd` ya pasan en el smoke de consumidor; `task` con reinicio y recuperación se añadió como regresión RPC y pasó en Ubuntu WSL el 2026-10-08. El siguiente recorrido es SDD sin OpenSpec instalado.
+Progreso: `simple` y el enrutamiento `sdd` ya pasan en el smoke de consumidor. Las regresiones RPC instaladas, validadas en Ubuntu WSL el 2026-10-08, cubren recuperación de tarea tras reinicio, OpenSpec ausente sin efectos en el proyecto, artefacto corrupto sin sobrescritura, fallback del modelo, cancelación terminal y cambio de alcance persistido. Los siguientes recorridos son SDD con OpenSpec configurado y resultados MCP ambiguos.
 
 **Criterio de salida:** ningún recorrido crítico depende sólo de pruebas unitarias o de validación manual histórica.
 
