@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback, spawn } from "node:child_process";
-import { access, mkdtemp, readFile, readdir } from "node:fs/promises";
+import { access, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -254,6 +254,16 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
     { prompt: "/harness-task-resume", expectedNotification: /Tarea ligera recuperada desde / },
   );
   assert.ok(recoveryNotifications.some((message) => /Tarea ligera recuperada desde .*\.harness[\\/]tasks[\\/].+\.md/.test(message)), "El segundo proceso no recuperó el artefacto de tarea instalado.");
+
+  const corruptArtifact = join(tasksDirectory, taskFiles[0]!);
+  const corruptContent = "# tarea dañada\n\n<!-- pi-harness-state\n{estado-inválido}\n-->\n";
+  await writeFile(corruptArtifact, corruptContent, "utf8");
+  const corruptRecoveryNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    { prompt: "/harness-task-resume", expectedNotification: /El estado JSON del artefacto está corrupto\./ },
+  );
+  assert.ok(corruptRecoveryNotifications.some((message) => message.includes("El estado JSON del artefacto está corrupto.")), "El consumidor instalado no explicó que el artefacto está corrupto.");
+  assert.equal(await readFile(corruptArtifact, "utf8"), corruptContent, "La recuperación de un artefacto corrupto no debe modificarlo.");
 
   const missingOpenSpecNotifications = await runInstalledHarnessRpc(
     consumerB,
