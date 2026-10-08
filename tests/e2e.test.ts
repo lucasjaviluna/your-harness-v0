@@ -311,6 +311,20 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
     { prompt: "/harness-task-resume", expectedNotification: /está cancelada y no se puede reactivar/ },
   );
   assert.ok(cancelledResumeNotifications.some((message) => message.includes("está cancelada y no se puede reactivar")), "Una sesión nueva no bloqueó la reactivación de la tarea cancelada.");
+
+  const scopeChangeNotifications = await runInstalledHarnessRpc(
+    consumerB,
+    {
+      prompt: "/harness-work --mode task Actualizar el formulario de perfil",
+      followUp: { afterNotification: /Inicio de implementación autorizado\./, prompt: "/harness-task-scope Añadir una migración de datos y compatibilidad hacia atrás" },
+      expectedNotification: /Cambio de alcance registrado\. Debe aprobarse con \/harness-decide approve\./,
+    },
+  );
+  assert.ok(scopeChangeNotifications.some((message) => message.includes("Cambio de alcance registrado.")), "El consumidor instalado no informó el cambio de alcance.");
+  const scopedTaskFiles = (await readdir(cancelledTasksDirectory)).filter((entry) => entry.endsWith(".md"));
+  assert.equal(scopedTaskFiles.length, 2, "El cambio de alcance debe crear y conservar un segundo artefacto de tarea.");
+  const scopedContents = await Promise.all(scopedTaskFiles.map((file) => readFile(join(cancelledTasksDirectory, file), "utf8")));
+  assert.ok(scopedContents.some((content) => content.includes("Añadir una migración de datos y compatibilidad hacia atrás")), "El artefacto instalado no persistió el alcance reevaluado.");
 });
 
 test("Git Bash puede invocar yh-pi instalado sin Pi global", { concurrency: false }, async (t) => {
