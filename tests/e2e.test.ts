@@ -113,11 +113,12 @@ type RpcUiRequest = {
   message?: string;
 };
 
-function rpcSelection(request: RpcUiRequest, route: "task" | "sdd"): string | undefined {
+function rpcSelection(request: RpcUiRequest, route: "task" | "sdd", planDecision: "approve" | "cancel"): string | undefined {
   if (request.method !== "select") return undefined;
   if (request.title?.startsWith("Evaluación de la tarea")) return "Elegir otra ruta";
   if (request.title === "Elige una ruta") return route;
   if (request.title === "Revisión humana del plan") {
+    if (planDecision === "cancel") return "Cancelar tarea";
     return request.options?.includes("Aprobar plan") ? "Aprobar plan" : "Autorizar inicio de implementación";
   }
   return undefined;
@@ -126,6 +127,7 @@ function rpcSelection(request: RpcUiRequest, route: "task" | "sdd"): string | un
 async function runInstalledHarnessRpc(prefix: string, options: {
   prompt: string;
   route?: "task" | "sdd";
+  planDecision?: "approve" | "cancel";
   expectedNotification: RegExp;
   followUp?: { afterNotification: RegExp; prompt: string };
 }): Promise<string[]> {
@@ -177,7 +179,7 @@ async function runInstalledHarnessRpc(prefix: string, options: {
         }
         return;
       }
-      const selection = rpcSelection(event, options.route ?? "task");
+      const selection = rpcSelection(event, options.route ?? "task", options.planDecision ?? "approve");
       if (selection && event.id) send({ type: "extension_ui_response", id: event.id, value: selection });
     };
     child.stdout?.setEncoding("utf8");
@@ -289,6 +291,26 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   assert.ok(missingOpenSpecNotifications.some((message) => message.includes("No se encontró openspec/.")), "El consumidor instalado no explicó que OpenSpec está ausente.");
   assert.ok(missingOpenSpecNotifications.some((message) => message.includes("Inicialización sugerida:")), "El consumidor instalado no indicó cómo inicializar OpenSpec.");
   await assert.rejects(access(join(consumerB, "openspec")), "El flujo SDD sin OpenSpec no debe crear artefactos del proyecto.");
+
+  const cancellationNotifications = await runInstalledHarnessRpc(
+    consumerB,
+    {
+      prompt: "/harness-work --mode task Cancelar una migración antes de implementarla",
+      planDecision: "cancel",
+      expectedNotification: /Tarea cancelada por decisión humana\./,
+    },
+  );
+  assert.ok(cancellationNotifications.some((message) => message.includes("Tarea cancelada por decisión humana.")), "La tarea instalada no quedó cancelada.");
+  const cancelledTasksDirectory = join(consumerB, ".harness", "tasks");
+  const cancelledTaskFiles = (await readdir(cancelledTasksDirectory)).filter((entry) => entry.endsWith(".md"));
+  assert.equal(cancelledTaskFiles.length, 1, "La cancelación debe conservar un único artefacto de tarea.");
+  assert.match(await readFile(join(cancelledTasksDirectory, cancelledTaskFiles[0]!), "utf8"), /Status: \*\*cancelled\*\*/);
+
+  const cancelledResumeNotifications = await runInstalledHarnessRpc(
+    consumerB,
+    { prompt: "/harness-task-resume", expectedNotification: /está cancelada y no se puede reactivar/ },
+  );
+  assert.ok(cancelledResumeNotifications.some((message) => message.includes("está cancelada y no se puede reactivar")), "Una sesión nueva no bloqueó la reactivación de la tarea cancelada.");
 });
 
 test("Git Bash puede invocar yh-pi instalado sin Pi global", { concurrency: false }, async (t) => {
