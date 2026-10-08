@@ -51,11 +51,17 @@ async function installConsumer(tarball: string, prefix: string): Promise<void> {
   await execFile(npmCommand, ["install", tarball, "--ignore-scripts", "--no-audit", "--no-fund", "--legacy-peer-deps", "--package-lock=false"], { cwd: prefix, windowsHide: true, shell: windowsShell, env: npmEnvironment(prefix), maxBuffer: 1024 * 1024, timeout: installTimeout, killSignal: "SIGTERM" });
 }
 
-async function runInstalledHarness(prefix: string, prompt: string): Promise<string> {
+async function runInstalledHarness(prefix: string, prompt: string, assessment: "deterministic" | "model" = "deterministic"): Promise<string> {
   const agentDirectory = join(prefix, ".pi-agent");
   const executable = process.execPath;
   const args = [join(prefix, "node_modules", "pi-harness", "bin", "yh-pi.js"), "--", "--no-tools", "--approve", "--print", prompt];
-  const { PATH: _path, Path: _windowsPath, ...environment } = process.env;
+  const {
+    PATH: _path,
+    Path: _windowsPath,
+    PI_HARNESS_DETERMINISTIC_ASSESSMENT: _deterministicAssessment,
+    PI_HARNESS_ALLOW_PRINT_MODEL: _allowPrintModel,
+    ...environment
+  } = process.env;
   const result = await new Promise<{ stdout: string; stderr: string }>((resolveResult, rejectResult) => {
     const child = spawn(executable, args, {
       cwd: prefix,
@@ -68,7 +74,9 @@ async function runInstalledHarness(prefix: string, prompt: string): Promise<stri
         PATH: "",
         PI_CODING_AGENT_DIR: agentDirectory,
         PI_CODING_AGENT_SESSION_DIR: join(agentDirectory, "sessions"),
-        PI_HARNESS_DETERMINISTIC_ASSESSMENT: "1",
+        ...(assessment === "deterministic"
+          ? { PI_HARNESS_DETERMINISTIC_ASSESSMENT: "1" }
+          : { PI_HARNESS_ALLOW_PRINT_MODEL: "1" }),
       },
     });
     let stdout = "";
@@ -234,6 +242,10 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   await access(join(consumerA, "node_modules", "pi-harness", "skills", "harness-simple", "SKILL.md"));
   const simpleOutput = await runInstalledHarness(consumerA, "/harness-work --mode simple Cambiar el texto del botón en un archivo");
   assert.match(simpleOutput, /Ruta seleccionada: simple/);
+  const modelFallbackOutput = await runInstalledHarness(consumerA, "/harness-work --mode task Preparar una migración de datos", "model");
+  assert.match(modelFallbackOutput, /Ruta seleccionada: task \(fallback\)/);
+  assert.match(modelFallbackOutput, /Se usó la clasificación determinista: (no hay un modelo activo en el contexto de la extensión|el modelo terminó con stopReason=error|falló la llamada al modelo)/);
+  assert.match(modelFallbackOutput, /Clasificación pendiente:/);
   const sddOutput = await runInstalledHarness(consumerB, "/harness-work --mode sdd Agregar permisos por rol");
   assert.match(sddOutput, /Ruta seleccionada: sdd/);
 
