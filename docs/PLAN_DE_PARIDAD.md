@@ -29,6 +29,8 @@ Lograr que `yh-pi` sea un producto estable y usable: instalable en un repositori
 
 Validar desde el package instalado: `simple`; `task` con reinicio y recuperación; `sdd` con y sin OpenSpec; cancelación y cambio de alcance; error del modelo; artefacto corrupto; MCP con resultado incierto. Registrar estado y evidencia final, convertir cada fallo reproducible en una regresión y evitar aserciones basadas en tiempos de UI. Completar la validación manual de carga diferida documentada en `STARTUP_PERFORMANCE.md`.
 
+Progreso: `simple` y `sdd` ya pasan en el smoke de consumidor; `task` con reinicio y recuperación se añadió como regresión RPC y pasó en Ubuntu WSL el 2026-10-08. El siguiente recorrido es SDD sin OpenSpec instalado.
+
 **Criterio de salida:** ningún recorrido crítico depende sólo de pruebas unitarias o de validación manual histórica.
 
 ## Etapa 3 — Arquitectura y recuperación
@@ -62,4 +64,4 @@ La primera meta es paridad de **usabilidad y estabilidad del flujo base**, no pa
 
 ## Evidencia
 
-El 2026-10-08, la reproducción en Ubuntu WSL terminó con la instalación del tarball en dos consumidores aprobada y sin fallos. La prueba de Git Bash se omitió porque es exclusiva de Windows. El usuario confirmó que GitHub Actions terminó verde tras publicar los cambios.
+El 2026-10-08, la reproducción en Ubuntu WSL terminó con la instalación del tarball en dos consumidores aprobada y sin fallos. La prueba de Git Bash se omitió porque es exclusiva de Windows. El usuario confirmó que GitHub Actions terminó verde tras publicar los cambios. Más tarde ese día, la regresión instalada de tarea ligera creó su artefacto, cerró el proceso y lo recuperó desde un segundo proceso RPC en Ubuntu WSL.

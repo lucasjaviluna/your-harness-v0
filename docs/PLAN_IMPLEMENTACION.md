@@ -474,7 +474,7 @@ Decisión posterior: la medición comparó TypeScript en runtime con un prototip
 ### Roadmap de calidad recomendado
 
 1. **Estabilizar CI.** Completado: el `Require clean-consumer smoke test` se reprodujo en Linux y pasó en GitHub Actions.
-2. **Convertir los recorridos críticos en regresiones.** Consolidar una matriz de consumidor instalado para clasificación con modelo, gates HIL, carga diferida, MCP deshabilitado/habilitado y recuperación de tareas. Debe ejecutarse sin depender de timings frágiles.
+2. **Convertir los recorridos críticos en regresiones.** La recuperación de una tarea ligera ya se verifica desde el consumidor instalado: crea el artefacto mediante RPC, reinicia Pi y lo recupera desde un segundo proceso; pasó en Ubuntu WSL el 2026-10-08. Consolidar la matriz restante para clasificación con modelo, gates HIL, carga diferida, MCP deshabilitado/habilitado y SDD con y sin OpenSpec. Debe ejecutarse sin depender de timings frágiles.
 3. **Revisar la distribución compilada al preparar el release.** La medición actual no justifica un build adicional. Repetirla desde un consumidor instalado cuando se prepare npm y adoptar JavaScript compilado solo si la mediana mejora al menos 15 % de manera reproducible.
 4. **Fortalecer la experiencia de operación.** Probar en repositorios consumidores los flujos de error del modelo, OpenSpec ausente, artefactos corruptos y resultados MCP ambiguos; convertir cada caso reproducible en una prueba y una recuperación visible en TUI.
 5. **Preparar distribución.** Cuando CI y la matriz de consumidor estén estables, definir compatibilidad mínima de Pi/Node, versionado, changelog y decisión de publicación npm.
