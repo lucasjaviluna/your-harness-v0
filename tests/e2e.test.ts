@@ -105,17 +105,22 @@ type RpcUiRequest = {
   message?: string;
 };
 
-function rpcSelection(request: RpcUiRequest): string | undefined {
+function rpcSelection(request: RpcUiRequest, route: "task" | "sdd"): string | undefined {
   if (request.method !== "select") return undefined;
   if (request.title?.startsWith("Evaluación de la tarea")) return "Elegir otra ruta";
-  if (request.title === "Elige una ruta") return "task";
+  if (request.title === "Elige una ruta") return route;
   if (request.title === "Revisión humana del plan") {
     return request.options?.includes("Aprobar plan") ? "Aprobar plan" : "Autorizar inicio de implementación";
   }
   return undefined;
 }
 
-async function runInstalledHarnessRpc(prefix: string, prompt: string, expectedNotification: RegExp): Promise<string[]> {
+async function runInstalledHarnessRpc(prefix: string, options: {
+  prompt: string;
+  route?: "task" | "sdd";
+  expectedNotification: RegExp;
+  followUp?: { afterNotification: RegExp; prompt: string };
+}): Promise<string[]> {
   const agentDirectory = join(prefix, ".pi-agent");
   const executable = process.execPath;
   const args = [join(prefix, "node_modules", "pi-harness", "bin", "yh-pi.js"), "--", "--no-tools", "--approve", "--no-session", "--mode", "rpc"];
@@ -137,6 +142,7 @@ async function runInstalledHarnessRpc(prefix: string, prompt: string, expectedNo
     let stderr = "";
     let pending = "";
     let completed = false;
+    let followUpSent = false;
     const notifications: string[] = [];
     const timeout = setTimeout(() => child.kill("SIGTERM"), 30_000);
     const finish = (error?: Error) => {
@@ -151,13 +157,19 @@ async function runInstalledHarnessRpc(prefix: string, prompt: string, expectedNo
       if (event.type !== "extension_ui_request") return;
       if (event.method === "notify" && event.message) {
         notifications.push(event.message);
-        if (expectedNotification.test(event.message) && !completed) {
+        if (!followUpSent && options.followUp?.afterNotification.test(event.message)) {
+          followUpSent = true;
+          // The notification is emitted from the command handler. Defer the
+          // next extension command until that handler has returned to Pi.
+          setTimeout(() => send({ id: "prompt-2", type: "prompt", message: options.followUp!.prompt }), 0);
+        }
+        if (options.expectedNotification.test(event.message) && !completed) {
           completed = true;
           child.stdin?.end();
         }
         return;
       }
-      const selection = rpcSelection(event);
+      const selection = rpcSelection(event, options.route ?? "task");
       if (selection && event.id) send({ type: "extension_ui_response", id: event.id, value: selection });
     };
     child.stdout?.setEncoding("utf8");
@@ -180,7 +192,7 @@ async function runInstalledHarnessRpc(prefix: string, prompt: string, expectedNo
       const output = [stdout, stderr].filter(Boolean).join("\n");
       finish(new Error(`yh-pi RPC falló (${signal ? `signal=${signal}` : `code=${code}`})${output ? `\n${output}` : "\nPi no produjo salida capturada."}`));
     });
-    send({ id: "prompt-1", type: "prompt", message: prompt });
+    send({ id: "prompt-1", type: "prompt", message: options.prompt });
   });
 }
 
@@ -227,8 +239,10 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
 
   const creationNotifications = await runInstalledHarnessRpc(
     consumerA,
-    "/harness-work --mode task Actualizar el formulario de perfil y sus validaciones",
-    /Inicio de implementación autorizado\./,
+    {
+      prompt: "/harness-work --mode task Actualizar el formulario de perfil y sus validaciones",
+      expectedNotification: /Inicio de implementación autorizado\./,
+    },
   );
   assert.ok(creationNotifications.some((message) => message.includes("Plan aprobado.")), "La tarea instalada no pasó por la aprobación del plan.");
   const tasksDirectory = join(consumerA, ".harness", "tasks");
@@ -237,10 +251,22 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
 
   const recoveryNotifications = await runInstalledHarnessRpc(
     consumerA,
-    "/harness-task-resume",
-    /Tarea ligera recuperada desde /,
+    { prompt: "/harness-task-resume", expectedNotification: /Tarea ligera recuperada desde / },
   );
   assert.ok(recoveryNotifications.some((message) => /Tarea ligera recuperada desde .*\.harness[\\/]tasks[\\/].+\.md/.test(message)), "El segundo proceso no recuperó el artefacto de tarea instalado.");
+
+  const missingOpenSpecNotifications = await runInstalledHarnessRpc(
+    consumerB,
+    {
+      prompt: "/harness-work --mode sdd Agregar permisos por rol",
+      route: "sdd",
+      followUp: { afterNotification: /Inicio de implementación autorizado\./, prompt: "/harness-sdd" },
+      expectedNotification: /OpenSpec no está configurado para Pi\./,
+    },
+  );
+  assert.ok(missingOpenSpecNotifications.some((message) => message.includes("No se encontró openspec/.")), "El consumidor instalado no explicó que OpenSpec está ausente.");
+  assert.ok(missingOpenSpecNotifications.some((message) => message.includes("Inicialización sugerida:")), "El consumidor instalado no indicó cómo inicializar OpenSpec.");
+  await assert.rejects(access(join(consumerB, "openspec")), "El flujo SDD sin OpenSpec no debe crear artefactos del proyecto.");
 });
 
 test("Git Bash puede invocar yh-pi instalado sin Pi global", { concurrency: false }, async (t) => {
