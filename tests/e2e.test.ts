@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback, spawn } from "node:child_process";
-import { access, mkdtemp, readFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -18,8 +18,13 @@ const installTimeout = Number.isFinite(configuredInstallTimeout) && configuredIn
   : requiredInstall ? 300_000 : 30_000;
 
 function npmEnvironment(cacheDirectory: string) {
+  // Windows treats environment variable names case-insensitively. Remove an
+  // inherited NPM_CONFIG_CACHE variant so the isolated cache wins reliably.
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "npm_config_cache"),
+  );
   return {
-    ...process.env,
+    ...environment,
     npm_config_cache: process.env.PI_HARNESS_E2E_NPM_CACHE || join(cacheDirectory, "npm-cache"),
     npm_config_prefer_offline: "true",
   };
@@ -91,6 +96,94 @@ async function runInstalledHarness(prefix: string, prompt: string): Promise<stri
   return [result.stdout, result.stderr].filter(Boolean).join("\n");
 }
 
+type RpcUiRequest = {
+  type?: string;
+  id?: string;
+  method?: string;
+  title?: string;
+  options?: string[];
+  message?: string;
+};
+
+function rpcSelection(request: RpcUiRequest): string | undefined {
+  if (request.method !== "select") return undefined;
+  if (request.title?.startsWith("Evaluación de la tarea")) return "Elegir otra ruta";
+  if (request.title === "Elige una ruta") return "task";
+  if (request.title === "Revisión humana del plan") {
+    return request.options?.includes("Aprobar plan") ? "Aprobar plan" : "Autorizar inicio de implementación";
+  }
+  return undefined;
+}
+
+async function runInstalledHarnessRpc(prefix: string, prompt: string, expectedNotification: RegExp): Promise<string[]> {
+  const agentDirectory = join(prefix, ".pi-agent");
+  const executable = process.execPath;
+  const args = [join(prefix, "node_modules", "pi-harness", "bin", "yh-pi.js"), "--", "--no-tools", "--approve", "--no-session", "--mode", "rpc"];
+  const { PATH: _path, Path: _windowsPath, ...environment } = process.env;
+  return new Promise<string[]>((resolveResult, rejectResult) => {
+    const child = spawn(executable, args, {
+      cwd: prefix,
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+      env: {
+        ...environment,
+        PATH: "",
+        PI_CODING_AGENT_DIR: agentDirectory,
+        PI_CODING_AGENT_SESSION_DIR: join(agentDirectory, "sessions"),
+        PI_HARNESS_DETERMINISTIC_ASSESSMENT: "1",
+      },
+    });
+    let stdout = "";
+    let stderr = "";
+    let pending = "";
+    let completed = false;
+    const notifications: string[] = [];
+    const timeout = setTimeout(() => child.kill("SIGTERM"), 30_000);
+    const finish = (error?: Error) => {
+      clearTimeout(timeout);
+      if (error) rejectResult(error);
+      else resolveResult(notifications);
+    };
+    const send = (message: object) => child.stdin?.write(`${JSON.stringify(message)}\n`);
+    const handleRecord = (record: string) => {
+      let event: RpcUiRequest;
+      try { event = JSON.parse(record) as RpcUiRequest; } catch { return; }
+      if (event.type !== "extension_ui_request") return;
+      if (event.method === "notify" && event.message) {
+        notifications.push(event.message);
+        if (expectedNotification.test(event.message) && !completed) {
+          completed = true;
+          child.stdin?.end();
+        }
+        return;
+      }
+      const selection = rpcSelection(event);
+      if (selection && event.id) send({ type: "extension_ui_response", id: event.id, value: selection });
+    };
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => {
+      stdout += chunk;
+      pending += chunk;
+      let newline = pending.indexOf("\n");
+      while (newline >= 0) {
+        const record = pending.slice(0, newline).replace(/\r$/, "");
+        pending = pending.slice(newline + 1);
+        if (record) handleRecord(record);
+        newline = pending.indexOf("\n");
+      }
+    });
+    child.stderr?.on("data", (chunk: string) => { stderr += chunk; });
+    child.once("error", (error) => finish(error));
+    child.once("close", (code, signal) => {
+      if (completed && code === 0) { finish(); return; }
+      const output = [stdout, stderr].filter(Boolean).join("\n");
+      finish(new Error(`yh-pi RPC falló (${signal ? `signal=${signal}` : `code=${code}`})${output ? `\n${output}` : "\nPi no produjo salida capturada."}`));
+    });
+    send({ id: "prompt-1", type: "prompt", message: prompt });
+  });
+}
+
 function toGitBashPath(path: string): string {
   return path.replaceAll("\\", "/");
 }
@@ -131,6 +224,23 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   assert.match(simpleOutput, /Ruta seleccionada: simple/);
   const sddOutput = await runInstalledHarness(consumerB, "/harness-work --mode sdd Agregar permisos por rol");
   assert.match(sddOutput, /Ruta seleccionada: sdd/);
+
+  const creationNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    "/harness-work --mode task Actualizar el formulario de perfil y sus validaciones",
+    /Inicio de implementación autorizado\./,
+  );
+  assert.ok(creationNotifications.some((message) => message.includes("Plan aprobado.")), "La tarea instalada no pasó por la aprobación del plan.");
+  const tasksDirectory = join(consumerA, ".harness", "tasks");
+  const taskFiles = (await readdir(tasksDirectory)).filter((entry) => entry.endsWith(".md"));
+  assert.equal(taskFiles.length, 1, "La tarea instalada no dejó exactamente un artefacto recuperable.");
+
+  const recoveryNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    "/harness-task-resume",
+    /Tarea ligera recuperada desde /,
+  );
+  assert.ok(recoveryNotifications.some((message) => /Tarea ligera recuperada desde .*\.harness[\\/]tasks[\\/].+\.md/.test(message)), "El segundo proceso no recuperó el artefacto de tarea instalado.");
 });
 
 test("Git Bash puede invocar yh-pi instalado sin Pi global", { concurrency: false }, async (t) => {
