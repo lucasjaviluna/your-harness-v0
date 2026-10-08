@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback, spawn } from "node:child_process";
-import { access, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -154,7 +154,9 @@ async function runInstalledHarnessRpc(prefix: string, options: {
     let completed = false;
     let followUpSent = false;
     const notifications: string[] = [];
-    const timeout = setTimeout(() => child.kill("SIGTERM"), 30_000);
+    // A task route can open three sequential HIL dialogs. Allow the RPC
+    // transport to settle each request on slower consumer environments.
+    const timeout = setTimeout(() => child.kill("SIGTERM"), 90_000);
     const finish = (error?: Error) => {
       clearTimeout(timeout);
       if (error) rejectResult(error);
@@ -325,6 +327,21 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   assert.equal(scopedTaskFiles.length, 2, "El cambio de alcance debe crear y conservar un segundo artefacto de tarea.");
   const scopedContents = await Promise.all(scopedTaskFiles.map((file) => readFile(join(cancelledTasksDirectory, file), "utf8")));
   assert.ok(scopedContents.some((content) => content.includes("Añadir una migración de datos y compatibilidad hacia atrás")), "El artefacto instalado no persistió el alcance reevaluado.");
+
+  const promptDirectory = join(consumerB, ".pi", "prompts");
+  await mkdir(promptDirectory, { recursive: true });
+  await writeFile(join(promptDirectory, "opsx-propose.md"), "# OpenSpec propose\n", "utf8");
+  const configuredOpenSpecNotifications = await runInstalledHarnessRpc(
+    consumerB,
+    {
+      prompt: "/harness-work --mode sdd Agregar permisos por rol con propuesta formal",
+      route: "sdd",
+      followUp: { afterNotification: /Inicio de implementación autorizado\./, prompt: "/harness-sdd" },
+      expectedNotification: /Delegando a OpenSpec: \/opsx-propose/,
+    },
+  );
+  assert.ok(configuredOpenSpecNotifications.some((message) => message.includes("Delegando a OpenSpec: /opsx-propose")), "El consumidor instalado no delegó propose al prompt OpenSpec detectado.");
+  await assert.rejects(access(join(consumerB, "openspec", "changes")), "La delegación propose no debe crear artefactos OpenSpec antes de que OpenSpec responda.");
 });
 
 test("Git Bash puede invocar yh-pi instalado sin Pi global", { concurrency: false }, async (t) => {
