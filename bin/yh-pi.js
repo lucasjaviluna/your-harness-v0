@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 
-import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { spawn } from "node:child_process";
 
-const require = createRequire(import.meta.url);
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const packageJson = JSON.parse(readFileSync(join(packageRoot, "..", "package.json"), "utf8"));
 const validModes = new Set(["auto", "simple", "task", "sdd"]);
@@ -41,7 +39,11 @@ export function buildPiArgs(options, extensionPath) {
 }
 
 function resolveBundledPi() {
-  const resolvedMain = require.resolve("@earendil-works/pi-coding-agent");
+  // Pi exposes its package entry through ESM exports only. Using
+  // createRequire().resolve() here fails with ERR_PACKAGE_PATH_NOT_EXPORTED
+  // in a clean consumer, which incorrectly makes us fall back to a global
+  // `pi` executable.
+  const resolvedMain = fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"));
   const root = dirname(dirname(resolvedMain));
   const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
   const bin = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.pi;

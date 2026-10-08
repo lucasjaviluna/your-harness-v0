@@ -219,6 +219,14 @@ export default function (pi: ExtensionAPI) {
         evidence: [...assessment.evidence, `Se usó la clasificación determinista: ${reason}`],
       };
     };
+    // Headless print runs must not block on provider credentials or network
+    // availability. Opt in explicitly when a caller wants model assessment.
+    if (ctx.mode === "print" && process.env.PI_HARNESS_ALLOW_PRINT_MODEL !== "1") {
+      return fallback("la ejecución print usa clasificación determinista por defecto");
+    }
+    if (process.env.PI_HARNESS_DETERMINISTIC_ASSESSMENT === "1") {
+      return fallback("la prueba o ejecución solicitó clasificación determinista");
+    }
     if (!ctx.model) return fallback("no hay un modelo activo en el contexto de la extensión");
     try {
       const response = await ctx.modelRegistry.complete(ctx.model, {

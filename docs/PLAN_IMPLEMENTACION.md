@@ -425,24 +425,12 @@ Estado: completada. Ver [docs/PHASE_15_MCP_ACTIVITY.md](PHASE_15_MCP_ACTIVITY.md
 
 ### Pendiente de CI — smoke test de consumidor
 
-- [ ] Resolver el fallo de `tests/e2e.test.ts` en el job `Require clean-consumer smoke test`. El último log recibido falla en la aserción `/Ruta seleccionada: simple/` porque la salida inspeccionada está vacía. El cambio reciente combina `stdout` y `stderr`, pero todavía no está confirmado en CI.
-- [ ] Reproducir el comando del job en Linux y validar la invocación real del paquete instalado; cerrar este pendiente solo cuando el smoke test obligatorio pase en CI.
+- [x] Reproducir en Ubuntu WSL el comando del job y validar la invocación real del paquete instalado. El 2026-10-08 instaló el tarball en dos consumidores y verificó las rutas `simple` y `sdd`: 2 pruebas aprobadas, 0 fallos; la prueba Git Bash quedó omitida como corresponde fuera de Windows.
+- [ ] Confirmar el mismo resultado en el job `Require clean-consumer smoke test` de GitHub Actions antes de cerrar el pendiente de CI.
 
 ### Fase 16 — Clasificación asistida por el modelo con decisión humana
 
 Estado: completada el 2026-10-06.
-
-### Mejora posterior a Fase 16 — Recorte de carga de arranque
-
-Estado: completada el 2026-10-07. Detalle en [docs/STARTUP_PERFORMANCE.md](STARTUP_PERFORMANCE.md).
-
-- [x] Diferir el SDK y la integración MCP hasta habilitar MCP o usar un comando MCP.
-- [x] Diferir Git, OpenSpec, verificación y el workflow `simple` hasta que un workflow o diagnóstico los necesite.
-- [x] Diferir el motor de contexto, los artefactos de tareas y el render detallado de planes hasta crear, revisar, persistir o recuperar una tarea.
-- [x] Mantener disponibles los comandos y aplicar las mismas políticas HIL y de seguridad después de la carga diferida.
-- [x] Validar con pruebas de inicio, MCP, capabilities, workflows, planes y artefactos; además de `npm test`, `npm run pack:check` y `git diff --check`.
-
-Pendiente posterior: medir el arranque real de `yh-pi` y decidir si una distribución JavaScript compilada justifica agregar un build. El fallo intermitente o pendiente del smoke test obligatorio de CI sigue registrado en la Fase 15 y no se considera resuelto por este cambio.
 
 **Objetivo:** que el modelo activo de Pi analice la solicitud y el contexto básico del repositorio, explique la ruta recomendada y espere una decisión explícita del desarrollador antes de iniciar cualquier workflow, incluida la ruta `simple`.
 
@@ -458,6 +446,18 @@ Pendiente posterior: medir el arranque real de `yh-pi` y decidir si una distribu
 
 Validación: `npm test` (80 aprobados, 2 omitidos porque los consumidores temporales no pudieron instalar dependencias en 30 s), `npm run pack:check` y `git diff --check` completados. El pendiente de CI del smoke test de consumidor se mantiene separado y abierto hasta validarlo en Linux/CI.
 
+### Mejora posterior a Fase 16 — Recorte de carga de arranque
+
+Estado: completada el 2026-10-07. Detalle en [docs/STARTUP_PERFORMANCE.md](STARTUP_PERFORMANCE.md).
+
+- [x] Diferir el SDK y la integración MCP hasta habilitar MCP o usar un comando MCP.
+- [x] Diferir Git, OpenSpec, verificación y el workflow `simple` hasta que un workflow o diagnóstico los necesite.
+- [x] Diferir el motor de contexto, los artefactos de tareas y el render detallado de planes hasta crear, revisar, persistir o recuperar una tarea.
+- [x] Mantener disponibles los comandos y aplicar las mismas políticas HIL y de seguridad después de la carga diferida.
+- [x] Validar con pruebas de inicio, MCP, capabilities, workflows, planes y artefactos; además de `npm test`, `npm run pack:check` y `git diff --check`.
+
+Decisión posterior: la medición comparó TypeScript en runtime con un prototipo JavaScript compilado y mostró una reducción de mediana de 12,7 % (231 ms). No se agregará un build distribuido todavía; el detalle y el criterio de revisión están en [docs/STARTUP_PERFORMANCE.md](STARTUP_PERFORMANCE.md). El fallo intermitente o pendiente del smoke test obligatorio de CI sigue registrado en la Fase 15 y no se considera resuelto por este cambio.
+
 ## 6. Orden de entrega recomendado
 
 1. MVP operativo: fases 0 a 5. Permite validar la entrada, el estado, la evaluación, la ruta simple y la tarea ligera.
@@ -470,6 +470,14 @@ Validación: `npm test` (80 aprobados, 2 omitidos porque los consumidores tempor
 8. Adaptador MCP: fase 13. Validar el protocolo con Everything y dejar la conexión opt-in.
 9. Integración MCP del agente: fase 14. Reutilizar `pi-mcp-adapter` con allowlist y gates HIL del harness.
 10. Actividad y recuperación MCP: fase 15. Dar trazabilidad local a las llamadas y no reintentar resultados ambiguos.
+
+### Roadmap de calidad recomendado
+
+1. **Estabilizar CI.** Reproducir en Linux el `Require clean-consumer smoke test`, confirmar la captura de salida instalada y cerrar el pendiente solo con una ejecución verde en CI.
+2. **Convertir los recorridos críticos en regresiones.** Consolidar una matriz de consumidor instalado para clasificación con modelo, gates HIL, carga diferida, MCP deshabilitado/habilitado y recuperación de tareas. Debe ejecutarse sin depender de timings frágiles.
+3. **Revisar la distribución compilada al preparar el release.** La medición actual no justifica un build adicional. Repetirla desde un consumidor instalado cuando se prepare npm y adoptar JavaScript compilado solo si la mediana mejora al menos 15 % de manera reproducible.
+4. **Fortalecer la experiencia de operación.** Probar en repositorios consumidores los flujos de error del modelo, OpenSpec ausente, artefactos corruptos y resultados MCP ambiguos; convertir cada caso reproducible en una prueba y una recuperación visible en TUI.
+5. **Preparar distribución.** Cuando CI y la matriz de consumidor estén estables, definir compatibilidad mínima de Pi/Node, versionado, changelog y decisión de publicación npm.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 

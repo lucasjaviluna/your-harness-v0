@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile as execFileCallback } from "node:child_process";
+import { execFile as execFileCallback, spawn } from "node:child_process";
 import { access, mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -50,21 +50,45 @@ async function runInstalledHarness(prefix: string, prompt: string): Promise<stri
   const agentDirectory = join(prefix, ".pi-agent");
   const executable = process.execPath;
   const args = [join(prefix, "node_modules", "pi-harness", "bin", "yh-pi.js"), "--", "--no-tools", "--approve", "--print", prompt];
-  try {
-    const { PATH: _path, Path: _windowsPath, ...environment } = process.env;
-    const result = await execFile(executable, args, {
+  const { PATH: _path, Path: _windowsPath, ...environment } = process.env;
+  const result = await new Promise<{ stdout: string; stderr: string }>((resolveResult, rejectResult) => {
+    const child = spawn(executable, args, {
       cwd: prefix,
       windowsHide: true,
-      env: { ...environment, PATH: "", PI_CODING_AGENT_DIR: agentDirectory, PI_CODING_AGENT_SESSION_DIR: join(agentDirectory, "sessions") },
-      timeout: 30_000,
-      maxBuffer: 1024 * 1024,
+      // Pi's print mode consumes piped stdin before it handles the prompt.
+      // `ignore` gives it EOF immediately; execFile leaves that pipe open.
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...environment,
+        PATH: "",
+        PI_CODING_AGENT_DIR: agentDirectory,
+        PI_CODING_AGENT_SESSION_DIR: join(agentDirectory, "sessions"),
+        PI_HARNESS_DETERMINISTIC_ASSESSMENT: "1",
+      },
     });
-    // Pi print mode reserves stdout for model output; extension notifications are written to stderr.
-    return [result.stdout, result.stderr].filter(Boolean).join("\n");
-  } catch (error) {
-    const failure = error as { stderr?: string; stdout?: string; message?: string };
-    throw new Error(`${failure.message ?? "yh-pi falló"}\n${failure.stderr ?? failure.stdout ?? ""}`);
-  }
+    let stdout = "";
+    let stderr = "";
+    const timeout = setTimeout(() => child.kill("SIGTERM"), 30_000);
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => { stdout += chunk; });
+    child.stderr?.on("data", (chunk: string) => { stderr += chunk; });
+    child.once("error", (error) => {
+      clearTimeout(timeout);
+      rejectResult(error);
+    });
+    child.once("close", (code, signal) => {
+      clearTimeout(timeout);
+      if (code === 0) {
+        resolveResult({ stdout, stderr });
+        return;
+      }
+      const output = [stdout, stderr].filter(Boolean).join("\n");
+      rejectResult(new Error(`yh-pi falló (${signal ? `signal=${signal}` : `code=${code}`})${output ? `\n${output}` : "\nPi no produjo salida capturada."}`));
+    });
+  });
+  // Pi print mode reserves stdout for model output; extension notifications are written to stderr.
+  return [result.stdout, result.stderr].filter(Boolean).join("\n");
 }
 
 function toGitBashPath(path: string): string {
