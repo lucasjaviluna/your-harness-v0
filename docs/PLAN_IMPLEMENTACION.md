@@ -426,7 +426,7 @@ Estado: completada. Ver [docs/PHASE_15_MCP_ACTIVITY.md](PHASE_15_MCP_ACTIVITY.md
 ### Pendiente de CI — smoke test de consumidor
 
 - [x] Reproducir en Ubuntu WSL el comando del job y validar la invocación real del paquete instalado. El 2026-10-08 instaló el tarball en dos consumidores y verificó las rutas `simple` y `sdd`: 2 pruebas aprobadas, 0 fallos; la prueba Git Bash quedó omitida como corresponde fuera de Windows.
-- [ ] Confirmar el mismo resultado en el job `Require clean-consumer smoke test` de GitHub Actions antes de cerrar el pendiente de CI.
+- [x] Confirmar el mismo resultado en el job `Require clean-consumer smoke test` de GitHub Actions. El usuario reportó el workflow verde después de publicar los cambios el 2026-10-08.
 
 ### Fase 16 — Clasificación asistida por el modelo con decisión humana
 
@@ -444,7 +444,7 @@ Estado: completada el 2026-10-06.
 
 **Criterio de salida:** toda solicitud nueva muestra una recomendación explicada y no ejecuta su workflow hasta que el desarrollador confirma la clasificación o elige otra opción. Los controles de seguridad existentes siguen vigentes.
 
-Validación: `npm test` (80 aprobados, 2 omitidos porque los consumidores temporales no pudieron instalar dependencias en 30 s), `npm run pack:check` y `git diff --check` completados. El pendiente de CI del smoke test de consumidor se mantiene separado y abierto hasta validarlo en Linux/CI.
+Validación: `npm test` (80 aprobados, 2 omitidos porque los consumidores temporales no pudieron instalar dependencias en 30 s), `npm run pack:check`, `git diff --check`, reproducción en Ubuntu WSL y job obligatorio de consumidor verde en GitHub Actions. La matriz ampliada de recorridos instalados continúa como siguiente trabajo de calidad.
 
 ### Mejora posterior a Fase 16 — Recorte de carga de arranque
 
@@ -473,7 +473,7 @@ Decisión posterior: la medición comparó TypeScript en runtime con un prototip
 
 ### Roadmap de calidad recomendado
 
-1. **Estabilizar CI.** Reproducir en Linux el `Require clean-consumer smoke test`, confirmar la captura de salida instalada y cerrar el pendiente solo con una ejecución verde en CI.
+1. **Estabilizar CI.** Completado: el `Require clean-consumer smoke test` se reprodujo en Linux y pasó en GitHub Actions.
 2. **Convertir los recorridos críticos en regresiones.** Consolidar una matriz de consumidor instalado para clasificación con modelo, gates HIL, carga diferida, MCP deshabilitado/habilitado y recuperación de tareas. Debe ejecutarse sin depender de timings frágiles.
 3. **Revisar la distribución compilada al preparar el release.** La medición actual no justifica un build adicional. Repetirla desde un consumidor instalado cuando se prepare npm y adoptar JavaScript compilado solo si la mediana mejora al menos 15 % de manera reproducible.
 4. **Fortalecer la experiencia de operación.** Probar en repositorios consumidores los flujos de error del modelo, OpenSpec ausente, artefactos corruptos y resultados MCP ambiguos; convertir cada caso reproducible en una prueba y una recuperación visible en TUI.

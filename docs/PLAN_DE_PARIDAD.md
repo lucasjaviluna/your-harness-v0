@@ -1,6 +1,6 @@
 # Plan de paridad
 
-Estado: acordado como dirección de trabajo el 2026-10-08. La prioridad inmediata es cerrar el smoke obligatorio del consumidor instalado. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
+Estado: el smoke obligatorio del consumidor instalado quedó validado en Ubuntu WSL y GitHub Actions el 2026-10-08. La prioridad inmediata es convertir los recorridos críticos en regresiones de consumidor instalado. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
 
 ## Objetivo
 
@@ -11,7 +11,7 @@ Lograr que `yh-pi` sea un producto estable y usable: instalable en un repositori
 - El núcleo ya implementa rutas `simple`, `task`, `sdd` y `clarify`, clasificación asistida con salvaguardas, gates humanos, planes versionados y persistencia de tareas ligeras.
 - OpenSpec y MCP están integrados de forma opcional; el proveedor de memoria es un contrato sin backend activo.
 - `npm test` pasó con 80 pruebas y 2 omitidas en Windows el 2026-10-08. Las omisiones fueron instalaciones de consumidores temporales que excedieron el timeout del smoke no obligatorio.
-- `npm run pack:check` pasó. Sigue pendiente validar en Linux/CI el smoke obligatorio de un consumidor instalado. El último fallo documentado fue una salida vacía frente a la aserción `Ruta seleccionada: simple`.
+- `npm run pack:check` pasó. El smoke obligatorio de un consumidor instalado pasó en Ubuntu WSL y en GitHub Actions después de corregir la resolución ESM del binario de Pi y el cierre de `stdin` en modo `--print`.
 - La UI actual es una capa sobre Pi; no ofrece todavía un workspace integral como gentle-shell. Esa expansión es posterior a estabilizar el flujo base.
 
 ## Etapa 1 — Base de entrega
@@ -51,7 +51,7 @@ Priorizar, según uso observado, una vista de cambios y tareas; después evaluar
 
 La primera meta es paridad de **usabilidad y estabilidad del flujo base**, no paridad de todas las funciones de gentle-shell. Antes de reescribir la TUI o adoptar un lanzador/home propios, crear un prototipo aislado de vista de cambios y estado de tareas sobre las APIs de Pi de la matriz soportada. Decidir con ese prototipo y con necesidades observadas si basta el package actual o si hace falta una capa de presentación propia. Evitar concentrar nuevas funciones en `harness.ts`; cada extracción debe conservar un smoke instalado verde.
 
-## Primer hito activo: smoke obligatorio
+## Hito cerrado: smoke obligatorio
 
 - Archivo de prueba: `tests/e2e.test.ts`.
 - Wrapper obligatorio: `scripts/run-e2e-required.mjs`.
@@ -60,6 +60,6 @@ La primera meta es paridad de **usabilidad y estabilidad del flujo base**, no pa
 - Éxito: prueba de dos consumidores aprobada; aparecen las rutas `simple` y `sdd`; código de salida cero; el caso Git Bash sólo se ejecuta en Windows; job verde en CI.
 - Si falla: conservar salida completa y código de salida, identificar la primera operación fallida y corregirla antes de ampliar el roadmap.
 
-## Evidencia local
+## Evidencia
 
-El 2026-10-08, la reproducción en Ubuntu WSL terminó con la instalación del tarball en dos consumidores aprobada y sin fallos. La prueba de Git Bash se omitió porque es exclusiva de Windows. Queda confirmar el job equivalente de GitHub Actions.
+El 2026-10-08, la reproducción en Ubuntu WSL terminó con la instalación del tarball en dos consumidores aprobada y sin fallos. La prueba de Git Bash se omitió porque es exclusiva de Windows. El usuario confirmó que GitHub Actions terminó verde tras publicar los cambios.
