@@ -1,9 +1,15 @@
-import { lstat, mkdir, readFile, readdir, realpath, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, realpath, rename, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { hydrateHarnessTask, isHarnessTask, type HarnessTask } from "./task.ts";
 import { formatPlanDetails } from "./plan-details.ts";
 
 export const TASK_ARTIFACT_DIRECTORY = ".harness/tasks";
+const TASK_ARTIFACT_SCHEMA_VERSION = 1;
+
+type VersionedTaskArtifactState = {
+  schemaVersion: number;
+  task: HarnessTask;
+};
 
 function artifactPath(cwd: string, taskId: string): string {
   return join(resolve(cwd), TASK_ARTIFACT_DIRECTORY, `${taskId}.md`);
@@ -62,7 +68,7 @@ export function renderTaskArtifact(task: HarnessTask, previousContent?: string):
   const preservedTasks = previousContent ? extractSection(previousContent, "Tasks") : undefined;
   const preservedDecisions = previousContent ? extractSection(previousContent, "Decisions") : undefined;
   const preservedEvidence = previousContent ? extractSection(previousContent, "Evidence") : undefined;
-  const state = JSON.stringify(snapshotTask(task), null, 2);
+  const state = JSON.stringify({ schemaVersion: TASK_ARTIFACT_SCHEMA_VERSION, task: snapshotTask(task) }, null, 2);
   return [
     `# ${task.id}`,
     "",
@@ -153,14 +159,22 @@ export async function deleteCancelledTaskArtifact(task: HarnessTask): Promise<st
 
 export async function writeTaskArtifact(task: HarnessTask): Promise<string> {
   const path = artifactPath(task.cwd, task.id);
-  await mkdir(join(resolve(task.cwd), TASK_ARTIFACT_DIRECTORY), { recursive: true });
+  const directory = join(resolve(task.cwd), TASK_ARTIFACT_DIRECTORY);
+  await mkdir(directory, { recursive: true });
   let previous: string | undefined;
   try {
     previous = await readFile(path, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
-  await writeFile(path, renderTaskArtifact(task, previous), "utf8");
+  const temporaryPath = join(directory, `.${task.id}.${process.pid}.${Date.now().toString(36)}.tmp`);
+  try {
+    await writeFile(temporaryPath, renderTaskArtifact(task, previous), "utf8");
+    await rename(temporaryPath, path);
+  } catch (error) {
+    await rm(temporaryPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
   return path;
 }
 
@@ -188,6 +202,19 @@ export async function readTaskArtifact(cwd: string, reference?: string): Promise
   } catch {
     throw new Error("El estado JSON del artefacto está corrupto.");
   }
-  if (!isHarnessTask(value)) throw new Error("El estado del artefacto no representa una tarea válida.");
-  return { task: hydrateHarnessTask(value), path };
+  const task = migrateTaskArtifactState(value);
+  return { task: hydrateHarnessTask(task), path };
+}
+
+function migrateTaskArtifactState(value: unknown): HarnessTask {
+  if (isHarnessTask(value)) return value;
+  if (!value || typeof value !== "object" || Array.isArray(value) || !("schemaVersion" in value)) {
+    throw new Error("El estado del artefacto no representa una tarea válida.");
+  }
+  const state = value as Partial<VersionedTaskArtifactState>;
+  if (state.schemaVersion !== TASK_ARTIFACT_SCHEMA_VERSION) {
+    throw new Error(`El artefacto usa el esquema ${String(state.schemaVersion)}, incompatible con esta versión de yh-pi.`);
+  }
+  if (!isHarnessTask(state.task)) throw new Error("El estado versionado del artefacto no representa una tarea válida.");
+  return state.task;
 }

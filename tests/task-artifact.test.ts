@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -32,6 +32,18 @@ test("crea un artefacto Markdown con las secciones de una tarea ligera", async (
     assert.match(content, /## Progress/);
     assert.match(content, /## Next step/);
     assert.match(content, /awaiting-approval/);
+    assert.match(content, /"schemaVersion": 1/);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("reemplaza el artefacto de forma atómica sin dejar temporales", async () => {
+  const { cwd, task } = await createTaskFixture();
+  try {
+    await writeTaskArtifact(task);
+    await writeTaskArtifact({ ...task, phase: "planning" });
+    assert.deepEqual(await readdir(join(cwd, ".harness", "tasks")), [`${task.id}.md`]);
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }
@@ -47,6 +59,38 @@ test("reconstruye una tarea desde su artefacto", async () => {
     assert.equal(recovered.task.prompt, task.prompt);
     assert.equal(recovered.task.route, "task");
     assert.equal(recovered.task.phase, "awaiting-approval");
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("reconstruye el estado legado sin versión", async () => {
+  const { cwd, task } = await createTaskFixture();
+  try {
+    const path = await writeTaskArtifact(task);
+    const legacyContent = [
+      "# tarea legada",
+      "",
+      "<!-- pi-harness-state",
+      JSON.stringify(task, null, 2),
+      "-->",
+    ].join("\n");
+    await writeFile(path, legacyContent, "utf8");
+
+    assert.equal((await readTaskArtifact(cwd, task.id)).task.id, task.id);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("rechaza un esquema de estado no compatible", async () => {
+  const { cwd, task } = await createTaskFixture();
+  try {
+    const path = await writeTaskArtifact(task);
+    const content = await readFile(path, "utf8");
+    await writeFile(path, content.replace('"schemaVersion": 1', '"schemaVersion": 2'), "utf8");
+
+    await assert.rejects(() => readTaskArtifact(cwd, task.id), /esquema 2, incompatible/i);
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }
