@@ -9,6 +9,7 @@ import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
 import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
 import { createHarnessPlan, reviseHarnessPlan } from "../src/plan.ts";
 import { recoverInterruptedTask } from "../src/recovery.ts";
+import { reconcileTaskState, type TaskStateSource } from "../src/task-reconciliation.ts";
 import {
   closeTask,
   formatTaskStatus,
@@ -23,6 +24,7 @@ let lastTask: HarnessTask | undefined;
 let sessionTasks: HarnessTask[] = [];
 let simpleBaseline: RepositorySnapshot | undefined;
 let sddDetection: OpenSpecDetection | undefined;
+let taskReconciliationRequired: string | undefined;
 let currentConfig: HarnessConfig = structuredClone(DEFAULT_CONFIG);
 const VALID_DECISIONS = new Set<HumanDecisionValue>(["approve", "reject", "revise", "cancel", "answer"]);
 
@@ -107,6 +109,9 @@ function parseDecision(args: string): { ok: true; value: HumanDecisionValue; not
 
 async function syncTaskArtifact(task: HarnessTask): Promise<HarnessTask> {
   if (task.route !== "task") return task;
+  if (taskReconciliationRequired === task.id) {
+    throw new Error(`La tarea ${task.id} tiene estados divergentes. Resuelve primero con /harness-task-resume ${task.id} --source session|artifact.`);
+  }
   const { writeTaskArtifact } = await import("../src/task-artifact.ts");
   const path = await writeTaskArtifact(task);
   if (task.artifactPath === path) return task;
@@ -270,6 +275,7 @@ export default function (pi: ExtensionAPI) {
     sessionTasks = [];
     simpleBaseline = undefined;
     sddDetection = undefined;
+    taskReconciliationRequired = undefined;
     currentConfig = { ...structuredClone(DEFAULT_CONFIG), ...readRuntimeOverrides() };
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "custom" || entry.customType !== TASK_ENTRY_TYPE) continue;
@@ -283,7 +289,24 @@ export default function (pi: ExtensionAPI) {
     currentConfig = (await loadConfig(ctx.cwd)).config;
     await applyMcpConfig(currentConfig);
     mcpIntegration?.resetHarnessMcpActivity();
-    if (currentConfig.hil.recoverInterrupted && lastTask) lastTask = recoverInterruptedTask(lastTask);
+    if (lastTask?.route === "task" && lastTask.artifactPath) {
+      try {
+        const { readTaskArtifact } = await import("../src/task-artifact.ts");
+        const recovered = await readTaskArtifact(ctx.cwd, lastTask.id);
+        const reconciliation = reconcileTaskState(lastTask, { ...recovered.task, artifactPath: recovered.path });
+        if (reconciliation.status === "conflict") {
+          taskReconciliationRequired = lastTask.id;
+          showMessage(ctx, reconciliation.message, "warn");
+        } else {
+          lastTask = { ...reconciliation.task, artifactPath: recovered.path };
+        }
+      } catch (error) {
+        taskReconciliationRequired = lastTask.id;
+        const detail = error instanceof Error ? error.message : String(error);
+        showMessage(ctx, `No se pudo reconciliar la sesión con el artefacto de ${lastTask.id}: ${detail} Usa /harness-task-resume ${lastTask.id} --source session para recrearlo explícitamente.`, "warn");
+      }
+    }
+    if (currentConfig.hil.recoverInterrupted && lastTask && taskReconciliationRequired !== lastTask.id) lastTask = recoverInterruptedTask(lastTask);
     updateHarnessTui(ctx);
   });
 
@@ -868,20 +891,50 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerCommand("harness-task-resume", {
-    description: "Recupera una tarea ligera desde .harness/tasks",
+    description: "Recupera o reconcilia una tarea ligera desde .harness/tasks",
     handler: async (args, ctx) => {
       try {
+        const sourceMatch = args.match(/(?:^|\s)--source(?:=|\s+)(session|artifact)(?=\s|$)/);
+        if (args.includes("--source") && !sourceMatch) {
+          showMessage(ctx, "Uso: /harness-task-resume [id] [--source session|artifact]", "warn");
+          return;
+        }
+        const source = sourceMatch?.[1] as TaskStateSource | undefined;
+        const reference = sourceMatch ? args.replace(sourceMatch[0], " ").trim() : args.trim();
+        if (source === "session") {
+          if (!lastTask || (reference && reference !== lastTask.id && reference !== `${lastTask.id}.md`)) {
+            showMessage(ctx, reference
+              ? `La sesión no contiene la tarea ${reference}; no se puede elegir como fuente.`
+              : "La sesión no contiene una tarea que pueda usarse como fuente.", "warn");
+            return;
+          }
+          taskReconciliationRequired = undefined;
+          if (currentConfig.hil.recoverInterrupted) lastTask = recoverInterruptedTask(lastTask);
+          lastTask = await syncTaskArtifact(lastTask);
+          pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
+          showMessage(ctx, `Tarea ligera reconciliada desde la sesión y persistida en ${lastTask.artifactPath}.\n${formatTaskStatus(lastTask)}`);
+          return;
+        }
         const { readTaskArtifact } = await import("../src/task-artifact.ts");
-        const recovered = await readTaskArtifact(ctx.cwd, args.trim() || undefined);
+        const recovered = await readTaskArtifact(ctx.cwd, reference || undefined);
         if (recovered.task.phase === "cancelled") {
           showMessage(ctx, `La tarea ${recovered.task.id} está cancelada y no se puede reactivar. Crea una tarea nueva.`, "warn");
           return;
         }
-        lastTask = recovered.task;
-        lastTask = { ...lastTask, artifactPath: recovered.path };
+        const reconciliation = lastTask?.id === recovered.task.id
+          ? reconcileTaskState(lastTask, { ...recovered.task, artifactPath: recovered.path }, source)
+          : { status: "selected" as const, task: recovered.task, source: "artifact" as const };
+        if (reconciliation.status === "conflict") {
+          taskReconciliationRequired = recovered.task.id;
+          showMessage(ctx, reconciliation.message, "warn");
+          return;
+        }
+        taskReconciliationRequired = undefined;
+        lastTask = { ...reconciliation.task, artifactPath: recovered.path };
         if (currentConfig.hil.recoverInterrupted) lastTask = recoverInterruptedTask(lastTask);
+        lastTask = await syncTaskArtifact(lastTask);
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
-        showMessage(ctx, `Tarea ligera recuperada desde ${recovered.path}.\n${formatTaskStatus(lastTask)}`);
+        showMessage(ctx, `Tarea ligera recuperada desde ${recovered.path}; fuente elegida: ${reconciliation.source}.\n${formatTaskStatus(lastTask)}`);
       } catch (error) {
         showMessage(ctx, error instanceof Error ? error.message : "No se pudo recuperar la tarea ligera.", "warn");
       }

@@ -68,14 +68,14 @@ Antes de crear ese gate, el harness vuelve a evaluar la complejidad del alcance 
 ## Comandos
 
 ```text
-/harness-task-resume [task-id]
+/harness-task-resume [task-id] [--source session|artifact]
 /harness-task-status
 /harness-task-delete
 /harness-task-scope <nuevo alcance>
 /harness-task-close <resumen>
 ```
 
-`/harness-task-resume` lee el artefacto desde `.harness/tasks`, reconstruye el estado y lo vuelve a asociar a la sesión de Pi. Si no se pasa un identificador, recupera el último archivo disponible.
+`/harness-task-resume` lee el artefacto desde `.harness/tasks`, reconstruye el estado y lo vuelve a asociar a la sesión de Pi. Si no se pasa un identificador, recupera el último archivo disponible. Cuando el estado de la sesión y el archivo divergen, el harness no elige ni sobrescribe una fuente silenciosamente: exige repetir el comando con `--source session` o `--source artifact`.
 
 Al cancelar, la tarea queda en estado terminal `cancelled`: el Markdown registra la fecha y la decisión humana, y no propone pasos siguientes. El archivo se conserva por defecto como evidencia; para retomar la solicitud se crea otra tarea, no se reactiva la cancelada. La TUI ofrece conservarlo o eliminarlo tras cancelar. Más adelante, `/harness-task-delete` permite eliminar únicamente el archivo de la última tarea ligera cancelada, mostrando su ruta exacta y solicitando confirmación. Esta acción no borra el historial de la sesión de Pi.
 

@@ -37,7 +37,7 @@ La validación manual de carga diferida se completó en Ubuntu WSL; la Etapa 2 q
 
 ## Etapa 3 — Arquitectura y recuperación
 
-Estado: en curso. El primer corte incorpora escritura atómica y un esquema versionado compatible para artefactos de tarea.
+Estado: en curso. El primer corte incorpora escritura atómica y un esquema versionado compatible para artefactos de tarea. El segundo corte extrae la reconciliación de estado a un módulo dedicado y exige elegir explícitamente entre sesión y artefacto cuando divergen.
 
 Extraer incrementalmente de `extensions/harness.ts` los módulos de entrada, evaluación, estado, gates, persistencia y adaptadores. Mantener contratos y recorridos instalados verdes tras cada corte. Incorporar escritura atómica y migración de esquema para artefactos de tarea, además de reconciliación explícita entre sesión y archivo.
 
