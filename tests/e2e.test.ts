@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback, spawn } from "node:child_process";
-import { access, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const execFile = promisify(execFileCallback);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -208,6 +208,48 @@ async function runInstalledHarnessRpc(prefix: string, options: {
   });
 }
 
+async function verifyInstalledMcpUnknown(prefix: string): Promise<void> {
+  const installedPackage = join(prefix, "node_modules", "pi-harness");
+  const runtimeCopy = join(prefix, ".harness", "installed-pi-harness");
+  await cp(installedPackage, runtimeCopy, { recursive: true });
+  const integration = await import(pathToFileURL(join(runtimeCopy, "extensions", "mcp-adapter-integration.ts")).href);
+  const config = structuredClone(integration.DEFAULT_CONFIG ?? (await import("../src/config.ts")).DEFAULT_CONFIG);
+  config.mcp = {
+    enabled: true,
+    defaultApproval: "automatic",
+    allowlist: [{ server: "demo", tools: ["write"], approval: "automatic" }],
+  };
+  let adapterCalls = 0;
+  let registered: { execute: (...args: any[]) => Promise<any> } | undefined;
+  const pi = {
+    events: {
+      emit: (_channel: string, request: { result?: Promise<never> }) => {
+        adapterCalls += 1;
+        request.result = Promise.reject(new Error("resultado no confirmado"));
+      },
+    },
+    registerTool: (tool: { execute: (...args: any[]) => Promise<any> }) => { registered = tool; },
+    appendEntry: () => {},
+  } as any;
+  integration.setHarnessMcpConfig(config);
+  integration.resetHarnessMcpActivity();
+  integration.registerHarnessMcpTool(pi);
+  const result = await registered.execute(
+    "installed-mcp-call",
+    { server: "demo", tool: "write", arguments: { value: "x" } },
+    new AbortController().signal,
+    undefined,
+    { cwd: prefix, hasUI: false },
+  );
+  assert.equal(adapterCalls, 1, "La integración instalada no debe reintentar un resultado MCP ambiguo.");
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /no confirmó el resultado/);
+  const history = integration.formatMcpActivity().join("\n");
+  assert.match(history, /demo\/write · automatic · unknown/);
+  assert.match(history, /confirma el efecto antes de reintentar/);
+  integration.resetHarnessMcpActivity();
+}
+
 function toGitBashPath(path: string): string {
   return path.replaceAll("\\", "/");
 }
@@ -252,6 +294,7 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   assert.match(modelFallbackOutput, /Clasificación pendiente:/);
   const sddOutput = await runInstalledHarness(consumerB, "/harness-work --mode sdd Agregar permisos por rol");
   assert.match(sddOutput, /Ruta seleccionada: sdd/);
+  await verifyInstalledMcpUnknown(consumerA);
 
   const creationNotifications = await runInstalledHarnessRpc(
     consumerA,
