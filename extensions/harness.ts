@@ -8,8 +8,7 @@ import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } 
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
 import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
 import { createHarnessPlan, reviseHarnessPlan } from "../src/plan.ts";
-import { recoverInterruptedTask } from "../src/recovery.ts";
-import { reconcileTaskState, type TaskStateSource } from "../src/task-reconciliation.ts";
+import { TaskStateCoordinator, parseTaskResumeRequest } from "../src/task-state.ts";
 import {
   closeTask,
   formatTaskStatus,
@@ -24,7 +23,6 @@ let lastTask: HarnessTask | undefined;
 let sessionTasks: HarnessTask[] = [];
 let simpleBaseline: RepositorySnapshot | undefined;
 let sddDetection: OpenSpecDetection | undefined;
-let taskReconciliationRequired: string | undefined;
 let currentConfig: HarnessConfig = structuredClone(DEFAULT_CONFIG);
 const VALID_DECISIONS = new Set<HumanDecisionValue>(["approve", "reject", "revise", "cancel", "answer"]);
 
@@ -107,19 +105,6 @@ function parseDecision(args: string): { ok: true; value: HumanDecisionValue; not
   return { ok: true, value: candidate as HumanDecisionValue, note: note.join(" ") || undefined };
 }
 
-async function syncTaskArtifact(task: HarnessTask): Promise<HarnessTask> {
-  if (task.route !== "task") return task;
-  if (taskReconciliationRequired === task.id) {
-    throw new Error(`La tarea ${task.id} tiene estados divergentes. Resuelve primero con /harness-task-resume ${task.id} --source session|artifact.`);
-  }
-  const { writeTaskArtifact } = await import("../src/task-artifact.ts");
-  const path = await writeTaskArtifact(task);
-  if (task.artifactPath === path) return task;
-  const withPath = { ...task, artifactPath: path };
-  await writeTaskArtifact(withPath);
-  return withPath;
-}
-
 export default function (pi: ExtensionAPI) {
   assertCompatiblePi(pi);
   const capabilities = createCoreHarnessCapabilityRegistry();
@@ -130,6 +115,7 @@ export default function (pi: ExtensionAPI) {
   let simpleWorkflowLoading: Promise<typeof import("../src/simple.ts")> | undefined;
   let openSpecLoading: Promise<typeof import("../src/openspec.ts")> | undefined;
   let planDetailsLoading: Promise<typeof import("../src/plan-details.ts")> | undefined;
+  const taskState = new TaskStateCoordinator();
 
   function loadSimpleWorkflow(): Promise<typeof import("../src/simple.ts")> {
     return simpleWorkflowLoading ??= import("../src/simple.ts");
@@ -275,7 +261,7 @@ export default function (pi: ExtensionAPI) {
     sessionTasks = [];
     simpleBaseline = undefined;
     sddDetection = undefined;
-    taskReconciliationRequired = undefined;
+    taskState.reset();
     currentConfig = { ...structuredClone(DEFAULT_CONFIG), ...readRuntimeOverrides() };
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "custom" || entry.customType !== TASK_ENTRY_TYPE) continue;
@@ -289,24 +275,11 @@ export default function (pi: ExtensionAPI) {
     currentConfig = (await loadConfig(ctx.cwd)).config;
     await applyMcpConfig(currentConfig);
     mcpIntegration?.resetHarnessMcpActivity();
-    if (lastTask?.route === "task" && lastTask.artifactPath) {
-      try {
-        const { readTaskArtifact } = await import("../src/task-artifact.ts");
-        const recovered = await readTaskArtifact(ctx.cwd, lastTask.id);
-        const reconciliation = reconcileTaskState(lastTask, { ...recovered.task, artifactPath: recovered.path });
-        if (reconciliation.status === "conflict") {
-          taskReconciliationRequired = lastTask.id;
-          showMessage(ctx, reconciliation.message, "warn");
-        } else {
-          lastTask = { ...reconciliation.task, artifactPath: recovered.path };
-        }
-      } catch (error) {
-        taskReconciliationRequired = lastTask.id;
-        const detail = error instanceof Error ? error.message : String(error);
-        showMessage(ctx, `No se pudo reconciliar la sesión con el artefacto de ${lastTask.id}: ${detail} Usa /harness-task-resume ${lastTask.id} --source session para recrearlo explícitamente.`, "warn");
-      }
+    if (lastTask) {
+      const resolution = await taskState.prepareSessionTask(ctx.cwd, lastTask, currentConfig.hil.recoverInterrupted);
+      lastTask = resolution.task;
+      if (resolution.status === "conflict") showMessage(ctx, resolution.message, "warn");
     }
-    if (currentConfig.hil.recoverInterrupted && lastTask && taskReconciliationRequired !== lastTask.id) lastTask = recoverInterruptedTask(lastTask);
     updateHarnessTui(ctx);
   });
 
@@ -375,7 +348,7 @@ export default function (pi: ExtensionAPI) {
     } else if (choice === `Aceptar ruta: ${recommended}`) {
       lastTask = confirmAssessmentRoute(lastTask, recommended);
     } else return;
-    lastTask = await syncTaskArtifact(lastTask);
+    lastTask = await taskState.sync(lastTask);
     pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
     rememberTask(lastTask);
     updateHarnessTui(ctx);
@@ -442,7 +415,7 @@ export default function (pi: ExtensionAPI) {
         if (choice === "Aprobar plan" || choice === "Autorizar inicio de implementación") {
           lastTask = decideGate(lastTask, "approve");
           if (choice === "Aprobar plan" && lastTask.plan) lastTask = { ...lastTask, plan: { ...lastTask.plan, approvedVersion: lastTask.plan.version, approvedAt: new Date().toISOString() } };
-          lastTask = await syncTaskArtifact(lastTask);
+          lastTask = await taskState.sync(lastTask);
           pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
           updateHarnessTui(ctx);
           showMessage(ctx, choice === "Aprobar plan"
@@ -455,7 +428,7 @@ export default function (pi: ExtensionAPI) {
           const note = await ctx.ui.input("Cambio de plan", "Describe el nuevo alcance o ajuste requerido");
           if (!note?.trim()) continue;
           lastTask = await reassessScope(lastTask, note, ctx);
-          lastTask = await syncTaskArtifact(lastTask);
+          lastTask = await taskState.sync(lastTask);
           pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
           updateHarnessTui(ctx);
           showMessage(ctx, `Plan modificado a la versión ${lastTask.plan?.version ?? "nueva"}. La aprobación anterior quedó invalidada.`);
@@ -463,7 +436,7 @@ export default function (pi: ExtensionAPI) {
         }
         if (choice === "Cancelar tarea") {
           lastTask = decideGate(lastTask, "cancel");
-          lastTask = await syncTaskArtifact(lastTask);
+          lastTask = await taskState.sync(lastTask);
           pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
           updateHarnessTui(ctx);
           showMessage(ctx, "Tarea cancelada por decisión humana.", "warn");
@@ -526,7 +499,7 @@ export default function (pi: ExtensionAPI) {
       if (choice === "Ampliar tarea actual") {
         try {
           lastTask = await reassessScope(lastTask, text, ctx);
-          lastTask = await syncTaskArtifact(lastTask);
+          lastTask = await taskState.sync(lastTask);
           pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
           updateHarnessTui(ctx);
           showMessage(ctx, `Alcance ampliado y reevaluado como ${lastTask.route}. La revisión anterior quedó invalidada. Aprueba el nuevo alcance con /harness-decide approve antes de continuar.`);
@@ -754,7 +727,7 @@ export default function (pi: ExtensionAPI) {
       }
       try {
         lastTask = await reassessScope(lastTask, args, ctx);
-        lastTask = await syncTaskArtifact(lastTask);
+        lastTask = await taskState.sync(lastTask);
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
         updateHarnessTui(ctx);
         showMessage(ctx, `Cambio de alcance registrado. Debe aprobarse con /harness-decide approve.\n${formatTaskStatus(lastTask)}`);
@@ -850,7 +823,7 @@ export default function (pi: ExtensionAPI) {
         } else {
           lastTask = decideGate(lastTask, parsed.value, parsed.note);
         }
-        lastTask = await syncTaskArtifact(lastTask);
+        lastTask = await taskState.sync(lastTask);
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
         const suffix = lastTask.assessment ? `\n${formatAssessment(lastTask.assessment)}` : "";
         showMessage(ctx, `Decisión registrada: ${parsed.value}.\nFase actual: ${lastTask.phase}.${suffix}`);
@@ -877,7 +850,7 @@ export default function (pi: ExtensionAPI) {
       }
       try {
         lastTask = confirmAssessmentRoute(lastTask, route as NonNullable<HarnessTask["route"]>);
-        lastTask = await syncTaskArtifact(lastTask);
+        lastTask = await taskState.sync(lastTask);
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
         updateHarnessTui(ctx);
         showMessage(ctx, `Ruta seleccionada: ${lastTask.route}.\n${formatAssessment(lastTask.assessment!)}`);
@@ -894,47 +867,26 @@ export default function (pi: ExtensionAPI) {
     description: "Recupera o reconcilia una tarea ligera desde .harness/tasks",
     handler: async (args, ctx) => {
       try {
-        const sourceMatch = args.match(/(?:^|\s)--source(?:=|\s+)(session|artifact)(?=\s|$)/);
-        if (args.includes("--source") && !sourceMatch) {
-          showMessage(ctx, "Uso: /harness-task-resume [id] [--source session|artifact]", "warn");
+        const request = parseTaskResumeRequest(args);
+        if (!request.ok) {
+          showMessage(ctx, request.message, "warn");
           return;
         }
-        const source = sourceMatch?.[1] as TaskStateSource | undefined;
-        const reference = sourceMatch ? args.replace(sourceMatch[0], " ").trim() : args.trim();
-        if (source === "session") {
-          if (!lastTask || (reference && reference !== lastTask.id && reference !== `${lastTask.id}.md`)) {
-            showMessage(ctx, reference
-              ? `La sesión no contiene la tarea ${reference}; no se puede elegir como fuente.`
-              : "La sesión no contiene una tarea que pueda usarse como fuente.", "warn");
-            return;
-          }
-          taskReconciliationRequired = undefined;
-          if (currentConfig.hil.recoverInterrupted) lastTask = recoverInterruptedTask(lastTask);
-          lastTask = await syncTaskArtifact(lastTask);
-          pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
-          showMessage(ctx, `Tarea ligera reconciliada desde la sesión y persistida en ${lastTask.artifactPath}.\n${formatTaskStatus(lastTask)}`);
+        const resolution = await taskState.resume({
+          cwd: ctx.cwd,
+          sessionTask: lastTask,
+          request,
+          recoverInterrupted: currentConfig.hil.recoverInterrupted,
+        });
+        if (resolution.status !== "ready") {
+          showMessage(ctx, resolution.message, "warn");
           return;
         }
-        const { readTaskArtifact } = await import("../src/task-artifact.ts");
-        const recovered = await readTaskArtifact(ctx.cwd, reference || undefined);
-        if (recovered.task.phase === "cancelled") {
-          showMessage(ctx, `La tarea ${recovered.task.id} está cancelada y no se puede reactivar. Crea una tarea nueva.`, "warn");
-          return;
-        }
-        const reconciliation = lastTask?.id === recovered.task.id
-          ? reconcileTaskState(lastTask, { ...recovered.task, artifactPath: recovered.path }, source)
-          : { status: "selected" as const, task: recovered.task, source: "artifact" as const };
-        if (reconciliation.status === "conflict") {
-          taskReconciliationRequired = recovered.task.id;
-          showMessage(ctx, reconciliation.message, "warn");
-          return;
-        }
-        taskReconciliationRequired = undefined;
-        lastTask = { ...reconciliation.task, artifactPath: recovered.path };
-        if (currentConfig.hil.recoverInterrupted) lastTask = recoverInterruptedTask(lastTask);
-        lastTask = await syncTaskArtifact(lastTask);
+        lastTask = resolution.task;
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
-        showMessage(ctx, `Tarea ligera recuperada desde ${recovered.path}; fuente elegida: ${reconciliation.source}.\n${formatTaskStatus(lastTask)}`);
+        showMessage(ctx, resolution.source === "session"
+          ? `Tarea ligera reconciliada desde la sesión y persistida en ${resolution.path}.\n${formatTaskStatus(lastTask)}`
+          : `Tarea ligera recuperada desde ${resolution.path}; fuente elegida: ${resolution.source}.\n${formatTaskStatus(lastTask)}`);
       } catch (error) {
         showMessage(ctx, error instanceof Error ? error.message : "No se pudo recuperar la tarea ligera.", "warn");
       }
@@ -966,7 +918,7 @@ export default function (pi: ExtensionAPI) {
       }
       try {
         lastTask = await reassessScope(lastTask, args, ctx);
-        lastTask = await syncTaskArtifact(lastTask);
+        lastTask = await taskState.sync(lastTask);
         pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
         showMessage(ctx, `Cambio de alcance registrado. Debe aprobarse con /harness-decide approve.\n${formatTaskStatus(lastTask)}`);
       } catch (error) {
@@ -998,7 +950,7 @@ export default function (pi: ExtensionAPI) {
         checks: [],
         risks: [],
       });
-      lastTask = await syncTaskArtifact(lastTask);
+      lastTask = await taskState.sync(lastTask);
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
       showMessage(ctx, `Tarea ligera cerrada.\n${formatTaskStatus(lastTask)}`);
     },

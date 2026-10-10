@@ -6,6 +6,7 @@ import { loadConfig, type HarnessConfig } from "./config.ts";
 import { isActiveTask } from "./recovery.ts";
 import { createTask, type Assessment, type HarnessTask, type UserProfile, type WorkMode } from "./task.ts";
 import { createHarnessPlan } from "./plan.ts";
+import { persistTaskArtifact } from "./task-state.ts";
 
 export type ParsedWorkRequest =
   | { ok: true; prompt: string; requestedMode: WorkMode; analyzeOnly: boolean }
@@ -90,16 +91,6 @@ export function parseWorkRequest(args: string, defaultMode: WorkMode = "auto"): 
   }
 
   return { ok: true, prompt: remaining, requestedMode, analyzeOnly };
-}
-
-async function persistTaskArtifact(task: HarnessTask): Promise<HarnessTask> {
-  if (task.route !== "task") return task;
-  const { writeTaskArtifact } = await import("./task-artifact.ts");
-  const path = await writeTaskArtifact(task);
-  if (task.artifactPath === path) return task;
-  const withPath = { ...task, artifactPath: path };
-  await writeTaskArtifact(withPath);
-  return withPath;
 }
 
 export async function prepareHarnessTask(input: {

@@ -107,6 +107,7 @@ async function runInstalledHarness(prefix: string, prompt: string, assessment: "
 type RpcUiRequest = {
   type?: string;
   id?: string;
+  command?: string;
   method?: string;
   title?: string;
   options?: string[];
@@ -129,7 +130,8 @@ async function runInstalledHarnessRpc(prefix: string, options: {
   route?: "task" | "sdd";
   planDecision?: "approve" | "cancel";
   expectedNotification: RegExp;
-  followUp?: { afterNotification: RegExp; prompt: string };
+  followUp?: { afterNotification: RegExp; prompt: string; beforePrompt?: () => Promise<void> };
+  followUps?: Array<{ afterNotification: RegExp; prompt: string; beforePrompt?: () => Promise<void> }>;
 }): Promise<string[]> {
   const agentDirectory = join(prefix, ".pi-agent");
   const executable = process.execPath;
@@ -152,7 +154,10 @@ async function runInstalledHarnessRpc(prefix: string, options: {
     let stderr = "";
     let pending = "";
     let completed = false;
-    let followUpSent = false;
+    const followUps = options.followUps ?? (options.followUp ? [options.followUp] : []);
+    let followUpIndex = 0;
+    let pendingFollowUp: { prompt: string; beforePrompt?: () => Promise<void> } | undefined;
+    let completionRequested = false;
     const notifications: string[] = [];
     // A task route can open three sequential HIL dialogs. Allow the RPC
     // transport to settle each request on slower consumer environments.
@@ -166,21 +171,32 @@ async function runInstalledHarnessRpc(prefix: string, options: {
     const handleRecord = (record: string) => {
       let event: RpcUiRequest;
       try { event = JSON.parse(record) as RpcUiRequest; } catch { return; }
-      if (event.type !== "extension_ui_request") return;
-      if (event.method === "notify" && event.message) {
+      if (event.type === "extension_ui_request" && event.method === "notify" && event.message) {
         notifications.push(event.message);
-        if (!followUpSent && options.followUp?.afterNotification.test(event.message)) {
-          followUpSent = true;
-          // The notification is emitted from the command handler. Defer the
-          // next extension command until that handler has returned to Pi.
-          setTimeout(() => send({ id: "prompt-2", type: "prompt", message: options.followUp!.prompt }), 0);
+        const followUp = followUps[followUpIndex];
+        if (followUp?.afterNotification.test(event.message)) {
+          followUpIndex += 1;
+          pendingFollowUp = followUp;
         }
         if (options.expectedNotification.test(event.message) && !completed) {
+          completionRequested = true;
+        }
+        return;
+      }
+      if (event.type === "response" && event.command === "prompt") {
+        if (pendingFollowUp) {
+          const followUp = pendingFollowUp;
+          pendingFollowUp = undefined;
+          Promise.resolve(followUp.beforePrompt?.())
+            .then(() => send({ id: `prompt-${followUpIndex + 1}`, type: "prompt", message: followUp.prompt }))
+            .catch((error) => finish(error instanceof Error ? error : new Error(String(error))));
+        } else if (completionRequested && !completed) {
           completed = true;
           child.stdin?.end();
         }
         return;
       }
+      if (event.type !== "extension_ui_request") return;
       const selection = rpcSelection(event, options.route ?? "task", options.planDecision ?? "approve");
       if (selection && event.id) send({ type: "extension_ui_response", id: event.id, value: selection });
     };
@@ -313,6 +329,41 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
     { prompt: "/harness-task-resume", expectedNotification: /Tarea ligera recuperada desde / },
   );
   assert.ok(recoveryNotifications.some((message) => /Tarea ligera recuperada desde .*\.harness[\\/]tasks[\\/].+\.md/.test(message)), "El segundo proceso no recuperó el artefacto de tarea instalado.");
+
+  let reconciliationArtifact = "";
+  const reconciliationNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    {
+      prompt: "/harness-work --mode task Reconciliar estado de sesión y archivo",
+      expectedNotification: /fuente elegida: artifact/,
+      followUps: [
+        {
+          afterNotification: /Inicio de implementación autorizado\./,
+          prompt: "/harness-task-resume",
+          beforePrompt: async () => {
+            const files = (await readdir(tasksDirectory)).filter((entry) => entry.endsWith(".md")).sort();
+            reconciliationArtifact = join(tasksDirectory, files.at(-1)!);
+            const content = await readFile(reconciliationArtifact, "utf8");
+            await writeFile(reconciliationArtifact, content.replace('"scope": "Reconciliar estado de sesión y archivo"', '"scope": "Estado divergente en artefacto"'), "utf8");
+          },
+        },
+        { afterNotification: /no coinciden\./, prompt: "/harness-task-resume --source session" },
+        {
+          afterNotification: /reconciliada desde la sesión/,
+          prompt: "/harness-task-resume",
+          beforePrompt: async () => {
+            const content = await readFile(reconciliationArtifact, "utf8");
+            await writeFile(reconciliationArtifact, content.replace('"scope": "Reconciliar estado de sesión y archivo"', '"scope": "Estado elegido desde artefacto"'), "utf8");
+          },
+        },
+        { afterNotification: /no coinciden\./, prompt: "/harness-task-resume --source artifact" },
+      ],
+    },
+  );
+  assert.equal(reconciliationNotifications.filter((message) => /no coinciden\./.test(message)).length, 2, "El consumidor instalado no expuso ambos conflictos de estado.");
+  assert.ok(reconciliationNotifications.some((message) => /reconciliada desde la sesión/.test(message)), "El consumidor instalado no permitió elegir la sesión.");
+  assert.ok(reconciliationNotifications.some((message) => /fuente elegida: artifact/.test(message)), "El consumidor instalado no permitió elegir el artefacto.");
+  assert.match(await readFile(reconciliationArtifact, "utf8"), /"scope": "Estado elegido desde artefacto"/);
 
   const corruptArtifact = join(tasksDirectory, taskFiles[0]!);
   const corruptContent = "# tarea dañada\n\n<!-- pi-harness-state\n{estado-inválido}\n-->\n";
