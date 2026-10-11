@@ -362,6 +362,13 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   assert.match(sddOutput, /Ruta seleccionada: sdd/);
   await verifyInstalledMcpUnknown(consumerA);
 
+  const overviewNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    { prompt: "/harness-overview", expectedNotification: /pi-harness overview/ },
+  );
+  assert.ok(overviewNotifications.some((message) => /Tarea: ninguna activa/.test(message)), "La vista instalada no mostró el estado sin tarea activa.");
+  assert.ok(overviewNotifications.some((message) => /Git: disponible|Git: no disponible/.test(message)), "La vista instalada no mostró el estado de Git.");
+
   const creationNotifications = await runInstalledHarnessRpc(
     consumerA,
     {
