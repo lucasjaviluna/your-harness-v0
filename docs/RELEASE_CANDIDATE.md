@@ -24,7 +24,7 @@ La dependencia de Pi permanece acotada en `package.json` como `^0.85.1`; la vers
 
 - Repetir la matriz mínima en un segundo entorno Linux o repositorio consumidor real.
 - Registrar la versión de Node, la versión efectiva de Pi, sistema operativo, shell y commit del consumidor.
-- Preparar changelog y notas de instalación, actualización y rollback.
+- Changelog inicial preparado en `CHANGELOG.md`; faltan las notas finales de instalación, actualización y rollback para el candidato elegido.
 - Decidir si `0.1.0` se conserva para el candidato o se incrementa según el alcance del release.
 - Confirmar CI verde para el commit exacto que se quiera distribuir.
 - Repetir la medición de arranque desde un consumidor instalado.

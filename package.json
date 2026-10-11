@@ -16,6 +16,7 @@
     "skills",
     "themes",
     "docs",
+    "CHANGELOG.md",
     "README.md",
     "package.json"
   ],
