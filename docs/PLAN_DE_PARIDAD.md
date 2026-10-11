@@ -55,7 +55,7 @@ Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación
 
 Estado: primer incremento implementado. `/harness-overview` ofrece una vista read-only que combina tarea activa, próximo paso, gate humano pendiente, cambios Git y changes OpenSpec. La integración SQLite con `your-team-knowledge` queda pausada hasta alcanzar la madurez acordada.
 
-Siguiente incremento: ampliar la matriz instalada para carga diferida y escenarios MCP con resultado incierto. La regresión ahora confirma también que `/harness-mcp` responde con MCP deshabilitado y allowlist vacía, sin activar tools. La delegación queda después de esta validación y requiere propiedad, aislamiento y cancelación explícitos.
+Siguiente incremento: ampliar la matriz instalada para escenarios MCP con resultado incierto. La regresión confirma `/harness-mcp` deshabilitado y allowlist vacía, además de `/harness-doctor` y `/harness-changes` como activadores de capabilities diferidas. La delegación queda después de esta validación y requiere propiedad, aislamiento y cancelación explícitos.
 
 ## Decisión de producto y riesgo de reimplementación
 

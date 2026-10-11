@@ -452,7 +452,7 @@ Estado: completada el 2026-10-07. Detalle en [docs/STARTUP_PERFORMANCE.md](START
 
 ### Incremento posterior — Vista unificada de estado y cambios
 
-Estado: validado en consumidor instalado. El comando `/harness-overview` compone, sin modificar el repositorio ni resolver gates automáticamente, la tarea activa, su próximo paso, el gate humano pendiente, el estado Git y los changes OpenSpec. La regresión cubre ausencia de tarea, tarea activa y MCP deshabilitado con allowlist vacía; el próximo trabajo de calidad es completar la matriz de carga diferida y resultados MCP ambiguos.
+Estado: validado en consumidor instalado. El comando `/harness-overview` compone, sin modificar el repositorio ni resolver gates automáticamente, la tarea activa, su próximo paso, el gate humano pendiente, el estado Git y los changes OpenSpec. La regresión cubre ausencia de tarea, tarea activa, MCP deshabilitado con allowlist vacía y carga diferida de diagnósticos Git/OpenSpec; queda completar la matriz MCP con resultados ambiguos en el consumidor.
 
 - [x] Diferir el SDK y la integración MCP hasta habilitar MCP o usar un comando MCP.
 - [x] Diferir Git, OpenSpec, verificación y el workflow `simple` hasta que un workflow o diagnóstico los necesite.

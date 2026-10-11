@@ -373,6 +373,16 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
     { prompt: "/harness-mcp", expectedNotification: /yh-pi MCP: deshabilitado/ },
   );
   assert.ok(disabledMcpNotifications.some((message) => /Allowlist: vacía/.test(message)), "MCP deshabilitado no mostró la allowlist vacía.");
+  const doctorNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    { prompt: "/harness-doctor", expectedNotification: /pi-harness doctor/ },
+  );
+  assert.ok(doctorNotifications.some((message) => /Git: disponible|Git: no disponible/.test(message)), "harness-doctor no mostró el diagnóstico de Git.");
+  const changesNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    { prompt: "/harness-changes", expectedNotification: /pi-harness changes/ },
+  );
+  assert.ok(changesNotifications.some((message) => /Changes OpenSpec activos:/.test(message)), "harness-changes no mostró el diagnóstico OpenSpec.");
 
   const creationNotifications = await runInstalledHarnessRpc(
     consumerA,
