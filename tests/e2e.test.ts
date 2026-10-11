@@ -368,6 +368,11 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   );
   assert.ok(overviewNotifications.some((message) => /Tarea: ninguna activa/.test(message)), "La vista instalada no mostró el estado sin tarea activa.");
   assert.ok(overviewNotifications.some((message) => /Git: disponible|Git: no disponible/.test(message)), "La vista instalada no mostró el estado de Git.");
+  const disabledMcpNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    { prompt: "/harness-mcp", expectedNotification: /yh-pi MCP: deshabilitado/ },
+  );
+  assert.ok(disabledMcpNotifications.some((message) => /Allowlist: vacía/.test(message)), "MCP deshabilitado no mostró la allowlist vacía.");
 
   const creationNotifications = await runInstalledHarnessRpc(
     consumerA,
