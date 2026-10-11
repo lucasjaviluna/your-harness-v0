@@ -322,7 +322,7 @@ function toGitBashPath(path: string): string {
 
 test("el manifest distribuye el runtime necesario", { concurrency: false }, async () => {
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as { files?: string[]; pi?: { extensions?: string[]; skills?: string[] } };
-  assert.deepEqual(packageJson.files, ["bin", "extensions", "src", "skills", "themes", "docs", "README.md", "package.json"]);
+  assert.deepEqual(packageJson.files, ["bin", "extensions", "src", "skills", "themes", "docs", "CHANGELOG.md", "README.md", "package.json"]);
   assert.deepEqual(packageJson.pi?.extensions, ["./extensions"]);
   assert.deepEqual(packageJson.pi?.skills, ["./skills"]);
   const cacheDirectory = await mkdtemp(join(tmpdir(), "pi-harness-npm-cache-"));
