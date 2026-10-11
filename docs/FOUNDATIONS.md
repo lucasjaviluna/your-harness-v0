@@ -300,8 +300,8 @@ No incluye:
 - La Fase 16 clasifica con el modelo activo de Pi mediante una llamada sin herramientas, mantiene las reglas deterministas como salvaguarda/fallback y exige confirmar o cambiar la ruta antes de iniciar cualquier workflow.
 - El recorte de arranque posterior a la Fase 16 está completado: MCP, Git, OpenSpec, verificación, workflows, contexto, artefactos y detalle de planes se cargan cuando el flujo los requiere. Los comandos, gates HIL y contratos se conservan. El detalle técnico está en `docs/STARTUP_PERFORMANCE.md`.
 - La medición de arranque del 2026-10-08 comparó TypeScript en runtime con un prototipo JavaScript compilado. La mediana bajó de 1.825 s a 1.594 s (12,7 %), insuficiente para justificar por ahora un build y artefactos distribuidos adicionales. Se revisará desde un consumidor instalado durante la preparación del release.
-- El recorrido de validación manual de carga bajo demanda está documentado y pendiente de registrar como ejecutado en una sesión fría de yh-pi.
-- El pendiente técnico activo es el smoke test obligatorio de CI de `tests/e2e.test.ts`; debe cerrarse con una reproducción y validación en Linux antes de declarar la suite de CI estable.
+- El recorrido de validación manual de carga bajo demanda se completó en Ubuntu WSL; su evidencia queda registrada en el plan de paridad.
+- El smoke obligatorio de consumidor instalado de `tests/e2e.test.ts` quedó validado nuevamente en Ubuntu el 2026-10-11: dos pruebas aprobadas y la prueba específica de Git Bash omitida fuera de Windows.
 - La publicación npm se decidirá después de la validación operativa, no antes.
 - Azure DevOps y otras integraciones externas quedan postergadas hasta confirmar la utilidad y estabilidad del flujo base.
 - El perfil default del MVP es `developer`; el core se mantiene agnóstico para habilitar perfiles funcionales, de producto y marketing en fases posteriores.

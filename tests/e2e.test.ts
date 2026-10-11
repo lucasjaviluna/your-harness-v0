@@ -185,6 +185,10 @@ async function runInstalledHarnessRpc(prefix: string, options: {
         child.kill("SIGTERM");
       }, grace);
     };
+    const matchesExpectedNotification = (text: string) => {
+      options.expectedNotification.lastIndex = 0;
+      return options.expectedNotification.test(text);
+    };
     const send = (message: object) => child.stdin?.write(`${JSON.stringify(message)}\n`);
     const handleRecord = (record: string) => {
       let event: RpcUiRequest;
@@ -197,7 +201,7 @@ async function runInstalledHarnessRpc(prefix: string, options: {
           followUpIndex += 1;
           pendingFollowUp = followUp;
         }
-        if (options.expectedNotification.test(event.message) && !completed) {
+        if (matchesExpectedNotification(event.message) && !completed) {
           completionRequested = true;
           // The notification is the terminal result of this RPC scenario.
           // Installed consumers do not consistently emit a later `prompt`
@@ -236,14 +240,14 @@ async function runInstalledHarnessRpc(prefix: string, options: {
         if (record) handleRecord(record);
         newline = pending.indexOf("\n");
       }
-      if (!completed && options.expectedNotification.test(`${stdout}\n${stderr}`) && !pendingFollowUp) {
+      if (!completed && matchesExpectedNotification(`${stdout}\n${stderr}`) && !pendingFollowUp) {
         completionRequested = true;
         closeAfterExpectedResult();
       }
     });
     child.stderr?.on("data", (chunk: string) => {
       stderr += chunk;
-      if (!completed && options.expectedNotification.test(`${stdout}\n${stderr}`) && !pendingFollowUp) {
+      if (!completed && matchesExpectedNotification(`${stdout}\n${stderr}`) && !pendingFollowUp) {
         completionRequested = true;
         closeAfterExpectedResult();
       }
@@ -260,10 +264,11 @@ async function runInstalledHarnessRpc(prefix: string, options: {
       // Keep the assertion tied to the RPC protocol even when a transport
       // buffering edge case prevented the incremental parser from observing
       // the final record before the child was terminated.
-      if (completionRequested || options.expectedNotification.test(`${stdout}\n${stderr}`)) { finish(); return; }
+      if (completionRequested || matchesExpectedNotification(`${stdout}\n${stderr}`)) { finish(); return; }
       if (completed && (code === 0 || shutdownFallback)) { finish(); return; }
       const output = [stdout, stderr].filter(Boolean).join("\n");
-      finish(new Error(`yh-pi RPC falló (${signal ? `signal=${signal}` : `code=${code}`})${output ? `\n${output}` : "\nPi no produjo salida capturada."}`));
+      const observedExpectedNotification = matchesExpectedNotification(output);
+      finish(new Error(`yh-pi RPC falló (${signal ? `signal=${signal}` : `code=${code}`}; expected=/${options.expectedNotification.source}/${options.expectedNotification.flags}; matched=${observedExpectedNotification}; stdout=${stdout.length}; stderr=${stderr.length})${output ? `\n${output}` : "\nPi no produjo salida capturada."}`));
     });
     send({ id: "prompt-1", type: "prompt", message: options.prompt });
   });
@@ -415,7 +420,7 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   await writeFile(corruptArtifact, corruptContent, "utf8");
   const corruptRecoveryNotifications = await runInstalledHarnessRpc(
     consumerA,
-    { prompt: "/harness-task-resume", expectedNotification: /El estado JSON del artefacto está corrupto\./ },
+    { prompt: `/harness-task-resume ${taskFiles[0]!}`, expectedNotification: /El estado JSON del artefacto está corrupto\./ },
   );
   assert.ok(corruptRecoveryNotifications.some((message) => message.includes("El estado JSON del artefacto está corrupto.")), "El consumidor instalado no explicó que el artefacto está corrupto.");
   assert.equal(await readFile(corruptArtifact, "utf8"), corruptContent, "La recuperación de un artefacto corrupto no debe modificarlo.");

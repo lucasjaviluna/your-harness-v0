@@ -37,7 +37,7 @@ La validación manual de carga diferida se completó en Ubuntu WSL; la Etapa 2 q
 
 ## Etapa 3 — Arquitectura y recuperación
 
-Estado: en curso. El primer corte incorpora escritura atómica y un esquema versionado compatible para artefactos de tarea. El segundo corte extrae la reconciliación de estado a un módulo dedicado y exige elegir explícitamente entre sesión y artefacto cuando divergen. El tercer corte centraliza sincronización, recuperación y bloqueo de conflictos en `src/task-state.ts`, eliminando esas responsabilidades y su duplicación de la extensión principal.
+Estado: completada el 2026-10-11. El primer corte incorpora escritura atómica y un esquema versionado compatible para artefactos de tarea. El segundo corte extrae la reconciliación de estado a un módulo dedicado y exige elegir explícitamente entre sesión y artefacto cuando divergen. El tercer corte centraliza sincronización, recuperación y bloqueo de conflictos en `src/task-state.ts`, eliminando esas responsabilidades y su duplicación de la extensión principal. La validación final en Ubuntu completó `npm test` (94 aprobadas, 2 omitidas), el smoke obligatorio de dos consumidores instalados (2 aprobadas, 1 omitida de Git Bash fuera de Windows) y `npm run pack:check`, sin fallos.
 
 Extraer incrementalmente de `extensions/harness.ts` los módulos de entrada, evaluación, estado, gates, persistencia y adaptadores. Mantener contratos y recorridos instalados verdes tras cada corte. Incorporar escritura atómica y migración de esquema para artefactos de tarea, además de reconciliación explícita entre sesión y archivo.
 

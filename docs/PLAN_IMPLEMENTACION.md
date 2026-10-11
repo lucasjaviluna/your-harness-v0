@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque posterior a la Fase 16 está completado; el smoke test obligatorio de CI sigue pendiente. La publicación npm continúa pendiente de decisión y autorización explícitas.
+Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque posterior a la Fase 16 y el smoke obligatorio de consumidor instalado están validados. La publicación npm continúa pendiente de decisión y autorización explícitas.
 
 ## 1. Objetivo y alcance
 
@@ -456,7 +456,7 @@ Estado: completada el 2026-10-07. Detalle en [docs/STARTUP_PERFORMANCE.md](START
 - [x] Mantener disponibles los comandos y aplicar las mismas políticas HIL y de seguridad después de la carga diferida.
 - [x] Validar con pruebas de inicio, MCP, capabilities, workflows, planes y artefactos; además de `npm test`, `npm run pack:check` y `git diff --check`.
 
-Decisión posterior: la medición comparó TypeScript en runtime con un prototipo JavaScript compilado y mostró una reducción de mediana de 12,7 % (231 ms). No se agregará un build distribuido todavía; el detalle y el criterio de revisión están en [docs/STARTUP_PERFORMANCE.md](STARTUP_PERFORMANCE.md). El fallo intermitente o pendiente del smoke test obligatorio de CI sigue registrado en la Fase 15 y no se considera resuelto por este cambio.
+Decisión posterior: la medición comparó TypeScript en runtime con un prototipo JavaScript compilado y mostró una reducción de mediana de 12,7 % (231 ms). No se agregará un build distribuido todavía; el detalle y el criterio de revisión están en [docs/STARTUP_PERFORMANCE.md](STARTUP_PERFORMANCE.md). El smoke obligatorio de consumidor instalado quedó validado en Ubuntu el 2026-10-11.
 
 ## 6. Orden de entrega recomendado
 
