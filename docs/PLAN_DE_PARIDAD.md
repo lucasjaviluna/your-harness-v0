@@ -1,6 +1,6 @@
 # Plan de paridad
 
-Estado: Etapa 3 cerrada, Etapa 4 validada y Etapa 5 en expansión selectiva. El smoke e2e del baseline `d94e3b6` pasa con consumidor instalado y GitHub Actions está verde. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
+Estado: Etapa 3 cerrada, Etapa 4 validada y Etapa 5 en expansión selectiva. El smoke e2e del baseline `5feafb2` pasa con consumidor instalado y GitHub Actions está verde en la matriz Ubuntu `22.19.0`/`22.x`. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
 
 ## Objetivo
 

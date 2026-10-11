@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque, el smoke obligatorio de consumidor instalado y la vista unificada están validados en `d94e3b6`; GitHub Actions está verde. El primer slice de Your-Team-Knowledge permanece fuera del candidato hasta alcanzar la madurez acordada.
+Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque, el smoke obligatorio de consumidor instalado y la vista unificada están validados en `5feafb2`; GitHub Actions está verde en Ubuntu con Node `22.19.0` y `22.x`. El primer slice de Your-Team-Knowledge permanece fuera del candidato hasta alcanzar la madurez acordada.
 
 ## 1. Objetivo y alcance
 
@@ -478,7 +478,7 @@ Decisión posterior: la medición comparó TypeScript en runtime con un prototip
 ### Roadmap de calidad recomendado
 
 1. **Estabilizar CI.** Completado para el baseline: el `Require clean-consumer smoke test` se reprodujo en Linux y pasó en GitHub Actions. Falta repetirlo para el commit candidato posterior a la integración de memoria.
-2. **Convertir los recorridos críticos en regresiones.** El consumidor instalado ya verifica recuperación de tarea tras reinicio, OpenSpec ausente y configurado, artefacto corrupto, fallback de clasificación sin modelo, cancelación terminal, cambio de alcance y vista unificada sin/con tarea; todos pasan en el baseline `d94e3b6`. Consolidar la matriz restante para carga diferida y MCP deshabilitado/habilitado con resultados ambiguos. Debe ejecutarse sin depender de timings frágiles.
+2. **Convertir los recorridos críticos en regresiones.** El consumidor instalado ya verifica recuperación de tarea tras reinicio, OpenSpec ausente y configurado, artefacto corrupto, fallback de clasificación sin modelo, cancelación terminal, cambio de alcance, vista unificada sin/con tarea, MCP deshabilitado e historial vacío; todos pasan en el baseline `5feafb2`. La matriz Ubuntu `22.19.0`/`22.x` confirma la compatibilidad declarada.
 3. **Revisar la distribución compilada al preparar el release.** La medición actual no justifica un build adicional. Repetirla desde un consumidor instalado cuando se prepare npm y adoptar JavaScript compilado solo si la mediana mejora al menos 15 % de manera reproducible.
 4. **Fortalecer la experiencia de operación.** Probar en repositorios consumidores los flujos de error del modelo, OpenSpec ausente, artefactos corruptos y resultados MCP ambiguos; convertir cada caso reproducible en una prueba y una recuperación visible en TUI.
 5. **Preparar distribución.** En curso: compatibilidad, changelog, rollback y manifest están documentados; faltan el segundo consumidor/entorno, el commit CI candidato, la versión final y las notas operativas definitivas.

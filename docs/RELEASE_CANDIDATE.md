@@ -1,12 +1,12 @@
 # Release candidate
 
-Estado: gates técnicos en verde al 2026-10-11 en el baseline `d94e3b6`. El package todavía no se publica ni se cambia su versión.
+Estado: gates técnicos en verde al 2026-10-11 en el baseline `5feafb2`. El package todavía no se publica ni se cambia su versión.
 
 ## Compatibilidad declarada
 
 | Componente | Mínimo declarado | Validado en esta etapa |
 | --- | --- | --- |
-| Node.js | `>=22.19.0` | `22.19.0` en CI y Ubuntu; `22.x` queda cubierto por la matriz del workflow |
+| Node.js | `>=22.19.0` | Ubuntu CI con `22.19.0` y `22.x` |
 | Pi coding agent | `0.85.1` como dependencia instalada | `0.85.1` desde dos consumidores temporales |
 | OpenSpec | Opcional | Ausente y configurado en recorridos instalados |
 | MCP | Opcional | Adapter y resultado ambiguo cubiertos por regresiones |
@@ -15,22 +15,22 @@ La dependencia de Pi permanece acotada en `package.json` como `^0.85.1`; la vers
 
 ## Evidencia disponible
 
-- `npm test`: 96 pruebas, 94 aprobadas, 0 fallos y 2 omitidas en Ubuntu.
+- `npm test`: 98 pruebas, 96 aprobadas, 0 fallos y 2 omitidas en Ubuntu.
 - `npm run test:e2e:required`: 2 pruebas aprobadas, 0 fallos y 1 omitida por ser específica de Git Bash/Windows.
 - `npm run pack:check`: correcto; el tarball contiene el runtime distribuible.
-- GitHub Actions: verde para el commit candidato `d94e3b6`.
+- GitHub Actions: verde para el commit candidato `5feafb2`, con matriz Ubuntu `22.19.0` y `22.x`.
 - La expectativa del manifest fue actualizada para reflejar la distribución de `CHANGELOG.md`; el test de manifest y `pack:check` vuelven a pasar.
 - Primer slice de Your-Team-Knowledge validado localmente: configuración, loader opt-in y tools nativas; el backend externo permanece desactivado por defecto.
-- Smoke e2e del commit `d94e3b6`: consumidor instalado aprobado; Git Bash omitido porque este entorno no puede iniciar `/bin/bash`.
+- Smoke e2e del commit `5feafb2`: consumidor instalado aprobado; Git Bash omitido porque este entorno no puede iniciar `/bin/bash`.
 - El consumidor instalado cubre instalación, rutas `simple`/`sdd`, recuperación, reconciliación explícita, artefacto corrupto, cancelación, cambio de alcance, fallback del modelo y MCP ambiguo.
 
 ## Gates pendientes antes de un candidato publicable
 
-- Repetir la matriz mínima en un segundo entorno Linux o repositorio consumidor real y conservar la salida del job para `22.19.0` y `22.x`.
-- Registrar la versión de Node, la versión efectiva de Pi, sistema operativo, shell y commit del consumidor para el candidato.
+- Conservar la salida del job Ubuntu para `22.19.0` y `22.x` como evidencia del segundo entorno Linux.
+- Registrar en las notas finales la versión efectiva de Pi, sistema operativo, shell y commit del consumidor para el candidato.
 - Changelog inicial preparado en `CHANGELOG.md`; faltan las notas finales de instalación, actualización y rollback para el candidato elegido.
 - Decidir si `0.1.0` se conserva para el candidato o se incrementa según el alcance del release.
-- Conservar el enlace/salida de GitHub Actions del candidato `d94e3b6`.
+- Conservar el enlace/salida de GitHub Actions del candidato `5feafb2`.
 - Repetir la medición de arranque desde un consumidor instalado.
 
 ## Verificación de un candidato local
