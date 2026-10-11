@@ -1,6 +1,6 @@
 # Release candidate
 
-Estado: cierre de gates en curso al 2026-10-11. La validación local del commit `8aa4a48` está verde; todavía no se publica el package ni se cambia su versión.
+Estado: gates técnicos en verde al 2026-10-11 en el baseline `d94e3b6`. El package todavía no se publica ni se cambia su versión.
 
 ## Compatibilidad declarada
 
@@ -18,10 +18,10 @@ La dependencia de Pi permanece acotada en `package.json` como `^0.85.1`; la vers
 - `npm test`: 96 pruebas, 94 aprobadas, 0 fallos y 2 omitidas en Ubuntu.
 - `npm run test:e2e:required`: 2 pruebas aprobadas, 0 fallos y 1 omitida por ser específica de Git Bash/Windows.
 - `npm run pack:check`: correcto; el tarball contiene el runtime distribuible.
-- GitHub Actions: verde para el baseline previo a la integración de memoria; falta repetirlo para el commit candidato exacto.
+- GitHub Actions: verde para el commit candidato `d94e3b6`.
 - La expectativa del manifest fue actualizada para reflejar la distribución de `CHANGELOG.md`; el test de manifest y `pack:check` vuelven a pasar.
 - Primer slice de Your-Team-Knowledge validado localmente: configuración, loader opt-in y tools nativas; el backend externo permanece desactivado por defecto.
-- Smoke e2e focalizado del commit `8aa4a48`: consumidor instalado aprobado; Git Bash omitido porque este entorno no puede iniciar `/bin/bash`.
+- Smoke e2e del commit `d94e3b6`: consumidor instalado aprobado; Git Bash omitido porque este entorno no puede iniciar `/bin/bash`.
 - El consumidor instalado cubre instalación, rutas `simple`/`sdd`, recuperación, reconciliación explícita, artefacto corrupto, cancelación, cambio de alcance, fallback del modelo y MCP ambiguo.
 
 ## Gates pendientes antes de un candidato publicable
@@ -30,7 +30,7 @@ La dependencia de Pi permanece acotada en `package.json` como `^0.85.1`; la vers
 - Registrar la versión de Node, la versión efectiva de Pi, sistema operativo, shell y commit del consumidor para el candidato.
 - Changelog inicial preparado en `CHANGELOG.md`; faltan las notas finales de instalación, actualización y rollback para el candidato elegido.
 - Decidir si `0.1.0` se conserva para el candidato o se incrementa según el alcance del release.
-- Confirmar `8aa4a48` o el commit candidato final en GitHub Actions y conservar el enlace/salida del workflow verde.
+- Conservar el enlace/salida de GitHub Actions del candidato `d94e3b6`.
 - Repetir la medición de arranque desde un consumidor instalado.
 
 ## Verificación de un candidato local

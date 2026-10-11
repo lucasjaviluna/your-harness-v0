@@ -1,6 +1,6 @@
 # Plan de paridad
 
-Estado: Etapa 3 cerrada y Etapa 4 en cierre de gates. El smoke e2e del commit `8aa4a48` ya pasa localmente con consumidor instalado; falta confirmar ese commit en GitHub Actions. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
+Estado: Etapa 3 cerrada, Etapa 4 validada y Etapa 5 en expansión selectiva. El smoke e2e del baseline `d94e3b6` pasa con consumidor instalado y GitHub Actions está verde. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
 
 ## Objetivo
 
@@ -45,7 +45,7 @@ Extraer incrementalmente de `extensions/harness.ts` los módulos de entrada, eva
 
 ## Etapa 4 — Release candidato
 
-Estado: cierre de gates en curso. La suite local, el smoke e2e focalizado y el empaquetado están verdes en `8aa4a48`; falta confirmar ese commit en GitHub Actions. La ficha de compatibilidad, evidencia, gates de publicación y rollback está en `docs/RELEASE_CANDIDATE.md`.
+Estado: gates técnicos en verde en `d94e3b6`. La suite local, el smoke e2e de dos consumidores, la vista unificada instalada y el empaquetado pasan; GitHub Actions confirmó el candidato. La ficha de compatibilidad, evidencia, gates de publicación y rollback está en `docs/RELEASE_CANDIDATE.md`.
 
 Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación, finalización y recuperación, y corregir bloqueos. Publicar un candidato sólo después de que la matriz de compatibilidad y los recorridos críticos pasen. Repetir la medición de arranque desde un consumidor instalado antes de decidir si distribuir JavaScript compilado.
 
@@ -55,7 +55,7 @@ Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación
 
 Estado: primer incremento implementado. `/harness-overview` ofrece una vista read-only que combina tarea activa, próximo paso, gate humano pendiente, cambios Git y changes OpenSpec. La integración SQLite con `your-team-knowledge` queda pausada hasta alcanzar la madurez acordada.
 
-Siguiente incremento: validar la vista en un consumidor instalado y convertir en regresiones los casos de tarea interrumpida, conflicto sesión/artefacto, repositorio sin Git y cambios OpenSpec activos. La delegación queda después de esta validación y requiere propiedad, aislamiento y cancelación explícitos.
+Siguiente incremento: ampliar la matriz instalada para carga diferida y escenarios MCP con resultado incierto. La delegación queda después de esta validación y requiere propiedad, aislamiento y cancelación explícitos.
 
 ## Decisión de producto y riesgo de reimplementación
 

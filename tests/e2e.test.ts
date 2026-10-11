@@ -377,6 +377,16 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
     },
   );
   assert.ok(creationNotifications.some((message) => message.includes("Plan aprobado.")), "La tarea instalada no pasó por la aprobación del plan.");
+  const activeOverviewNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    {
+      prompt: "/harness-task-resume",
+      followUp: { afterNotification: /Tarea ligera recuperada desde /, prompt: "/harness-overview" },
+      expectedNotification: /pi-harness overview/,
+    },
+  );
+  assert.ok(activeOverviewNotifications.some((message) => /Tarea: harness-/.test(message)), "La vista instalada no mostró la tarea activa.");
+  assert.ok(activeOverviewNotifications.some((message) => /Estado: implementing|Estado: awaiting-review|Estado: planning/.test(message)), "La vista instalada no mostró el estado de la tarea activa.");
   const tasksDirectory = join(consumerA, ".harness", "tasks");
   const taskFiles = (await readdir(tasksDirectory)).filter((entry) => entry.endsWith(".md"));
   assert.equal(taskFiles.length, 1, "La tarea instalada no dejó exactamente un artefacto recuperable.");

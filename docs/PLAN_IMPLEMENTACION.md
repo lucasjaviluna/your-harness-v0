@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque y el smoke obligatorio de consumidor instalado están validados localmente en `8aa4a48`; actualmente se cierra la confirmación CI del candidato. El primer slice de Your-Team-Knowledge está implementado localmente y todavía no forma parte del candidato hasta validar CI.
+Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque, el smoke obligatorio de consumidor instalado y la vista unificada están validados en `d94e3b6`; GitHub Actions está verde. El primer slice de Your-Team-Knowledge permanece fuera del candidato hasta alcanzar la madurez acordada.
 
 ## 1. Objetivo y alcance
 
@@ -452,7 +452,7 @@ Estado: completada el 2026-10-07. Detalle en [docs/STARTUP_PERFORMANCE.md](START
 
 ### Incremento posterior — Vista unificada de estado y cambios
 
-Estado: primer slice implementado. El comando `/harness-overview` compone, sin modificar el repositorio ni resolver gates automáticamente, la tarea activa, su próximo paso, el gate humano pendiente, el estado Git y los changes OpenSpec. La validación unitaria quedó cubierta; falta ejecutar el comando desde un consumidor instalado y ampliar la matriz de regresión antes de pasar a delegación.
+Estado: validado en consumidor instalado. El comando `/harness-overview` compone, sin modificar el repositorio ni resolver gates automáticamente, la tarea activa, su próximo paso, el gate humano pendiente, el estado Git y los changes OpenSpec. La regresión cubre ausencia de tarea y tarea activa; el próximo trabajo de calidad es carga diferida y MCP con resultados ambiguos.
 
 - [x] Diferir el SDK y la integración MCP hasta habilitar MCP o usar un comando MCP.
 - [x] Diferir Git, OpenSpec, verificación y el workflow `simple` hasta que un workflow o diagnóstico los necesite.
@@ -478,7 +478,7 @@ Decisión posterior: la medición comparó TypeScript en runtime con un prototip
 ### Roadmap de calidad recomendado
 
 1. **Estabilizar CI.** Completado para el baseline: el `Require clean-consumer smoke test` se reprodujo en Linux y pasó en GitHub Actions. Falta repetirlo para el commit candidato posterior a la integración de memoria.
-2. **Convertir los recorridos críticos en regresiones.** El consumidor instalado ya verifica recuperación de tarea tras reinicio, OpenSpec ausente, artefacto corrupto, fallback de clasificación sin modelo, cancelación terminal y cambio de alcance; todos pasaron en Ubuntu WSL el 2026-10-08. Consolidar la matriz restante para SDD con OpenSpec configurado, carga diferida y MCP deshabilitado/habilitado con resultados ambiguos. Debe ejecutarse sin depender de timings frágiles.
+2. **Convertir los recorridos críticos en regresiones.** El consumidor instalado ya verifica recuperación de tarea tras reinicio, OpenSpec ausente y configurado, artefacto corrupto, fallback de clasificación sin modelo, cancelación terminal, cambio de alcance y vista unificada sin/con tarea; todos pasan en el baseline `d94e3b6`. Consolidar la matriz restante para carga diferida y MCP deshabilitado/habilitado con resultados ambiguos. Debe ejecutarse sin depender de timings frágiles.
 3. **Revisar la distribución compilada al preparar el release.** La medición actual no justifica un build adicional. Repetirla desde un consumidor instalado cuando se prepare npm y adoptar JavaScript compilado solo si la mediana mejora al menos 15 % de manera reproducible.
 4. **Fortalecer la experiencia de operación.** Probar en repositorios consumidores los flujos de error del modelo, OpenSpec ausente, artefactos corruptos y resultados MCP ambiguos; convertir cada caso reproducible en una prueba y una recuperación visible en TUI.
 5. **Preparar distribución.** En curso: compatibilidad, changelog, rollback y manifest están documentados; faltan el segundo consumidor/entorno, el commit CI candidato, la versión final y las notas operativas definitivas.
