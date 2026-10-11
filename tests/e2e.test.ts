@@ -49,7 +49,7 @@ async function makePackageTarball(): Promise<{ directory: string; tarball: strin
 }
 
 async function installConsumer(tarball: string, prefix: string): Promise<void> {
-  await execFile(npmCommand, ["install", tarball, "--ignore-scripts", "--no-audit", "--no-fund", "--legacy-peer-deps", "--package-lock=false"], { cwd: prefix, windowsHide: true, shell: windowsShell, env: npmEnvironment(prefix), maxBuffer: 1024 * 1024, timeout: installTimeout, killSignal: "SIGTERM" });
+  await execFile(npmCommand, ["--prefix", prefix, "install", tarball, "--ignore-scripts", "--no-audit", "--no-fund", "--legacy-peer-deps", "--package-lock=false"], { cwd: root, windowsHide: true, shell: windowsShell, env: npmEnvironment(prefix), maxBuffer: 1024 * 1024, timeout: installTimeout, killSignal: "SIGTERM" });
 }
 
 async function runInstalledHarness(prefix: string, prompt: string, assessment: "deterministic" | "model" = "deterministic"): Promise<string> {
@@ -490,6 +490,12 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
 
 test("Git Bash puede invocar yh-pi instalado sin Pi global", { concurrency: false }, async (t) => {
   if (process.platform !== "win32" || !(await commandAvailable("bash")) || !(await commandAvailable("npm"))) { t.skip("prueba específica de Windows/Git Bash no disponible"); return; }
+  try {
+    await execFile("bash.exe", ["-lc", "exit 0"], { windowsHide: true, shell: windowsShell });
+  } catch {
+    t.skip("Git Bash/WSL está en PATH, pero no puede iniciar /bin/bash en este entorno");
+    return;
+  }
   const { tarball } = await makePackageTarball();
   const consumer = await mkdtemp(join(tmpdir(), "pi-harness-git-bash-"));
   try {
