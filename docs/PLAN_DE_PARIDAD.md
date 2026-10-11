@@ -1,6 +1,6 @@
 # Plan de paridad
 
-Estado: Etapa 3 cerrada y Etapa 4 en cierre de gates. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. CI está verde para el baseline previo a esa integración; el commit `25903a2` requiere una ejecución propia antes de ser candidato. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
+Estado: Etapa 3 cerrada y Etapa 4 en cierre de gates. El smoke e2e del commit `8aa4a48` ya pasa localmente con consumidor instalado; falta confirmar ese commit en GitHub Actions. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
 
 ## Objetivo
 
@@ -45,7 +45,7 @@ Extraer incrementalmente de `extensions/harness.ts` los módulos de entrada, eva
 
 ## Etapa 4 — Release candidato
 
-Estado: cierre de gates en curso. La validación local y el empaquetado están verdes; CI verde está confirmado para el baseline previo a la integración de memoria, pero falta confirmar el commit candidato exacto `25903a2`. La ficha de compatibilidad, evidencia, gates de publicación y rollback está en `docs/RELEASE_CANDIDATE.md`.
+Estado: cierre de gates en curso. La suite local, el smoke e2e focalizado y el empaquetado están verdes en `8aa4a48`; falta confirmar ese commit en GitHub Actions. La ficha de compatibilidad, evidencia, gates de publicación y rollback está en `docs/RELEASE_CANDIDATE.md`.
 
 Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación, finalización y recuperación, y corregir bloqueos. Publicar un candidato sólo después de que la matriz de compatibilidad y los recorridos críticos pasen. Repetir la medición de arranque desde un consumidor instalado antes de decidir si distribuir JavaScript compilado.
 

@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque y el smoke obligatorio de consumidor instalado están validados. Actualmente se cierran los gates del release candidate; el primer slice de Your-Team-Knowledge está implementado localmente y todavía no forma parte del candidato hasta validar CI.
+Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque y el smoke obligatorio de consumidor instalado están validados localmente en `8aa4a48`; actualmente se cierra la confirmación CI del candidato. El primer slice de Your-Team-Knowledge está implementado localmente y todavía no forma parte del candidato hasta validar CI.
 
 ## 1. Objetivo y alcance
 

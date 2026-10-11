@@ -26,5 +26,6 @@ Todos los cambios relevantes de `pi-harness` se documentan en este archivo.
 - `npm test`: 94 aprobadas, 0 fallos y 2 omitidas en Ubuntu.
 - `npm run test:e2e:required`: 2 aprobadas, 0 fallos y 1 omitida por ser específica de Git Bash/Windows.
 - `npm run pack:check`: correcto.
+- El smoke de consumidor usa `npm --prefix` para instalar el tarball de forma reproducible en npm/Windows; el caso Git Bash se omite cuando el entorno no puede iniciar `/bin/bash`.
 
 La publicación npm, el nombre definitivo del candidato y la versión de release siguen pendientes de decisión explícita.
