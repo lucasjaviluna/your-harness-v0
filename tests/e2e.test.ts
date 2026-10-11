@@ -199,13 +199,11 @@ async function runInstalledHarnessRpc(prefix: string, options: {
         }
         if (options.expectedNotification.test(event.message) && !completed) {
           completionRequested = true;
-          // Some installed-consumer runs emit the final notification without
-          // a matching prompt response. Close on the next turn once any
-          // follow-up triggered by this notification has been dispatched.
+          // The notification is the terminal result of this RPC scenario.
+          // Installed consumers do not consistently emit a later `prompt`
+          // response, so do not wait for one before closing stdin.
           if (!followUpTriggered) {
-            setTimeout(() => {
-              if (completionRequested && !pendingFollowUp && !completed) closeAfterExpectedResult();
-            }, 0);
+            closeAfterExpectedResult();
           }
         }
         return;
