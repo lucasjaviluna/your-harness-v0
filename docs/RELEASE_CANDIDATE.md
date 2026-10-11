@@ -6,7 +6,7 @@ Estado: preparación iniciada el 2026-10-11. Este documento reúne los gates de 
 
 | Componente | Mínimo declarado | Validado en esta etapa |
 | --- | --- | --- |
-| Node.js | `>=22.19.0` | `22.19.0` en CI y Ubuntu |
+| Node.js | `>=22.19.0` | `22.19.0` en CI y Ubuntu; `22.x` queda cubierto por la matriz del workflow |
 | Pi coding agent | `0.85.1` como dependencia instalada | `0.85.1` desde dos consumidores temporales |
 | OpenSpec | Opcional | Ausente y configurado en recorridos instalados |
 | MCP | Opcional | Adapter y resultado ambiguo cubiertos por regresiones |
@@ -22,7 +22,7 @@ La dependencia de Pi permanece acotada en `package.json` como `^0.85.1`; la vers
 
 ## Gates pendientes antes de un candidato publicable
 
-- Repetir la matriz mínima en un segundo entorno Linux o repositorio consumidor real.
+- Repetir la matriz mínima en un segundo entorno Linux o repositorio consumidor real y conservar la salida del job para `22.19.0` y `22.x`.
 - Registrar la versión de Node, la versión efectiva de Pi, sistema operativo, shell y commit del consumidor.
 - Changelog inicial preparado en `CHANGELOG.md`; faltan las notas finales de instalación, actualización y rollback para el candidato elegido.
 - Decidir si `0.1.0` se conserva para el candidato o se incrementa según el alcance del release.

@@ -7,14 +7,23 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22.19.0, 22.x]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.19.0
+          node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - name: Report runtime compatibility
+        run: |
+          node --version
+          npm --version
+          npm ls @earendil-works/pi-coding-agent --depth=0
       - run: npm test
       - name: Require clean-consumer smoke test
         shell: bash
