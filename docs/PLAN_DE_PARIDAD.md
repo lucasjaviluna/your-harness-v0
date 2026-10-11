@@ -1,6 +1,6 @@
 # Plan de paridad
 
-Estado: el smoke obligatorio del consumidor instalado quedó validado en Ubuntu WSL y GitHub Actions el 2026-10-08. La prioridad inmediata es convertir los recorridos críticos en regresiones de consumidor instalado. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
+Estado: Etapa 3 cerrada y Etapa 4 en validación técnica, con CI verde en GitHub Actions el 2026-10-11. La prioridad inmediata es cerrar la ficha del release candidato y validar un segundo entorno/consumidor. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
 
 ## Objetivo
 
@@ -45,7 +45,7 @@ Extraer incrementalmente de `extensions/harness.ts` los módulos de entrada, eva
 
 ## Etapa 4 — Release candidato
 
-Estado: iniciada el 2026-10-11. La ficha de compatibilidad, evidencia, gates de publicación y rollback está en `docs/RELEASE_CANDIDATE.md`. El siguiente bloque es repetir la validación en un segundo consumidor/entorno y preparar changelog sin publicar todavía.
+Estado: validación técnica completada el 2026-10-11; CI verde en GitHub Actions. La ficha de compatibilidad, evidencia, gates de publicación y rollback está en `docs/RELEASE_CANDIDATE.md`. El siguiente bloque es repetir la validación en un segundo consumidor/entorno, cerrar las notas de instalación/actualización/rollback y decidir la versión candidata sin publicar todavía.
 
 Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación, finalización y recuperación, y corregir bloqueos. Publicar un candidato sólo después de que la matriz de compatibilidad y los recorridos críticos pasen. Repetir la medición de arranque desde un consumidor instalado antes de decidir si distribuir JavaScript compilado.
 
@@ -70,4 +70,4 @@ La primera meta es paridad de **usabilidad y estabilidad del flujo base**, no pa
 
 ## Evidencia
 
-El 2026-10-08, la reproducción en Ubuntu WSL terminó con la instalación del tarball en dos consumidores aprobada y sin fallos. La prueba de Git Bash se omitió porque es exclusiva de Windows. El usuario confirmó que GitHub Actions terminó verde tras publicar los cambios. Más tarde ese día, la regresión instalada de tarea ligera creó su artefacto, cerró el proceso y lo recuperó desde un segundo proceso RPC en Ubuntu WSL.
+El 2026-10-08, la reproducción en Ubuntu WSL terminó con la instalación del tarball en dos consumidores aprobada y sin fallos. La prueba de Git Bash se omitió porque es exclusiva de Windows. Más tarde ese día, la regresión instalada de tarea ligera creó su artefacto, cerró el proceso y lo recuperó desde un segundo proceso RPC en Ubuntu WSL. El 2026-10-11, GitHub Actions terminó verde con la matriz configurada; se corrigió la expectativa del manifest para incluir `CHANGELOG.md`.
