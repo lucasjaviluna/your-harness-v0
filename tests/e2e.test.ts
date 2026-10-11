@@ -192,7 +192,8 @@ async function runInstalledHarnessRpc(prefix: string, options: {
       if (event.type === "extension_ui_request" && event.method === "notify" && event.message) {
         notifications.push(event.message);
         const followUp = followUps[followUpIndex];
-        if (followUp?.afterNotification.test(event.message)) {
+        const followUpTriggered = followUp?.afterNotification.test(event.message) ?? false;
+        if (followUpTriggered) {
           followUpIndex += 1;
           pendingFollowUp = followUp;
         }
@@ -201,7 +202,7 @@ async function runInstalledHarnessRpc(prefix: string, options: {
           // Some installed-consumer runs emit the final notification without
           // a matching prompt response. Close on the next turn once any
           // follow-up triggered by this notification has been dispatched.
-          if (!followUp) {
+          if (!followUpTriggered) {
             setTimeout(() => {
               if (completionRequested && !pendingFollowUp && !completed) closeAfterExpectedResult();
             }, 0);
