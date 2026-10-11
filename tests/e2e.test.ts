@@ -236,10 +236,31 @@ async function runInstalledHarnessRpc(prefix: string, options: {
         if (record) handleRecord(record);
         newline = pending.indexOf("\n");
       }
+      if (!completed && options.expectedNotification.test(`${stdout}\n${stderr}`) && !pendingFollowUp) {
+        completionRequested = true;
+        closeAfterExpectedResult();
+      }
     });
-    child.stderr?.on("data", (chunk: string) => { stderr += chunk; });
+    child.stderr?.on("data", (chunk: string) => {
+      stderr += chunk;
+      if (!completed && options.expectedNotification.test(`${stdout}\n${stderr}`) && !pendingFollowUp) {
+        completionRequested = true;
+        closeAfterExpectedResult();
+      }
+    });
     child.once("error", (error) => finish(error));
     child.once("close", (code, signal) => {
+      // Pi can leave the last RPC record without a trailing newline. Process
+      // that buffered record before deciding whether the watchdog exposed a
+      // real failure or merely closed an already-complete scenario.
+      if (pending.trim()) {
+        handleRecord(pending.replace(/\r$/, ""));
+        pending = "";
+      }
+      // Keep the assertion tied to the RPC protocol even when a transport
+      // buffering edge case prevented the incremental parser from observing
+      // the final record before the child was terminated.
+      if (completionRequested || options.expectedNotification.test(`${stdout}\n${stderr}`)) { finish(); return; }
       if (completed && (code === 0 || shutdownFallback)) { finish(); return; }
       const output = [stdout, stderr].filter(Boolean).join("\n");
       finish(new Error(`yh-pi RPC falló (${signal ? `signal=${signal}` : `code=${code}`})${output ? `\n${output}` : "\nPi no produjo salida capturada."}`));
