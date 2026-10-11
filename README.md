@@ -46,6 +46,7 @@ Documentación del proyecto:
 - [Actividad y recuperación MCP de la Fase 15](docs/PHASE_15_MCP_ACTIVITY.md)
 - [Clasificación asistida por modelo de la Fase 16](docs/PHASE_16_AGENT_ASSESSMENT.md)
 - [Rendimiento de arranque](docs/STARTUP_PERFORMANCE.md)
+- [Plan de integración Your-Team-Knowledge](docs/YOUR_TEAM_KNOWLEDGE_INTEGRATION.md)
 - [Changelog](CHANGELOG.md)
 - [Release candidate y compatibilidad](docs/RELEASE_CANDIDATE.md)
 - [Plan de implementación por fases](docs/PLAN_IMPLEMENTACION.md)

@@ -28,9 +28,13 @@ Un backend debe filtrar la búsqueda usando el `projectId` del contexto. Además
 
 Por lo tanto, instalar esta versión no produce llamadas a red, no requiere credenciales, no guarda recuerdos ni modifica el comportamiento del proyecto. Las pruebas usan proveedores falsos en memoria.
 
-## No incluido
+## Integración planificada
 
-No se implementa proveedor local, RAG/vector store, embedding, chunking, reranking, configuración de credenciales, administración/limpieza de recuerdos ni política de escritura. Tampoco se integra el servicio team-memory usado por el agente de desarrollo: es independiente del runtime del package.
+La implementación concreta del backend SQLite de `your-team-knowledge` está planificada en [Your-Team-Knowledge Integration](YOUR_TEAM_KNOWLEDGE_INTEGRATION.md). El plan reutiliza este contrato y mantiene la memoria opcional, con aislamiento explícito por proyecto y aprobación humana para escrituras.
+
+## No incluido todavía
+
+No se implementa todavía el proveedor SQLite, RAG/vector store, embedding, chunking, reranking, configuración de credenciales, administración/limpieza de recuerdos ni política de escritura. La integración planificada no debe confundirse con el servicio team-memory usado por el agente de desarrollo: ese servicio es independiente del runtime del package.
 
 La futura conexión concreta deberá elegir backend y configuración, implementar el contrato, decidir qué contenido puede salir del repositorio, definir retención y deduplicación, y autorizar explícitamente la política de escritura.
 

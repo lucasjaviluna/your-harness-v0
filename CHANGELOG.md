@@ -6,6 +6,7 @@ Todos los cambios relevantes de `pi-harness` se documentan en este archivo.
 
 ### Añadido
 
+- Plan aprobado para la integración nativa de Pi con `your-team-knowledge` mediante SQLite; todavía no activa ningún backend.
 - Rutas `simple`, `task`, `sdd` y `clarify` con clasificación visible y decisión humana.
 - Planes versionados, gates HIL y persistencia de tareas ligeras en `.harness/tasks`.
 - Escritura atómica, migración de esquema y reconciliación explícita entre sesión y artefacto.

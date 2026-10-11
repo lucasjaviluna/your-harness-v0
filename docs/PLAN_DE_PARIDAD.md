@@ -53,7 +53,7 @@ Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación
 
 ## Etapa 5 — Expansión selectiva
 
-Priorizar, según uso observado, una vista de cambios y tareas; después evaluar delegación con propiedad, aislamiento y cancelación explícitos. Dejar revisión avanzada, métricas, perfiles de modelos y memoria persistente como módulos posteriores con contratos independientes.
+Priorizar, según uso observado, una vista de cambios y tareas; después evaluar delegación con propiedad, aislamiento y cancelación explícitos. La integración SQLite con `your-team-knowledge` queda planificada como el próximo bloque de memoria persistente, con alcance y gates definidos en `docs/YOUR_TEAM_KNOWLEDGE_INTEGRATION.md`.
 
 ## Decisión de producto y riesgo de reimplementación
 
