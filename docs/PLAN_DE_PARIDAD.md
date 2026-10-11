@@ -1,6 +1,6 @@
 # Plan de paridad
 
-Estado: Etapa 3 cerrada, Etapa 4 en validación técnica y primer slice de Your-Team-Knowledge implementado el 2026-10-11. CI está verde en GitHub Actions; la prioridad inmediata es cerrar la ficha del release candidato y validar la integración SQLite con un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
+Estado: Etapa 3 cerrada y Etapa 4 en cierre de gates. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. CI está verde para el baseline previo a esa integración; el commit `25903a2` requiere una ejecución propia antes de ser candidato. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
 
 ## Objetivo
 
@@ -9,8 +9,8 @@ Lograr que `yh-pi` sea un producto estable y usable: instalable en un repositori
 ## Diagnóstico de partida
 
 - El núcleo ya implementa rutas `simple`, `task`, `sdd` y `clarify`, clasificación asistida con salvaguardas, gates humanos, planes versionados y persistencia de tareas ligeras.
-- OpenSpec y MCP están integrados de forma opcional; el proveedor de memoria es un contrato sin backend activo.
-- `npm test` pasó con 80 pruebas y 2 omitidas en Windows el 2026-10-08. Las omisiones fueron instalaciones de consumidores temporales que excedieron el timeout del smoke no obligatorio.
+- OpenSpec y MCP están integrados de forma opcional; el provider de Your-Team-Knowledge existe como integración opt-in y sigue desactivado por defecto.
+- `npm test` pasó con 96 pruebas, 94 aprobadas, 0 fallos y 2 omitidas en Windows/consumidores temporales.
 - `npm run pack:check` pasó. El smoke obligatorio de un consumidor instalado pasó en Ubuntu WSL y en GitHub Actions después de corregir la resolución ESM del binario de Pi y el cierre de `stdin` en modo `--print`.
 - La UI actual es una capa sobre Pi; no ofrece todavía un workspace integral como gentle-shell. Esa expansión es posterior a estabilizar el flujo base.
 
@@ -45,7 +45,7 @@ Extraer incrementalmente de `extensions/harness.ts` los módulos de entrada, eva
 
 ## Etapa 4 — Release candidato
 
-Estado: validación técnica completada el 2026-10-11; CI verde en GitHub Actions. La ficha de compatibilidad, evidencia, gates de publicación y rollback está en `docs/RELEASE_CANDIDATE.md`. El siguiente bloque es repetir la validación en un segundo consumidor/entorno, cerrar las notas de instalación/actualización/rollback y decidir la versión candidata sin publicar todavía.
+Estado: cierre de gates en curso. La validación local y el empaquetado están verdes; CI verde está confirmado para el baseline previo a la integración de memoria, pero falta confirmar el commit candidato exacto `25903a2`. La ficha de compatibilidad, evidencia, gates de publicación y rollback está en `docs/RELEASE_CANDIDATE.md`.
 
 Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación, finalización y recuperación, y corregir bloqueos. Publicar un candidato sólo después de que la matriz de compatibilidad y los recorridos críticos pasen. Repetir la medición de arranque desde un consumidor instalado antes de decidir si distribuir JavaScript compilado.
 

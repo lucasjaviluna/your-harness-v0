@@ -18,8 +18,8 @@ Un backend debe filtrar la búsqueda usando el `projectId` del contexto. Además
 
 ## Comportamiento hoy
 
-- `ContextEngine()` no instala ni invoca un proveedor de memoria: el nivel 4 permanece desactivado.
-- La integración se activa únicamente si el host inyecta un `MemoryProviderBinding` en `prepareHarnessTask`.
+- `ContextEngine()` no instala ni invoca un proveedor de memoria por defecto: el nivel 4 permanece desactivado salvo que la configuración habilite el runtime opt-in.
+- La integración puede ser inyectada por el host o preparada por la extensión nativa de Your-Team-Knowledge cuando `memory.enabled` y `memory.module` están configurados.
 - Con una binding explícita, el Context Engine consulta el nivel 4, con hasta 5 resultados y 4.000 caracteres.
 - Sin un `projectId` no vacío, no consulta memoria. Si el provider no está disponible o falla, la tarea sigue sin contexto histórico y conserva un aviso diagnóstico acotado.
 - `store` es parte del contrato, pero **no se invoca en ningún flujo**. No hay escritura automática ni decisión de qué eventos guardar.

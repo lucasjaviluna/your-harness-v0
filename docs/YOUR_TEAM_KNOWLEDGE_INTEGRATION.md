@@ -1,6 +1,6 @@
 # Your-Team-Knowledge Integration
 
-Estado: primer slice implementado el 2026-10-11; el backend sigue desactivado por defecto y la integración SQLite requiere configurar el módulo compilado de `your-team-knowledge`.
+Estado: primer slice implementado el 2026-10-11; en pausa controlada mientras se cierran los gates del release. El backend sigue desactivado por defecto y la integración SQLite requiere configurar el módulo compilado de `your-team-knowledge`.
 
 ## Objetivo
 
@@ -14,6 +14,8 @@ Implementar una extensión nativa de Pi para consumir el sistema de memoria comp
 - `session_start` prepara el runtime opcional y los workflows usan recall sólo cuando `memory.autoRecall` está habilitado.
 - Las escrituras requieren `memory.allowWrites` y aprobación humana por defecto.
 - La ausencia del módulo, de la base o del proyecto produce diagnóstico y no bloquea Pi.
+
+El commit de integración pasó localmente `npm test` (96 pruebas, 94 aprobadas, 2 omitidas) y `npm run pack:check`. Aún no debe considerarse validado en CI ni como parte del candidato publicable hasta repetir esos gates sobre el commit exacto.
 
 ## Alcance del plan
 

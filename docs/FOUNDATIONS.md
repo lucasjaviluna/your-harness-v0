@@ -266,7 +266,7 @@ No incluye:
 - Azure DevOps o sistemas de tickets;
 - ramas, commits, PRs o releases automáticos;
 - subagentes y coordinación distribuida;
-- memoria externa;
+- memoria externa no configurada o no autorizada;
 - dashboards o UI propia;
 - telemetría y APIs externas;
 - autonomía completa sin confirmación en tareas de riesgo.
@@ -303,6 +303,7 @@ No incluye:
 - El recorrido de validación manual de carga bajo demanda se completó en Ubuntu WSL; su evidencia queda registrada en el plan de paridad.
 - El smoke obligatorio de consumidor instalado de `tests/e2e.test.ts` quedó validado nuevamente en Ubuntu el 2026-10-11: dos pruebas aprobadas y la prueba específica de Git Bash omitida fuera de Windows.
 - La publicación npm se decidirá después de la validación operativa, no antes.
+- La integración SQLite con Your-Team-Knowledge es opt-in, queda fuera del release base hasta validar su módulo distribuible y no puede bloquear los workflows cuando está ausente.
 - Azure DevOps y otras integraciones externas quedan postergadas hasta confirmar la utilidad y estabilidad del flujo base.
 - El perfil default del MVP es `developer`; el core se mantiene agnóstico para habilitar perfiles funcionales, de producto y marketing en fases posteriores.
 

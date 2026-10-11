@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque posterior a la Fase 16 y el smoke obligatorio de consumidor instalado están validados. La publicación npm continúa pendiente de decisión y autorización explícitas.
+Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque y el smoke obligatorio de consumidor instalado están validados. Actualmente se cierran los gates del release candidate; el primer slice de Your-Team-Knowledge está implementado localmente y todavía no forma parte del candidato hasta validar CI.
 
 ## 1. Objetivo y alcance
 
@@ -378,7 +378,7 @@ Preparar la interfaz y el punto de conexión de memoria histórica al Context En
 - [x] Cubrir ausencia, aislamiento, límites, fallos y comportamiento sin escrituras con providers falsos.
 - [x] Documentar explícitamente que esta fase no instala ni configura una solución RAG.
 
-Estado: contrato y punto de integración completados; no hay proveedor productivo conectado. Memory/RAG solo se activa cuando el host inyecta una implementación y un `projectId` explícito. No se autoriza publicación.
+Estado: contrato completado y primer adapter opt-in implementado. `memory.enabled` es falso por defecto; el runtime requiere `memory.module` compilado, `projectId` explícito o `.team-memory.json`, y conserva gates para escritura. La integración SQLite real, su distribución y sus pruebas e2e siguen pendientes. No se autoriza incluirla en un release hasta cerrar esos gates.
 
 Entregable: [docs/PHASE_12_MEMORY_PROVIDER.md](PHASE_12_MEMORY_PROVIDER.md), contrato y fuente opcional de nivel 4 lista para un adapter futuro.
 
@@ -466,18 +466,18 @@ Decisión posterior: la medición comparó TypeScript en runtime con un prototip
 4. Uso y validación operativa: fase 9. Se valida el comportamiento real antes de declarar apto el MVP o publicarlo. El usuario decidió posponer los escenarios manuales; las fases 10 a 12 pueden avanzar como trabajo arquitectónico interno, sin considerar la Fase 9 cerrada.
 5. Extensibilidad interna: fase 10. Introducir el registro mínimo de capabilities y migrar OpenSpec como primer vertical, sin agregar integraciones externas.
 6. Contexto progresivo local: fase 11. Componer solicitud, metadatos y fuentes de repo relevantes; dejar Memory/RAG y retrieval histórico para fases posteriores.
-7. Contrato de memoria: fase 12. Definir el puerto y conectarlo opcionalmente sin backend activo; elegir e integrar una solución RAG requiere una decisión posterior.
+7. Contrato de memoria: fase 12. Definir el puerto y conectar un provider opt-in; la validación productiva de Your-Team-Knowledge queda separada del release base.
 8. Adaptador MCP: fase 13. Validar el protocolo con Everything y dejar la conexión opt-in.
 9. Integración MCP del agente: fase 14. Reutilizar `pi-mcp-adapter` con allowlist y gates HIL del harness.
 10. Actividad y recuperación MCP: fase 15. Dar trazabilidad local a las llamadas y no reintentar resultados ambiguos.
 
 ### Roadmap de calidad recomendado
 
-1. **Estabilizar CI.** Completado: el `Require clean-consumer smoke test` se reprodujo en Linux y pasó en GitHub Actions.
+1. **Estabilizar CI.** Completado para el baseline: el `Require clean-consumer smoke test` se reprodujo en Linux y pasó en GitHub Actions. Falta repetirlo para el commit candidato posterior a la integración de memoria.
 2. **Convertir los recorridos críticos en regresiones.** El consumidor instalado ya verifica recuperación de tarea tras reinicio, OpenSpec ausente, artefacto corrupto, fallback de clasificación sin modelo, cancelación terminal y cambio de alcance; todos pasaron en Ubuntu WSL el 2026-10-08. Consolidar la matriz restante para SDD con OpenSpec configurado, carga diferida y MCP deshabilitado/habilitado con resultados ambiguos. Debe ejecutarse sin depender de timings frágiles.
 3. **Revisar la distribución compilada al preparar el release.** La medición actual no justifica un build adicional. Repetirla desde un consumidor instalado cuando se prepare npm y adoptar JavaScript compilado solo si la mediana mejora al menos 15 % de manera reproducible.
 4. **Fortalecer la experiencia de operación.** Probar en repositorios consumidores los flujos de error del modelo, OpenSpec ausente, artefactos corruptos y resultados MCP ambiguos; convertir cada caso reproducible en una prueba y una recuperación visible en TUI.
-5. **Preparar distribución.** Cuando CI y la matriz de consumidor estén estables, definir compatibilidad mínima de Pi/Node, versionado, changelog y decisión de publicación npm.
+5. **Preparar distribución.** En curso: compatibilidad, changelog, rollback y manifest están documentados; faltan el segundo consumidor/entorno, el commit CI candidato, la versión final y las notas operativas definitivas.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 

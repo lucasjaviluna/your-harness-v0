@@ -30,6 +30,17 @@ Los valores inválidos no detienen Pi: se ignoran, se conserva el default y `/ha
     "allowManualOverride": true,
     "allowRerouteToSdd": true
   },
+  "memory": {
+    "enabled": false,
+    "provider": "team-knowledge",
+    "module": "./path/to/your-team-knowledge/dist/index.js",
+    "database": ".harness/team-knowledge.sqlite",
+    "projectId": "pi-harness",
+    "defaultArea": "general",
+    "autoRecall": false,
+    "allowWrites": false,
+    "requireApproval": true
+  },
   "mcp": {
     "enabled": false,
     "defaultApproval": "always",
@@ -41,6 +52,12 @@ Los valores inválidos no detienen Pi: se ignoran, se conserva el default y `/ha
 `captureInput` habilita que los mensajes normales de la TUI entren automáticamente al router de pi-harness. Es `false` por default cuando se carga la extensión directamente en Pi; `yh-pi` lo activa solo para esa sesión. `--profile` y `--mode` también son overrides temporales y no modifican este archivo.
 
 `requireApproval: false` solo puede omitir la aprobación inicial de una tarea `task`; nunca elimina las autorizaciones de SDD ni los gates de cambios de alcance. `requireReview: false` permite cerrar automáticamente la ruta simple, por lo que debe reservarse para repositorios o perfiles con una política explícita de confianza.
+
+## Memoria Your-Team-Knowledge optativa
+
+La integración con [your-team-knowledge](https://github.com/lucasjaviluna/your-team-knowledge) usa el provider SQLite exportado por el módulo compilado. Está deshabilitada por defecto y no añade una dependencia obligatoria al package. `memory.module` puede ser un package instalado o una ruta relativa/absoluta a un build local; debe exportar `MemoryService`, `SqliteAgentMemoryRepository` y `PiHarnessMemoryProvider`.
+
+`autoRecall` habilita la consulta histórica durante la preparación de tareas. `allowWrites` habilita `team_knowledge_store`, que además exige aprobación humana cuando `requireApproval` es `true`. `team_knowledge_search` sólo recupera contexto y limita resultados. Si falta el módulo, la base o el ámbito del proyecto, Pi continúa sin memoria histórica y `/harness-doctor` muestra el diagnóstico.
 
 ## MCP optativo
 
