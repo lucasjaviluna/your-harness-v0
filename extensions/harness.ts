@@ -19,6 +19,8 @@ import {
   type HumanDecisionValue,
 } from "../src/task.ts";
 import { installHarnessHeader, showAssessmentProgress, showHarnessMessage as showMessage, updateHarnessTui as renderHarnessTui } from "../src/tui.ts";
+import { loadTeamKnowledgeRuntime, type TeamKnowledgeRuntime } from "../src/memory/team-knowledge.ts";
+import { registerTeamKnowledgeTools } from "./team-knowledge.ts";
 
 let lastTask: HarnessTask | undefined;
 let sessionTasks: HarnessTask[] = [];
@@ -61,7 +63,10 @@ export default function (pi: ExtensionAPI) {
   let simpleWorkflowLoading: Promise<typeof import("../src/simple.ts")> | undefined;
   let openSpecLoading: Promise<typeof import("../src/openspec.ts")> | undefined;
   let planDetailsLoading: Promise<typeof import("../src/plan-details.ts")> | undefined;
+  let teamKnowledgeRuntime: TeamKnowledgeRuntime | undefined;
   const taskState = new TaskStateCoordinator();
+
+  registerTeamKnowledgeTools(pi, () => teamKnowledgeRuntime, () => currentConfig);
 
   function loadSimpleWorkflow(): Promise<typeof import("../src/simple.ts")> {
     return simpleWorkflowLoading ??= import("../src/simple.ts");
@@ -219,6 +224,11 @@ export default function (pi: ExtensionAPI) {
     }
     installHarnessHeader(ctx, () => ({ task: lastTask, config: currentConfig }));
     currentConfig = (await loadConfig(ctx.cwd)).config;
+    teamKnowledgeRuntime?.close();
+    teamKnowledgeRuntime = undefined;
+    const memoryResult = await loadTeamKnowledgeRuntime(ctx.cwd, currentConfig.memory);
+    teamKnowledgeRuntime = memoryResult.runtime;
+    if (memoryResult.warning) showMessage(ctx, memoryResult.warning, "warn");
     await applyMcpConfig(currentConfig);
     mcpIntegration?.resetHarnessMcpActivity();
     if (lastTask) {
@@ -482,7 +492,7 @@ export default function (pi: ExtensionAPI) {
     }
     try {
       showAssessmentProgress(ctx);
-      lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask, capabilities, evaluateAssessment: (task) => evaluateTaskAssessment(task, ctx) });
+      lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask, capabilities, memory: currentConfig.memory.autoRecall ? teamKnowledgeRuntime?.binding : undefined, evaluateAssessment: (task) => evaluateTaskAssessment(task, ctx) });
       pi.appendEntry(TASK_ENTRY_TYPE, lastTask);
       updateHarnessTui(ctx);
       showMessage(ctx, `Solicitud capturada por yh-pi: ruta ${lastTask.route}; confianza ${lastTask.assessment?.confidence ?? "n/a"}.`);
@@ -696,7 +706,7 @@ export default function (pi: ExtensionAPI) {
       }
       try {
         showAssessmentProgress(ctx);
-        lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask, capabilities, evaluateAssessment: (task) => evaluateTaskAssessment(task, ctx) });
+      lastTask = await prepareHarnessTask({ cwd: ctx.cwd, request: parsed, config: currentConfig, activeTask: lastTask, capabilities, memory: currentConfig.memory.autoRecall ? teamKnowledgeRuntime?.binding : undefined, evaluateAssessment: (task) => evaluateTaskAssessment(task, ctx) });
         rememberTask(lastTask);
       } catch (error) {
         showMessage(ctx, error instanceof Error ? error.message : "No se pudo preparar la tarea.", "error");

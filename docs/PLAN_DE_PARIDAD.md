@@ -1,6 +1,6 @@
 # Plan de paridad
 
-Estado: Etapa 3 cerrada y Etapa 4 en validación técnica, con CI verde en GitHub Actions el 2026-10-11. La prioridad inmediata es cerrar la ficha del release candidato y validar un segundo entorno/consumidor. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
+Estado: Etapa 3 cerrada, Etapa 4 en validación técnica y primer slice de Your-Team-Knowledge implementado el 2026-10-11. CI está verde en GitHub Actions; la prioridad inmediata es cerrar la ficha del release candidato y validar la integración SQLite con un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
 
 ## Objetivo
 

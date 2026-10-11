@@ -6,12 +6,25 @@ export const HARNESS_CONFIG_PATH = ".harness/config.json";
 
 export type McpApprovalMode = "always" | "automatic";
 
+export type HarnessMemoryConfig = {
+  enabled: boolean;
+  provider: "team-knowledge";
+  module?: string;
+  database: string;
+  projectId?: string;
+  defaultArea?: string;
+  autoRecall: boolean;
+  allowWrites: boolean;
+  requireApproval: boolean;
+};
+
 export type HarnessConfig = {
   defaultMode: WorkMode;
   profile: UserProfile;
   captureInput: boolean;
   hil: { requireApproval: boolean; requireReview: boolean; recoverInterrupted: boolean };
   routing: { allowManualOverride: boolean; allowRerouteToSdd: boolean };
+  memory: HarnessMemoryConfig;
   mcp: {
     enabled: boolean;
     defaultApproval: McpApprovalMode;
@@ -28,6 +41,14 @@ export const DEFAULT_CONFIG: HarnessConfig = {
   defaultMode: "auto", profile: "developer", captureInput: false,
   hil: { requireApproval: true, requireReview: true, recoverInterrupted: true },
   routing: { allowManualOverride: true, allowRerouteToSdd: true },
+  memory: {
+    enabled: false,
+    provider: "team-knowledge",
+    database: ".harness/team-knowledge.sqlite",
+    autoRecall: false,
+    allowWrites: false,
+    requireApproval: true,
+  },
   mcp: { enabled: false, defaultApproval: "always", allowlist: [] },
 };
 
@@ -111,6 +132,26 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
         else warnings.push(`routing.${key} inválido; se conserva el valor default.`);
       }
     }
+    const memory = parsed.memory && typeof parsed.memory === "object" ? parsed.memory as Record<string, unknown> : undefined;
+    if (memory) {
+      if (memory.provider !== undefined && memory.provider !== "team-knowledge") warnings.push("memory.provider inválido; se conserva team-knowledge.");
+      for (const key of ["enabled", "autoRecall", "allowWrites", "requireApproval"] as const) {
+        if (memory[key] !== undefined) {
+          if (typeof memory[key] === "boolean") config.memory[key] = memory[key] as boolean;
+          else warnings.push(`memory.${key} inválido; se conserva el valor default.`);
+        }
+      }
+      for (const key of ["module", "projectId", "defaultArea"] as const) {
+        if (memory[key] !== undefined) {
+          if (typeof memory[key] === "string" && memory[key].trim()) config.memory[key] = memory[key].trim();
+          else warnings.push(`memory.${key} inválido; se ignora.`);
+        }
+      }
+      if (memory.database !== undefined) {
+        if (typeof memory.database === "string" && memory.database.trim()) config.memory.database = memory.database.trim();
+        else warnings.push("memory.database inválido; se conserva la ruta default.");
+      }
+    }
     const mcp = parsed.mcp && typeof parsed.mcp === "object" ? parsed.mcp as Record<string, unknown> : undefined;
     if (mcp?.enabled !== undefined) {
       if (typeof mcp.enabled === "boolean") config.mcp.enabled = mcp.enabled;
@@ -146,7 +187,7 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
       } else warnings.push("mcp.allowlist inválida; se conserva vacía.");
     }
     if (config.mcp.allowlist.length === 0) config.mcp.enabled = false;
-    const known = new Set(["defaultMode", "profile", "captureInput", "hil", "routing", "mcp"]);
+    const known = new Set(["defaultMode", "profile", "captureInput", "hil", "routing", "memory", "mcp"]);
     for (const key of Object.keys(parsed)) if (!known.has(key)) warnings.push(`Clave desconocida ignorada: ${key}.`);
     return { config: applyRuntimeOverrides(config, runtimeOverrides), path, warnings, source: "project" };
   } catch (error) {
@@ -155,5 +196,5 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
 }
 
 export function formatConfig(result: ConfigResult): string {
-  return [`Configuración: ${result.source}`, `Archivo: ${result.path ?? "defaults internos"}`, `Modo default: ${result.config.defaultMode}`, `Perfil: ${result.config.profile}`, `Captura input: ${result.config.captureInput ? "sí" : "no"}`, `HIL approval: ${result.config.hil.requireApproval ? "sí" : "no"}`, `HIL review: ${result.config.hil.requireReview ? "sí" : "no"}`, `Recuperar interrupciones: ${result.config.hil.recoverInterrupted ? "sí" : "no"}`, `MCP: ${result.config.mcp.enabled ? "habilitado" : "deshabilitado"} (${result.config.mcp.allowlist.reduce((count, entry) => count + entry.tools.length, 0)} tools allowlisted; aprobación default: ${result.config.mcp.defaultApproval})`, ...result.warnings.map((warning) => `Advertencia: ${warning}`)].join("\n");
+  return [`Configuración: ${result.source}`, `Archivo: ${result.path ?? "defaults internos"}`, `Modo default: ${result.config.defaultMode}`, `Perfil: ${result.config.profile}`, `Captura input: ${result.config.captureInput ? "sí" : "no"}`, `HIL approval: ${result.config.hil.requireApproval ? "sí" : "no"}`, `HIL review: ${result.config.hil.requireReview ? "sí" : "no"}`, `Recuperar interrupciones: ${result.config.hil.recoverInterrupted ? "sí" : "no"}`, `Memoria: ${result.config.memory.enabled ? "habilitada" : "deshabilitada"} (${result.config.memory.provider}; recall automático: ${result.config.memory.autoRecall ? "sí" : "no"}; escritura: ${result.config.memory.allowWrites ? "permitida" : "no"})`, `MCP: ${result.config.mcp.enabled ? "habilitado" : "deshabilitado"} (${result.config.mcp.allowlist.reduce((count, entry) => count + entry.tools.length, 0)} tools allowlisted; aprobación default: ${result.config.mcp.defaultApproval})`, ...result.warnings.map((warning) => `Advertencia: ${warning}`)].join("\n");
 }

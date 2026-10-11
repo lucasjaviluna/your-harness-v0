@@ -1,10 +1,19 @@
 # Your-Team-Knowledge Integration
 
-Estado: plan aprobado para implementación posterior; no se ha modificado todavía el runtime ni se ha activado ningún backend de memoria.
+Estado: primer slice implementado el 2026-10-11; el backend sigue desactivado por defecto y la integración SQLite requiere configurar el módulo compilado de `your-team-knowledge`.
 
 ## Objetivo
 
 Implementar una extensión nativa de Pi para consumir el sistema de memoria compartida de agentes de [your-team-knowledge](https://github.com/lucasjaviluna/your-team-knowledge), basado en SQLite, reutilizando el contrato provider-neutral de `pi-harness`.
+
+## Progreso implementado
+
+- `HarnessMemoryConfig` agrega configuración segura y defaults desactivados.
+- `src/memory/team-knowledge.ts` carga el provider exportado por `your-team-knowledge` sin importar directamente sus tablas SQLite.
+- `extensions/team-knowledge.ts` registra `team_knowledge_search` y `team_knowledge_store` cuando Pi ofrece `registerTool`.
+- `session_start` prepara el runtime opcional y los workflows usan recall sólo cuando `memory.autoRecall` está habilitado.
+- Las escrituras requieren `memory.allowWrites` y aprobación humana por defecto.
+- La ausencia del módulo, de la base o del proyecto produce diagnóstico y no bloquea Pi.
 
 ## Alcance del plan
 
@@ -49,10 +58,10 @@ Actualizar la documentación del provider, configuración, plan de paridad, READ
 
 ## Orden de implementación
 
-1. Relevar el repositorio externo y fijar el contrato.
-2. Implementar el adaptador provider-neutral.
-3. Agregar configuración y diagnósticos.
-4. Integrar recall manual en la extensión Pi.
+1. ~~Relevar el repositorio externo y fijar el contrato.~~
+2. ~~Implementar el adaptador provider-neutral.~~
+3. ~~Agregar configuración y diagnósticos básicos.~~
+4. ~~Integrar recall manual en la extensión Pi.~~
 5. Integrar escritura con aprobación humana.
 6. Evaluar recall automático acotado en `session_start`.
 7. Validar desde tarball y CI.
@@ -64,6 +73,7 @@ Actualizar la documentación del provider, configuración, plan de paridad, READ
 - Confirmar si la escritura estará disponible desde la primera versión o inicialmente sólo lectura.
 - Elegir la estrategia de acceso SQLite compatible con Node.js `>=22.19.0` y los consumidores soportados.
 - Confirmar el conjunto exacto de funciones del repositorio externo que se expondrá a Pi.
+- Publicar o distribuir un build consumible de `@corporate-knowledge/platform`; el repositorio externo es actualmente `private` y el loader usa un módulo compilado local o un package instalado.
 
 ## Criterio de aceptación
 
