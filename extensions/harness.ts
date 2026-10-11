@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { assessmentFromAgent, assessTask, chooseAssessmentRoute, decideGate, formatAssessment, parseAgentAssessment, requestScopeChange, rerouteToSdd, requireAssessmentDecision } from "../src/assessment.ts";
 import type { RepositorySnapshot } from "../src/simple.ts";
 import type { OpenSpecDetection } from "../src/openspec.ts";
@@ -18,6 +18,7 @@ import {
   type HarnessTask,
   type HumanDecisionValue,
 } from "../src/task.ts";
+import { installHarnessHeader, showAssessmentProgress, showHarnessMessage as showMessage, updateHarnessTui as renderHarnessTui } from "../src/tui.ts";
 
 let lastTask: HarnessTask | undefined;
 let sessionTasks: HarnessTask[] = [];
@@ -25,6 +26,11 @@ let simpleBaseline: RepositorySnapshot | undefined;
 let sddDetection: OpenSpecDetection | undefined;
 let currentConfig: HarnessConfig = structuredClone(DEFAULT_CONFIG);
 const VALID_DECISIONS = new Set<HumanDecisionValue>(["approve", "reject", "revise", "cancel", "answer"]);
+
+function updateHarnessTui(ctx: ExtensionContext): void {
+  if (lastTask) rememberTask(lastTask);
+  renderHarnessTui(ctx, { task: lastTask, config: currentConfig });
+}
 
 function rememberTask(task: HarnessTask): void {
   sessionTasks = [...sessionTasks.filter((item) => item.id !== task.id), task];
@@ -35,66 +41,6 @@ function assertCompatiblePi(pi: ExtensionAPI): void {
   if (typeof api.registerCommand !== "function") {
     throw new Error("pi-harness requiere una API de Pi compatible con registerCommand().");
   }
-}
-
-function showMessage(
-  ctx: { hasUI: boolean; ui: { notify(message: string, level: "info" | "warn" | "error"): void } },
-  message: string,
-  level: "info" | "warn" | "error" = "info",
-) {
-  if (ctx.hasUI) ctx.ui.notify(message, level);
-  else console.log(message);
-}
-
-function installHarnessHeader(ctx: ExtensionContext): void {
-  if (ctx.mode !== "tui") return;
-  ctx.ui.setHeader((_tui, theme: Theme) => ({
-    render(_width: number): string[] {
-      const route = lastTask?.route ?? "sin ruta";
-      const phase = lastTask?.phase ?? "sin tarea activa";
-      return [
-        "",
-        `${theme.fg("accent", "yh-pi")} ${theme.fg("muted", "Your Harness")} ${theme.fg("dim", `· ${currentConfig.profile} · ${route} · ${phase}`)}`,
-        ...(lastTask?.reevaluation ? [theme.fg("warning", `Esta tarea fue reevaluada: ${lastTask.reevaluation.previousRoute} -> ${lastTask.reevaluation.newRoute}`)] : []),
-        "",
-      ];
-    },
-    invalidate() {},
-  }));
-}
-
-function updateHarnessTui(ctx: ExtensionContext): void {
-  if (ctx.mode !== "tui") return;
-  if (lastTask) rememberTask(lastTask);
-  const gate = lastTask?.humanGates.find((item) => item.blocksProgress && !item.decision);
-  const ui = ctx.ui;
-  ui.setTitle(`yh-pi · ${currentConfig.profile}`);
-  if (!lastTask) {
-    ui.setStatus("yh-pi", `perfil ${currentConfig.profile} · sin tarea activa`);
-    ui.setWidget("yh-pi-state", undefined);
-    return;
-  }
-  const gateLabel = gate
-    ? `HIL: ${gate.stage === "implementation" ? "autorizar implementación" : gate.kind}`
-    : "HIL: sin decisión pendiente";
-  ui.setStatus("yh-pi", `${lastTask.route ?? "sin ruta"} · ${lastTask.phase} · ${gateLabel}`);
-  ui.setWidget("yh-pi-state", [
-    `yh-pi · perfil ${currentConfig.profile} · modo ${lastTask.requestedMode}`,
-    `Ruta: ${lastTask.route ?? "sin evaluar"} · Fase: ${lastTask.phase}`,
-    gate ? `Checkpoint: ${gate.question}` : "Checkpoint: ninguno",
-  ], { placement: "aboveEditor" });
-}
-
-function showAssessmentProgress(ctx: ExtensionContext): void {
-  if (ctx.mode === "tui") {
-    ctx.ui.setStatus("yh-pi", "analizando solicitud y contexto…");
-    ctx.ui.setWidget("yh-pi-state", [
-      "yh-pi · analizando solicitud y contexto del repositorio",
-      "Consultando al modelo para recomendar una ruta…",
-    ], { placement: "aboveEditor" });
-    return;
-  }
-  showMessage(ctx, "yh-pi está analizando la solicitud y el contexto del repositorio…");
 }
 
 function parseDecision(args: string): { ok: true; value: HumanDecisionValue; note?: string } | { ok: false; message: string } {
@@ -271,7 +217,7 @@ export default function (pi: ExtensionAPI) {
         lastTask = task;
       }
     }
-    installHarnessHeader(ctx);
+    installHarnessHeader(ctx, () => ({ task: lastTask, config: currentConfig }));
     currentConfig = (await loadConfig(ctx.cwd)).config;
     await applyMcpConfig(currentConfig);
     mcpIntegration?.resetHarnessMcpActivity();
