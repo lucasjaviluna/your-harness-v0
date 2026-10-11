@@ -53,9 +53,9 @@ Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación
 
 ## Etapa 5 — Expansión selectiva
 
-Estado: primer incremento implementado. `/harness-overview` ofrece una vista read-only que combina tarea activa, próximo paso, gate humano pendiente, cambios Git y changes OpenSpec. La integración SQLite con `your-team-knowledge` queda pausada hasta alcanzar la madurez acordada.
+Estado: completada en el alcance acordado. `/harness-overview` ofrece una vista read-only que combina tarea activa, próximo paso, gate humano pendiente, cambios Git y changes OpenSpec. La matriz instalada valida tarea ausente/activa, recuperación, MCP deshabilitado e historial vacío, además de la carga diferida de diagnósticos. La integración SQLite con `your-team-knowledge` queda pausada hasta alcanzar la madurez acordada.
 
-Siguiente incremento: cerrar la matriz instalada de MCP con resultado incierto. La regresión confirma `/harness-mcp` deshabilitado y allowlist vacía, `/harness-mcp-history` sin llamadas en sesión fría y `/harness-doctor`/`/harness-changes` como activadores de capabilities diferidas. La delegación queda después de esta validación y requiere propiedad, aislamiento y cancelación explícitos.
+Decisión de alcance: no se incorpora delegación a subagentes en esta etapa. El plan de implementación la mantiene fuera del MVP; retomarla requerirá un contrato separado para propiedad de tarea, aislamiento de artefactos, cancelación y recuperación, con gates propios.
 
 ## Decisión de producto y riesgo de reimplementación
 

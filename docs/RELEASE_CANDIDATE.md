@@ -23,6 +23,7 @@ La dependencia de Pi permanece acotada en `package.json` como `^0.85.1`; la vers
 - Primer slice de Your-Team-Knowledge validado localmente: configuración, loader opt-in y tools nativas; el backend externo permanece desactivado por defecto.
 - Smoke e2e del commit `5feafb2`: consumidor instalado aprobado; Git Bash omitido porque este entorno no puede iniciar `/bin/bash`.
 - El consumidor instalado cubre instalación, rutas `simple`/`sdd`, recuperación, reconciliación explícita, artefacto corrupto, cancelación, cambio de alcance, fallback del modelo y MCP ambiguo.
+- La Etapa 5 del Plan de Paridad queda cerrada con `/harness-overview` y la matriz de diagnósticos/carga diferida; la delegación a subagentes permanece fuera del MVP.
 
 ## Gates pendientes antes de un candidato publicable
 
