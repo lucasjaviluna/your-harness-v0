@@ -45,6 +45,8 @@ Extraer incrementalmente de `extensions/harness.ts` los módulos de entrada, eva
 
 ## Etapa 4 — Release candidato
 
+Estado: iniciada el 2026-10-11. La ficha de compatibilidad, evidencia, gates de publicación y rollback está en `docs/RELEASE_CANDIDATE.md`. El siguiente bloque es repetir la validación en un segundo consumidor/entorno y preparar changelog sin publicar todavía.
+
 Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación, finalización y recuperación, y corregir bloqueos. Publicar un candidato sólo después de que la matriz de compatibilidad y los recorridos críticos pasen. Repetir la medición de arranque desde un consumidor instalado antes de decidir si distribuir JavaScript compilado.
 
 **Criterio de salida:** versión instalable con compatibilidad declarada, CI verde, recorridos completos verificados, diagnósticos y procedimiento de rollback.
