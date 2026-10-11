@@ -16,6 +16,7 @@ const configuredInstallTimeout = Number.parseInt(process.env.PI_HARNESS_E2E_INST
 const installTimeout = Number.isFinite(configuredInstallTimeout) && configuredInstallTimeout > 0
   ? configuredInstallTimeout
   : requiredInstall ? 300_000 : 30_000;
+const rpcShutdownGrace = Number.parseInt(process.env.PI_HARNESS_E2E_RPC_SHUTDOWN_GRACE_MS ?? "", 10);
 
 function npmEnvironment(cacheDirectory: string) {
   // Windows treats environment variable names case-insensitively. Remove an
@@ -158,14 +159,31 @@ async function runInstalledHarnessRpc(prefix: string, options: {
     let followUpIndex = 0;
     let pendingFollowUp: { prompt: string; beforePrompt?: () => Promise<void> } | undefined;
     let completionRequested = false;
+    let shutdownFallback = false;
+    let shutdownTimer: NodeJS.Timeout | undefined;
     const notifications: string[] = [];
     // A task route can open three sequential HIL dialogs. Allow the RPC
     // transport to settle each request on slower consumer environments.
     const timeout = setTimeout(() => child.kill("SIGTERM"), 90_000);
     const finish = (error?: Error) => {
       clearTimeout(timeout);
+      if (shutdownTimer) clearTimeout(shutdownTimer);
       if (error) rejectResult(error);
       else resolveResult(notifications);
+    };
+    const closeAfterExpectedResult = () => {
+      if (completed) return;
+      completed = true;
+      // EOF is Pi's documented orderly shutdown signal. Some CI runners keep
+      // the RPC child alive after an extension command has already completed;
+      // retain the functional result and terminate only that idle child after
+      // a short grace period.
+      child.stdin?.end();
+      const grace = Number.isFinite(rpcShutdownGrace) && rpcShutdownGrace > 0 ? rpcShutdownGrace : 5_000;
+      shutdownTimer = setTimeout(() => {
+        shutdownFallback = true;
+        child.kill("SIGTERM");
+      }, grace);
     };
     const send = (message: object) => child.stdin?.write(`${JSON.stringify(message)}\n`);
     const handleRecord = (record: string) => {
@@ -180,6 +198,14 @@ async function runInstalledHarnessRpc(prefix: string, options: {
         }
         if (options.expectedNotification.test(event.message) && !completed) {
           completionRequested = true;
+          // Some installed-consumer runs emit the final notification without
+          // a matching prompt response. Close on the next turn once any
+          // follow-up triggered by this notification has been dispatched.
+          if (!followUp) {
+            setTimeout(() => {
+              if (completionRequested && !pendingFollowUp && !completed) closeAfterExpectedResult();
+            }, 0);
+          }
         }
         return;
       }
@@ -190,9 +216,8 @@ async function runInstalledHarnessRpc(prefix: string, options: {
           Promise.resolve(followUp.beforePrompt?.())
             .then(() => send({ id: `prompt-${followUpIndex + 1}`, type: "prompt", message: followUp.prompt }))
             .catch((error) => finish(error instanceof Error ? error : new Error(String(error))));
-        } else if (completionRequested && !completed) {
-          completed = true;
-          child.stdin?.end();
+        } else if (completionRequested) {
+          closeAfterExpectedResult();
         }
         return;
       }
@@ -216,7 +241,7 @@ async function runInstalledHarnessRpc(prefix: string, options: {
     child.stderr?.on("data", (chunk: string) => { stderr += chunk; });
     child.once("error", (error) => finish(error));
     child.once("close", (code, signal) => {
-      if (completed && code === 0) { finish(); return; }
+      if (completed && (code === 0 || shutdownFallback)) { finish(); return; }
       const output = [stdout, stderr].filter(Boolean).join("\n");
       finish(new Error(`yh-pi RPC falló (${signal ? `signal=${signal}` : `code=${code}`})${output ? `\n${output}` : "\nPi no produjo salida capturada."}`));
     });
