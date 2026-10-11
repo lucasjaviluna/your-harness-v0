@@ -42,6 +42,7 @@ Documentación del proyecto:
 - [Plan aprobado de CLI y experiencia TUI para la Fase 9](docs/PHASE_9_CLI_TUI_PLAN.md)
 - [Uso y validación operativa de la Fase 9](docs/PHASE_9_USAGE_VALIDATION.md)
 - [Registro de validación operativa de la Fase 9](docs/PHASE_9_VALIDATION_LOG.md)
+- `/harness-overview` muestra en una sola vista el estado de la tarea, gates pendientes, cambios Git y changes OpenSpec activos.
 - [Integración MCP mediante pi-mcp-adapter de la Fase 14](docs/PHASE_14_MCP_ADAPTER.md)
 - [Actividad y recuperación MCP de la Fase 15](docs/PHASE_15_MCP_ACTIVITY.md)
 - [Clasificación asistida por modelo de la Fase 16](docs/PHASE_16_AGENT_ASSESSMENT.md)

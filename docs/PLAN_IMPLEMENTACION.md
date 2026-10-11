@@ -450,6 +450,10 @@ Validación: `npm test` (80 aprobados, 2 omitidos porque los consumidores tempor
 
 Estado: completada el 2026-10-07. Detalle en [docs/STARTUP_PERFORMANCE.md](STARTUP_PERFORMANCE.md).
 
+### Incremento posterior — Vista unificada de estado y cambios
+
+Estado: primer slice implementado. El comando `/harness-overview` compone, sin modificar el repositorio ni resolver gates automáticamente, la tarea activa, su próximo paso, el gate humano pendiente, el estado Git y los changes OpenSpec. La validación unitaria quedó cubierta; falta ejecutar el comando desde un consumidor instalado y ampliar la matriz de regresión antes de pasar a delegación.
+
 - [x] Diferir el SDK y la integración MCP hasta habilitar MCP o usar un comando MCP.
 - [x] Diferir Git, OpenSpec, verificación y el workflow `simple` hasta que un workflow o diagnóstico los necesite.
 - [x] Diferir el motor de contexto, los artefactos de tareas y el render detallado de planes hasta crear, revisar, persistir o recuperar una tarea.

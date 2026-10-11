@@ -53,7 +53,9 @@ Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación
 
 ## Etapa 5 — Expansión selectiva
 
-Priorizar, según uso observado, una vista de cambios y tareas; después evaluar delegación con propiedad, aislamiento y cancelación explícitos. La integración SQLite con `your-team-knowledge` queda planificada como el próximo bloque de memoria persistente, con alcance y gates definidos en `docs/YOUR_TEAM_KNOWLEDGE_INTEGRATION.md`.
+Estado: primer incremento implementado. `/harness-overview` ofrece una vista read-only que combina tarea activa, próximo paso, gate humano pendiente, cambios Git y changes OpenSpec. La integración SQLite con `your-team-knowledge` queda pausada hasta alcanzar la madurez acordada.
+
+Siguiente incremento: validar la vista en un consumidor instalado y convertir en regresiones los casos de tarea interrumpida, conflicto sesión/artefacto, repositorio sin Git y cambios OpenSpec activos. La delegación queda después de esta validación y requiere propiedad, aislamiento y cancelación explícitos.
 
 ## Decisión de producto y riesgo de reimplementación
 

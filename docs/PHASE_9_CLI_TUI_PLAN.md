@@ -1,6 +1,6 @@
 # Fase 9 — Plan aprobado para CLI y experiencia TUI
 
-Estado: implementación en curso. La lógica común de ingreso y preparación de tareas, el primer CLI funcional, la captura automática de `input`, los gates HIL separados y la identidad visual base de yh-pi en la TUI están completados. La validación de instalación limpia y una iteración visual basada en uso siguen pendientes.
+Estado: implementación base completada. La lógica común de ingreso y preparación de tareas, el CLI funcional, la captura automática de `input`, los gates HIL, la identidad visual base y la vista read-only `/harness-overview` están implementados. La validación adicional desde un consumidor instalado y futuras iteraciones visuales siguen como trabajo de calidad.
 
 Este incremento precede a los escenarios de uso y validación descritos en [PHASE_9_USAGE_VALIDATION.md](PHASE_9_USAGE_VALIDATION.md). Su objetivo es que una instalación limpia permita ejecutar `yh-pi` desde la terminal, abrir la TUI de Pi con identidad visual propia y comenzar una solicitud escribiendo un mensaje normal. Los comandos `/harness-*` deben seguir disponibles para quien cargue la extensión en Pi directamente.
 

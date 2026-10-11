@@ -6,6 +6,7 @@ import { createCoreHarnessCapabilityRegistry, registerDeferredWorkflowCapabiliti
 import type * as McpIntegration from "./mcp-adapter-integration.ts";
 import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
+import { formatHarnessOverview } from "../src/overview.ts";
 import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
 import { createHarnessPlan, reviseHarnessPlan } from "../src/plan.ts";
 import { TaskStateCoordinator, parseTaskResumeRequest } from "../src/task-state.ts";
@@ -755,6 +756,15 @@ export default function (pi: ExtensionAPI) {
       const snapshot = await captureProjectSnapshot(ctx.cwd);
       const openSpec = await detectProjectOpenSpec(ctx.cwd);
       showMessage(ctx, formatChangesReport(snapshot, openSpec));
+    },
+  });
+
+  pi.registerCommand("harness-overview", {
+    description: "Muestra el estado de la tarea, cambios Git y OpenSpec en una vista resumida",
+    handler: async (_args, ctx) => {
+      const snapshot = await captureProjectSnapshot(ctx.cwd);
+      const openSpec = await detectProjectOpenSpec(ctx.cwd);
+      showMessage(ctx, formatHarnessOverview(lastTask, snapshot, openSpec));
     },
   });
 
