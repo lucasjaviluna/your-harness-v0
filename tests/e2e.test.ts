@@ -373,6 +373,11 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
     { prompt: "/harness-mcp", expectedNotification: /yh-pi MCP: deshabilitado/ },
   );
   assert.ok(disabledMcpNotifications.some((message) => /Allowlist: vacía/.test(message)), "MCP deshabilitado no mostró la allowlist vacía.");
+  const emptyMcpHistoryNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    { prompt: "/harness-mcp-history", expectedNotification: /Actividad de esta sesión: todavía no hubo llamadas MCP/ },
+  );
+  assert.ok(emptyMcpHistoryNotifications.some((message) => /todavía no hubo llamadas MCP/.test(message)), "El historial MCP vacío no informó que la sesión no tuvo llamadas.");
   const doctorNotifications = await runInstalledHarnessRpc(
     consumerA,
     { prompt: "/harness-doctor", expectedNotification: /pi-harness doctor/ },

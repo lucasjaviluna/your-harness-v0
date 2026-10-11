@@ -54,7 +54,7 @@ El pendiente de CI del smoke test `tests/e2e.test.ts` continúa registrado en el
 
 ## Validación manual de carga bajo demanda
 
-La regresión del consumidor instalado ya cubre una sesión fría con MCP deshabilitado: `/harness-mcp` responde con la allowlist vacía y no activa tools. También cubre `/harness-doctor` y `/harness-changes`, que fuerzan la carga diferida de Git, OpenSpec y verificación. La validación manual restante se conserva para medir la demora única de carga.
+La regresión del consumidor instalado ya cubre una sesión fría con MCP deshabilitado: `/harness-mcp` responde con la allowlist vacía, `/harness-mcp-history` informa que no hubo llamadas y no se activan tools. También cubre `/harness-doctor` y `/harness-changes`, que fuerzan la carga diferida de Git, OpenSpec y verificación. La validación manual restante se conserva para medir la demora única de carga.
 
 1. Ejecutar `/harness-mcp`, `/harness-mcp-history` y `/harness-mcp-settings` con MCP deshabilitado. Los comandos deben responder sin activar tools ni conexiones.
 2. Ejecutar `/harness-doctor` y `/harness-changes`. Deben cargar las capabilities de Git, OpenSpec y verificación y conservar sus diagnósticos normales.
