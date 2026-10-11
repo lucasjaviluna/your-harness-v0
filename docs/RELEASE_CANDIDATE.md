@@ -25,14 +25,14 @@ La dependencia de Pi permanece acotada en `package.json` como `^0.85.1`; la vers
 - El consumidor instalado cubre instalación, rutas `simple`/`sdd`, recuperación, reconciliación explícita, artefacto corrupto, cancelación, cambio de alcance, fallback del modelo y MCP ambiguo.
 - La Etapa 5 del Plan de Paridad queda cerrada con `/harness-overview` y la matriz de diagnósticos/carga diferida; la delegación a subagentes permanece fuera del MVP.
 
-## Gates pendientes antes de un candidato publicable
+## Acciones externas pendientes antes de publicar
 
-- Conservar la salida del job Ubuntu para `22.19.0` y `22.x` como evidencia del segundo entorno Linux.
-- Registrar en las notas finales la versión efectiva de Pi, sistema operativo, shell y commit del consumidor para el candidato.
-- Changelog inicial preparado en `CHANGELOG.md`; faltan las notas finales de instalación, actualización y rollback para el candidato elegido.
-- Decidir si `0.1.0` se conserva para el candidato o se incrementa según el alcance del release.
+- Conservar el enlace/salida del job Ubuntu para `22.19.0` y `22.x` como evidencia del segundo entorno Linux.
+- Registrar, al publicar, la versión efectiva de Pi, sistema operativo, shell y commit del consumidor.
 - Conservar el enlace/salida de GitHub Actions del candidato `5feafb2`.
-- Repetir la medición de arranque desde un consumidor instalado.
+- Autorizar explícitamente la publicación npm.
+
+La medición de arranque disponible es suficiente para mantener TypeScript en runtime en `0.1.0`; una medición adicional compilada queda como optimización posterior y no bloquea este candidato.
 
 ## Verificación de un candidato local
 
@@ -44,6 +44,50 @@ npm run pack:check
 ```
 
 El smoke requerido debe terminar con `fail 0`. El skip de Git Bash sólo es aceptable en Linux; en Windows debe ejecutarse el caso correspondiente.
+
+## Notas operativas del candidato `0.1.0`
+
+### Instalación
+
+Desde un repositorio consumidor con Node.js `>=22.19.0` y Pi disponible:
+
+```bash
+npm install pi-harness@0.1.0
+```
+
+Para probar un tarball sin publicarlo:
+
+```bash
+npm install /ruta/pi-harness-0.1.0.tgz --ignore-scripts --no-audit --no-fund
+```
+
+Verificar la instalación con:
+
+```bash
+npx yh-pi --version
+npx yh-pi -- --no-tools --approve --print OK
+```
+
+### Actualización
+
+1. Conservar el lockfile y el tarball/versión actualmente funcional.
+2. Ejecutar `npm install pi-harness@0.1.0` en el consumidor.
+3. Ejecutar `/harness-doctor` y revisar `/harness-overview` antes de iniciar trabajo nuevo.
+4. Ejecutar la suite del consumidor y conservar el commit de la actualización.
+
+La actualización no debe borrar `.harness/tasks`, cambios OpenSpec ni la configuración del consumidor.
+
+### Rollback
+
+Si el consumidor falla después de actualizar:
+
+```bash
+npm install pi-harness@<version-anterior>
+npm ls pi-harness @earendil-works/pi-coding-agent
+npx yh-pi --version
+```
+
+Después, ejecutar `/harness-doctor`, conservar el artefacto de tarea y registrar el fallo con el commit, Node, Pi, sistema operativo y shell utilizados. No reintentar automáticamente una llamada MCP con resultado `unknown`; confirmar primero el efecto remoto.
 
 ## Rollback operativo
 

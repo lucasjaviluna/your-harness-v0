@@ -477,11 +477,11 @@ Decisión posterior: la medición comparó TypeScript en runtime con un prototip
 
 ### Roadmap de calidad recomendado
 
-1. **Estabilizar CI.** Completado para el baseline: el `Require clean-consumer smoke test` se reprodujo en Linux y pasó en GitHub Actions. Falta repetirlo para el commit candidato posterior a la integración de memoria.
+1. **Estabilizar CI.** Completado: el `Require clean-consumer smoke test` se reproduce en Linux y pasa en GitHub Actions con la matriz Ubuntu `22.19.0`/`22.x`.
 2. **Convertir los recorridos críticos en regresiones.** El consumidor instalado ya verifica recuperación de tarea tras reinicio, OpenSpec ausente y configurado, artefacto corrupto, fallback de clasificación sin modelo, cancelación terminal, cambio de alcance, vista unificada sin/con tarea, MCP deshabilitado e historial vacío; todos pasan en el baseline `5feafb2`. La matriz Ubuntu `22.19.0`/`22.x` confirma la compatibilidad declarada.
-3. **Revisar la distribución compilada al preparar el release.** La medición actual no justifica un build adicional. Repetirla desde un consumidor instalado cuando se prepare npm y adoptar JavaScript compilado solo si la mediana mejora al menos 15 % de manera reproducible.
+3. **Revisar la distribución compilada al preparar el release.** La medición actual no justifica un build adicional. El candidato `0.1.0` conserva TypeScript en runtime; adoptar JavaScript compilado solo si una medición futura mejora la mediana al menos 15 % de manera reproducible.
 4. **Fortalecer la experiencia de operación.** Probar en repositorios consumidores los flujos de error del modelo, OpenSpec ausente, artefactos corruptos y resultados MCP ambiguos; convertir cada caso reproducible en una prueba y una recuperación visible en TUI.
-5. **Preparar distribución.** En curso: compatibilidad, changelog, rollback y manifest están documentados; faltan el segundo consumidor/entorno, el commit CI candidato, la versión final y las notas operativas definitivas.
+5. **Preparar distribución.** Completado técnicamente: compatibilidad, changelog, rollback, manifest, segundo entorno Linux, commit CI candidato y notas operativas están documentados. La publicación npm permanece sujeta a autorización explícita.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
 

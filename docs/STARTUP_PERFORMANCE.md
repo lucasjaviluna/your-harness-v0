@@ -50,7 +50,7 @@ La variante compilada redujo la mediana en 231 ms (12,7 %). Ambas produjeron la 
 - `npm run pack:check`.
 - `git diff --check`.
 
-El pendiente de CI del smoke test `tests/e2e.test.ts` continúa registrado en el plan de implementación y no forma parte de este recorte.
+El smoke test `tests/e2e.test.ts` quedó validado en CI sobre Ubuntu con Node `22.19.0` y `22.x`; la medición de arranque compilado sigue siendo una decisión futura y no bloquea el candidato `0.1.0`.
 
 ## Validación manual de carga bajo demanda
 
