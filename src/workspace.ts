@@ -1,16 +1,9 @@
 import type { OpenSpecDetection } from "./openspec.ts";
 import type { RepositorySnapshot } from "./simple.ts";
 import type { HarnessTask } from "./task.ts";
+import type { DelegatedTaskStatus } from "./delegation.ts";
 
-/** States that can be exposed for a delegated child without implying ownership or execution. */
-export type DelegatedTaskStatus =
-  | "queued"
-  | "running"
-  | "awaiting-input"
-  | "succeeded"
-  | "failed"
-  | "cancelled"
-  | "lost";
+export type { DelegatedTaskStatus } from "./delegation.ts";
 
 /** Minimal, non-sensitive child-task summary reserved for the read-only workspace view. */
 export type DelegatedTaskSummary = {
