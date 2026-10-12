@@ -1,15 +1,20 @@
-import type { OpenSpecDetection } from "./openspec.ts";
-import type { RepositorySnapshot } from "./simple.ts";
 import { unresolvedGate, type HarnessTask } from "./task.ts";
+import { createWorkspaceSnapshot, type WorkspaceSnapshot } from "./workspace.ts";
 
 /** Read-only summary intended for the TUI and headless command output. */
 export function formatHarnessOverview(
   task: HarnessTask | undefined,
-  snapshot: RepositorySnapshot,
-  openSpec: OpenSpecDetection,
+  repository: WorkspaceSnapshot["repository"],
+  openSpec: WorkspaceSnapshot["openSpec"],
+  delegatedTasks: WorkspaceSnapshot["delegatedTasks"] = [],
 ): string {
+  return formatWorkspaceSnapshot(createWorkspaceSnapshot(task, repository, openSpec, delegatedTasks));
+}
+
+export function formatWorkspaceSnapshot(workspace: WorkspaceSnapshot): string {
+  const { task, repository: snapshot, openSpec, delegatedTasks } = workspace;
   const gate = task ? unresolvedGate(task) : undefined;
-  return [
+  const lines = [
     "pi-harness overview",
     task ? `Tarea: ${task.id}` : "Tarea: ninguna activa",
     task ? `Estado: ${task.phase} · ruta ${task.route ?? "sin evaluar"}` : "Estado: sin tarea activa",
@@ -19,7 +24,13 @@ export function formatHarnessOverview(
     `Cambios: ${snapshot.files.length ? snapshot.files.join(", ") : "ninguno"}`,
     `OpenSpec: ${openSpec.activeChanges.length ? openSpec.activeChanges.join(", ") : "sin changes activos"}`,
     snapshot.error ? `Error Git: ${snapshot.error}` : "",
-  ].filter(Boolean).join("\n");
+  ];
+  if (delegatedTasks.length) {
+    lines.push(`Tareas delegadas: ${delegatedTasks.map((child) => `${child.id} (${child.status})`).join(", ")}`);
+  } else {
+    lines.push("Tareas delegadas: ninguna");
+  }
+  return lines.filter(Boolean).join("\n");
 }
 
 function nextStep(task: HarnessTask): string {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { formatHarnessOverview } from "../src/overview.ts";
 import { createTask } from "../src/task.ts";
+import { createWorkspaceSnapshot } from "../src/workspace.ts";
 
 const openSpec = { configured: false, cliAvailable: false, commandStyle: "unavailable" as const, commands: {}, activeChanges: [] };
 
@@ -26,4 +27,14 @@ test("expone una vista útil aunque no haya tarea activa ni Git", () => {
   assert.match(output, /Tarea: ninguna activa/);
   assert.match(output, /Git: no disponible/);
   assert.match(output, /Error Git: git no disponible/);
+});
+
+test("construye un snapshot read-only con estados delegados sin ejecutar nada", () => {
+  const task = createTask({ prompt: "Inspeccionar el workspace", cwd: "/repo", requestedMode: "task", analyzeOnly: false });
+  const snapshot = createWorkspaceSnapshot(task, { available: true, status: [], files: [] }, openSpec, [
+    { id: "child-1", parentTaskId: task.id, status: "awaiting-input", scope: "tests", updatedAt: "2026-10-12T00:00:00Z" },
+  ]);
+  assert.equal(snapshot.delegatedTasks[0]?.status, "awaiting-input");
+  const output = formatHarnessOverview(snapshot.task, snapshot.repository, snapshot.openSpec, snapshot.delegatedTasks);
+  assert.match(output, /Tareas delegadas: child-1 \(awaiting-input\)/);
 });
