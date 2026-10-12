@@ -7,6 +7,7 @@ import type * as McpIntegration from "./mcp-adapter-integration.ts";
 import { DEFAULT_CONFIG, loadConfig, readRuntimeOverrides, type HarnessConfig } from "../src/config.ts";
 import { formatChangesReport, formatDoctorReport } from "../src/diagnostics.ts";
 import { formatHarnessOverview } from "../src/overview.ts";
+import { formatDelegationOverview } from "../src/delegation-overview.ts";
 import { compareTaskRequest, parseIntentComparison, parseWorkRequest, prepareHarnessTask } from "../src/harness-logic.ts";
 import { createHarnessPlan, reviseHarnessPlan } from "../src/plan.ts";
 import { TaskStateCoordinator, parseTaskResumeRequest } from "../src/task-state.ts";
@@ -780,6 +781,14 @@ export default function (pi: ExtensionAPI) {
         ? delegationRegistry?.listForParent(lastTask.id) ?? []
         : delegationRegistry?.snapshot().tasks ?? [];
       showMessage(ctx, formatHarnessOverview(lastTask, snapshot, openSpec, delegatedTasks));
+    },
+  });
+
+  pi.registerCommand("harness-delegation", {
+    description: "Muestra el registro read-only de tareas delegadas",
+    handler: async (_args, ctx) => {
+      const snapshot = delegationRegistry?.snapshot();
+      showMessage(ctx, formatDelegationOverview(snapshot?.tasks ?? [], snapshot?.events ?? []));
     },
   });
 
