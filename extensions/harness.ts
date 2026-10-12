@@ -22,12 +22,14 @@ import {
 import { installHarnessHeader, showAssessmentProgress, showHarnessMessage as showMessage, updateHarnessTui as renderHarnessTui } from "../src/tui.ts";
 import { loadTeamKnowledgeRuntime, type TeamKnowledgeRuntime } from "../src/memory/team-knowledge.ts";
 import { registerTeamKnowledgeTools } from "./team-knowledge.ts";
+import type { DelegationRegistry } from "../src/delegation-store.ts";
 
 let lastTask: HarnessTask | undefined;
 let sessionTasks: HarnessTask[] = [];
 let simpleBaseline: RepositorySnapshot | undefined;
 let sddDetection: OpenSpecDetection | undefined;
-let currentConfig: HarnessConfig = structuredClone(DEFAULT_CONFIG);
+  let currentConfig: HarnessConfig = structuredClone(DEFAULT_CONFIG);
+let delegationRegistry: DelegationRegistry | undefined;
 const VALID_DECISIONS = new Set<HumanDecisionValue>(["approve", "reject", "revise", "cancel", "answer"]);
 
 function updateHarnessTui(ctx: ExtensionContext): void {
@@ -213,6 +215,7 @@ export default function (pi: ExtensionAPI) {
     sessionTasks = [];
     simpleBaseline = undefined;
     sddDetection = undefined;
+    delegationRegistry = undefined;
     taskState.reset();
     currentConfig = { ...structuredClone(DEFAULT_CONFIG), ...readRuntimeOverrides() };
     for (const entry of ctx.sessionManager.getBranch()) {
@@ -225,6 +228,15 @@ export default function (pi: ExtensionAPI) {
     }
     installHarnessHeader(ctx, () => ({ task: lastTask, config: currentConfig }));
     currentConfig = (await loadConfig(ctx.cwd)).config;
+    try {
+      const { DelegationRegistry, readDelegationStore, writeDelegationStore } = await import("../src/delegation-store.ts");
+      delegationRegistry = new DelegationRegistry(await readDelegationStore(ctx.cwd));
+      const lostEvents = delegationRegistry.reconcileAfterRestart(new Date().toISOString());
+      if (lostEvents.length) await writeDelegationStore(ctx.cwd, delegationRegistry.snapshot());
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      showMessage(ctx, `No se pudo cargar el registro de delegación: ${detail}`, "warn");
+    }
     teamKnowledgeRuntime?.close();
     teamKnowledgeRuntime = undefined;
     const memoryResult = await loadTeamKnowledgeRuntime(ctx.cwd, currentConfig.memory);
@@ -764,7 +776,10 @@ export default function (pi: ExtensionAPI) {
     handler: async (_args, ctx) => {
       const snapshot = await captureProjectSnapshot(ctx.cwd);
       const openSpec = await detectProjectOpenSpec(ctx.cwd);
-      showMessage(ctx, formatHarnessOverview(lastTask, snapshot, openSpec));
+      const delegatedTasks = lastTask
+        ? delegationRegistry?.listForParent(lastTask.id) ?? []
+        : delegationRegistry?.snapshot().tasks ?? [];
+      showMessage(ctx, formatHarnessOverview(lastTask, snapshot, openSpec, delegatedTasks));
     },
   });
 
