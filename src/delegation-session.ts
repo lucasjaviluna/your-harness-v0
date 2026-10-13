@@ -55,6 +55,7 @@ export function createDelegationSessionController(options: DelegationSessionCont
         mode: request.mode,
         depth: request.depth,
         ...(request.ownership ? { scope: request.ownership.scope, ownership: request.ownership } : {}),
+        executionPlan: plan,
         createdAt: timestamp,
         updatedAt: timestamp,
       };
@@ -66,6 +67,12 @@ export function createDelegationSessionController(options: DelegationSessionCont
     async launch(queued: QueuedDelegation, humanApproved: boolean, parentSignal?: AbortSignal): Promise<DelegationExecutionResult> {
       if (!humanApproved) throw new Error("La delegación requiere aprobación humana antes de iniciar.");
       return launcher.launch(queued.task, queued.plan, parentSignal);
+    },
+
+    async launchPersisted(task: DelegatedTask, humanApproved: boolean, parentSignal?: AbortSignal): Promise<DelegationExecutionResult> {
+      if (!humanApproved) throw new Error("La delegación requiere aprobación humana antes de iniciar.");
+      if (!task.executionPlan) throw new Error(`La tarea delegada ${task.id} no tiene un plan recuperable.`);
+      return launcher.launch(task, task.executionPlan, parentSignal);
     },
   };
 }

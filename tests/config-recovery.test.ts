@@ -30,9 +30,11 @@ test("valida configuración de proyecto y conserva warnings", async () => {
 test("la delegación sólo puede habilitarse explícitamente y conserva warnings", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "pi-harness-config-delegation-"));
   await mkdir(join(cwd, ".harness"));
-  await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({ delegation: { enabled: true }, unknown: true }));
+  await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({ delegation: { enabled: true, command: "node", args: ["-e", "process.exit(0)"] }, unknown: true }));
   const enabled = await loadConfig(cwd);
   assert.equal(enabled.config.delegation.enabled, true);
+  assert.equal(enabled.config.delegation.command, "node");
+  assert.deepEqual(enabled.config.delegation.args, ["-e", "process.exit(0)"]);
   await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({ delegation: { enabled: "yes" } }));
   const invalid = await loadConfig(cwd);
   assert.equal(invalid.config.delegation.enabled, false);

@@ -19,6 +19,19 @@ export type DelegationOwnership = {
   artifactPaths?: string[];
 };
 
+/** Persisted, prompt-free execution metadata needed to resume a queued child. */
+export type DelegationExecutionPlanRecord = {
+  taskId: string;
+  parentTaskId: string;
+  isolation: DelegationIsolation;
+  workspaceRoot: string;
+  workingDirectory: string;
+  ownership?: DelegationOwnership;
+  worktreePath?: string;
+  timeoutMs: number;
+  budgetCents: number;
+};
+
 export type DelegationWorktreeState = "planned" | "created" | "removed" | "unknown";
 export type DelegationWorktreeReviewDecision = "keep" | "remove";
 
@@ -40,6 +53,7 @@ export type DelegatedTask = {
   depth: number;
   scope?: string;
   ownership?: DelegationOwnership;
+  executionPlan?: DelegationExecutionPlanRecord;
   worktree?: DelegationWorktree;
   summary?: string;
   createdAt: string;

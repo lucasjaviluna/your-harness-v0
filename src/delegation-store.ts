@@ -56,6 +56,7 @@ function isDelegatedTaskRecord(value: unknown): value is DelegatedTask {
     if (!ownership || typeof ownership !== "object" || Array.isArray(ownership) || typeof ownership.scope !== "string" || !(["read-only", "workspace", "worktree"] as string[]).includes(ownership.isolation)) return false;
     if (ownership.artifactPaths !== undefined && (!Array.isArray(ownership.artifactPaths) || !ownership.artifactPaths.every((path) => typeof path === "string"))) return false;
   }
+  if (task.executionPlan !== undefined && !isExecutionPlanRecord(task.executionPlan, task.id, task.parentTaskId)) return false;
   if (task.worktree !== undefined) {
     const worktree = task.worktree;
     if (!worktree || typeof worktree !== "object" || Array.isArray(worktree)
@@ -66,6 +67,19 @@ function isDelegatedTaskRecord(value: unknown): value is DelegatedTask {
       || (worktree.reviewedAt !== undefined && typeof worktree.reviewedAt !== "string")) return false;
   }
   return true;
+}
+
+function isExecutionPlanRecord(value: unknown, taskId: string, parentTaskId: string): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const plan = value as Record<string, unknown>;
+  return plan.taskId === taskId
+    && plan.parentTaskId === parentTaskId
+    && typeof plan.isolation === "string"
+    && (["read-only", "workspace", "worktree"] as string[]).includes(plan.isolation)
+    && typeof plan.workspaceRoot === "string" && typeof plan.workingDirectory === "string"
+    && (plan.worktreePath === undefined || typeof plan.worktreePath === "string")
+    && Number.isFinite(plan.timeoutMs) && (plan.timeoutMs as number) > 0
+    && Number.isFinite(plan.budgetCents) && (plan.budgetCents as number) >= 0;
 }
 
 function isDelegationEventRecord(value: unknown): value is DelegationEvent {

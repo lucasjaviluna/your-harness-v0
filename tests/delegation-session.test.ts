@@ -42,6 +42,25 @@ test("la sesión encola un plan validado y exige aprobación humana para lanzarl
   const result = await controller.launch(queued, true);
   assert.equal(result.status, "succeeded");
   assert.deepEqual(events, ["created", "started", "completed"]);
+  assert.deepEqual(queued.task.executionPlan, queued.plan);
+});
+
+test("la tarea queued conserva el plan y puede recuperarse tras reiniciar", async () => {
+  const registry = new DelegationRegistry();
+  const controller = createDelegationSessionController({
+    enabled: true,
+    registry,
+    persist: async () => undefined,
+    runner: { start: async () => ({ taskId: "child-recovered", wait: async () => ({ exitCode: 0, costCents: 0 }), terminate: async () => undefined }) },
+  });
+  const queued = await controller.queue({
+    taskId: "child-recovered", parentTaskId: "parent-1", mode: "task", depth: 1, isolation: "read-only",
+    workspaceRoot: resolve("test-fixtures", "repo"), workingDirectory: resolve("test-fixtures", "repo", "src"), timeoutMs: 1_000, budgetCents: 0,
+  });
+  const restored = new DelegationRegistry({ schemaVersion: 1, tasks: registry.snapshot().tasks, events: registry.snapshot().events });
+  const recovered = restored.snapshot().tasks[0]!;
+  assert.deepEqual(recovered.executionPlan, queued.plan);
+  assert.equal(recovered.status, "queued");
 });
 
 test("la sesión propaga la cancelación del padre al launcher", async () => {

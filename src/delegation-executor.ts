@@ -2,20 +2,10 @@ import { isAbsolute, relative, resolve } from "node:path";
 import { execFile as execFileCallback } from "node:child_process";
 import { spawn } from "node:child_process";
 import { promisify } from "node:util";
-import type { DelegationIsolation, DelegationOwnership } from "./delegation.ts";
+import type { DelegationExecutionPlanRecord, DelegationIsolation, DelegationOwnership } from "./delegation.ts";
 
 /** Execution contract for a future child-process adapter. It carries no prompt or credentials. */
-export type DelegationExecutionPlan = {
-  taskId: string;
-  parentTaskId: string;
-  isolation: DelegationIsolation;
-  workspaceRoot: string;
-  workingDirectory: string;
-  ownership?: DelegationOwnership;
-  worktreePath?: string;
-  timeoutMs: number;
-  budgetCents: number;
-};
+export type DelegationExecutionPlan = DelegationExecutionPlanRecord;
 
 export type DelegationProcessHandle = {
   taskId: string;

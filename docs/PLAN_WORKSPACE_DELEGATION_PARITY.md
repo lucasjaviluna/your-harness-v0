@@ -41,7 +41,7 @@ El objetivo no es copiar Gentle Shell completo ni reemplazar Pi. `pi-harness` de
 - `runDelegationProcess` aplica abort/cancelación, timeout y presupuesto sobre un runner inyectable; solo conserva estado resumido y clasifica fallos de recuperación como `lost`.
 - `createDelegationProcessRunner` adapta un proceso real con `spawn`, argv explícito, `shell: false` y stdio ignorado; espera el cierre tras `SIGTERM` y escala a `SIGKILL` tras una gracia acotada. `src/delegation-launcher.ts` lo conecta de forma opt-in con tareas ya registradas y persiste sólo transiciones resumidas; permanece fuera de la sesión.
 - `/harness-delegation` muestra el registro de forma read-only.
-- No existe integración automática ni comandos de sesión para lanzar hijos, y no se crean worktrees físicos desde la sesión. El launcher opt-in exige `enabled: true`, valida coincidencia tarea/plan y persiste `started` antes del proceso y un resultado resumido después; el presupuesto sigue siendo un contrato sin coste real. El registro ya rechaza ownership concurrente sobre el mismo scope de escritura.
+- No existe ejecución automática ni creación de worktrees físicos desde la sesión. La extensión ya permite preparar y aprobar manualmente una tarea; el launcher exige `enabled: true`, comando argv configurado, coincidencia tarea/plan y persiste `started` antes del proceso y un resultado resumido después. El presupuesto sigue siendo un contrato sin coste real. El registro ya rechaza ownership concurrente sobre el mismo scope de escritura.
 
 ### Gate de salida
 
@@ -165,8 +165,8 @@ La fase debe terminar con una decisión explícita: continuar hacia un workspace
 
 1. Repetir la matriz de compatibilidad y el smoke instalado sobre el commit actual.
 2. Ejecutar en CI la prueba de consumidor instalada para overview/delegation y esquemas corruptos o incompatibles.
-3. Añadir un comando explícito de aprobación/ejecución que recupere un plan pendiente y conecte el runner sólo cuando `delegation.enabled` y el gate HIL estén confirmados.
-4. Mantener la delegación real apagada por defecto hasta cerrar el gate de aislamiento, ownership, worktree y recuperación de esa operación.
+3. Validar la ejecución manual con un consumidor instalado y cerrar aislamiento/worktree antes de habilitar tareas de escritura.
+4. Mantener la delegación automática apagada por defecto y exigir revisión de los cambios producidos por hijos.
 
 ## Criterio global de éxito
 

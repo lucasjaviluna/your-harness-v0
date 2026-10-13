@@ -24,7 +24,7 @@ import { installHarnessHeader, showAssessmentProgress, showHarnessMessage as sho
 import { loadTeamKnowledgeRuntime, type TeamKnowledgeRuntime } from "../src/memory/team-knowledge.ts";
 import { registerTeamKnowledgeTools } from "./team-knowledge.ts";
 import type { DelegationRegistry } from "../src/delegation-store.ts";
-import { createDelegationWorktreeManager, runDelegationGitCommand } from "../src/delegation-executor.ts";
+import { createDelegationProcessRunner, createDelegationWorktreeManager, runDelegationGitCommand } from "../src/delegation-executor.ts";
 import { createDelegationSessionController } from "../src/delegation-session.ts";
 
 let lastTask: HarnessTask | undefined;
@@ -830,6 +830,44 @@ export default function (pi: ExtensionAPI) {
           budgetCents: 0,
         });
         showMessage(ctx, `Tarea delegada ${queued.task.id} preparada en estado queued. Workspace: ${queued.plan.workingDirectory}. Requiere aprobación HIL explícita; ejecución: ${currentConfig.delegation.enabled ? "habilitada por configuración, pendiente de integración" : "deshabilitada"}.`);
+      } catch (error) {
+        showMessage(ctx, error instanceof Error ? error.message : String(error), "warn");
+      }
+    },
+  });
+
+  pi.registerCommand("harness-delegation-approve", {
+    description: "Aprueba y ejecuta manualmente una tarea delegada preparada",
+    handler: async (args, ctx) => {
+      const [taskId, approval, ...extra] = args.trim().split(/\s+/);
+      if (!taskId || approval !== "approve" || extra.length) {
+        showMessage(ctx, "Uso: /harness-delegation-approve <task-id> approve", "warn");
+        return;
+      }
+      if (!delegationRegistry) {
+        showMessage(ctx, "No hay registro de delegación cargado.", "warn");
+        return;
+      }
+      if (!currentConfig.delegation.enabled) {
+        showMessage(ctx, "La delegación está deshabilitada. Configura delegation.enabled=true y revisa el plan antes de aprobar.", "warn");
+        return;
+      }
+      if (!currentConfig.delegation.command) {
+        showMessage(ctx, "La delegación está habilitada, pero no tiene delegation.command configurado.", "warn");
+        return;
+      }
+      try {
+        const task = delegationRegistry.snapshot().tasks.find((candidate) => candidate.id === taskId);
+        if (!task) throw new Error(`No existe la tarea delegada ${taskId}.`);
+        const { writeDelegationStore } = await import("../src/delegation-store.ts");
+        const controller = createDelegationSessionController({
+          enabled: true,
+          registry: delegationRegistry,
+          persist: async () => { await writeDelegationStore(ctx.cwd, delegationRegistry!.snapshot()); },
+          runner: createDelegationProcessRunner({ command: currentConfig.delegation.command, args: currentConfig.delegation.args ?? [] }),
+        });
+        const result = await controller.launchPersisted(task, true);
+        showMessage(ctx, `Delegación ${taskId}: ${result.status}. ${result.summary}`, result.status === "succeeded" ? "info" : "warn");
       } catch (error) {
         showMessage(ctx, error instanceof Error ? error.message : String(error), "warn");
       }

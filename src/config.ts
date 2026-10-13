@@ -24,7 +24,7 @@ export type HarnessConfig = {
   captureInput: boolean;
   hil: { requireApproval: boolean; requireReview: boolean; recoverInterrupted: boolean };
   routing: { allowManualOverride: boolean; allowRerouteToSdd: boolean };
-  delegation: { enabled: boolean };
+  delegation: { enabled: boolean; command?: string; args?: string[] };
   memory: HarnessMemoryConfig;
   mcp: {
     enabled: boolean;
@@ -138,6 +138,14 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
     if (delegation?.enabled !== undefined) {
       if (typeof delegation.enabled === "boolean") config.delegation.enabled = delegation.enabled;
       else warnings.push("delegation.enabled inválido; se conserva deshabilitado.");
+    }
+    if (delegation?.command !== undefined) {
+      if (typeof delegation.command === "string" && delegation.command.trim() && !delegation.command.includes("\u0000")) config.delegation.command = delegation.command.trim();
+      else warnings.push("delegation.command inválido; no se configura runner.");
+    }
+    if (delegation?.args !== undefined) {
+      if (Array.isArray(delegation.args) && delegation.args.every((arg) => typeof arg === "string" && !arg.includes("\u0000"))) config.delegation.args = delegation.args as string[];
+      else warnings.push("delegation.args inválido; no se configura runner.");
     }
     const memory = parsed.memory && typeof parsed.memory === "object" ? parsed.memory as Record<string, unknown> : undefined;
     if (memory) {
