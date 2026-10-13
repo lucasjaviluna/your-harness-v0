@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado revisado el 2026-10-13 sobre `5c7f4c6`: fases 0 a 16 completadas en el alcance documentado; además, el workspace read-only, el modelo persistente de delegación y un launcher opt-in aislado están implementados parcialmente. La Fase 9 fue validada manualmente. La evidencia de smoke/CI de `5feafb2` es histórica; la suite local actual pasa con 136 tests, 134 aprobados y 2 omitidos. El primer slice de Your-Team-Knowledge permanece fuera del candidato hasta alcanzar la madurez acordada.
+Estado revisado el 2026-10-13 sobre `5c7f4c6`: fases 0 a 16 completadas en el alcance documentado; además, el workspace read-only, el modelo persistente de delegación, un launcher opt-in aislado y un coordinador de sesión con gate HIL están implementados parcialmente. La Fase 9 fue validada manualmente. La evidencia de smoke/CI de `5feafb2` es histórica; la suite local actual pasa con 138 tests, 136 aprobados y 2 omitidos. El primer slice de Your-Team-Knowledge permanece fuera del candidato hasta alcanzar la madurez acordada.
 
 ## 1. Objetivo y alcance
 

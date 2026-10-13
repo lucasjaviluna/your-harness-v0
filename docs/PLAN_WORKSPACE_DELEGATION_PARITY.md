@@ -165,8 +165,8 @@ La fase debe terminar con una decisión explícita: continuar hacia un workspace
 
 1. Repetir la matriz de compatibilidad y el smoke instalado sobre el commit actual.
 2. Ejecutar en CI la prueba de consumidor instalada para overview/delegation y esquemas corruptos o incompatibles.
-3. Diseñar la integración del launcher opt-in con la sesión, incluyendo creación explícita de tarea, revisión HIL y propagación del `AbortSignal` del padre.
-4. Mantener la delegación real apagada hasta cerrar el gate de aislamiento, ownership y recuperación de esa integración.
+3. Integrar el coordinador de sesión con una operación explícita de la extensión, incluyendo aprobación HIL visible y persistencia real en `.harness/delegation.json`.
+4. Mantener la delegación real apagada hasta cerrar el gate de aislamiento, ownership, worktree y recuperación de esa operación.
 
 ## Criterio global de éxito
 

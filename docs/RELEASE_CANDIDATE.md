@@ -15,7 +15,7 @@ La dependencia de Pi permanece acotada en `package.json` como `^0.85.1`; la vers
 
 ## Evidencia disponible
 
-- `npm test`: 136 pruebas, 134 aprobadas, 0 fallos y 2 omitidas en el entorno Windows actual.
+- `npm test`: 138 pruebas, 136 aprobadas, 0 fallos y 2 omitidas en el entorno Windows actual.
 - `npm run test:e2e:required`: 2 pruebas aprobadas, 0 fallos y 1 omitida por ser específica de Git Bash/Windows.
 - `npm run pack:check`: correcto; el tarball contiene el runtime distribuible.
 - GitHub Actions: verde históricamente para `5feafb2`, con matriz Ubuntu `22.19.0` y `22.x`; falta repetir el job para `5c7f4c6`.
