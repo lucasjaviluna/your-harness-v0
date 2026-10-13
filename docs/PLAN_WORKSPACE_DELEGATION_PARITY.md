@@ -38,6 +38,7 @@ El objetivo no es copiar Gentle Shell completo ni reemplazar Pi. `pi-harness` de
 - El registro de delegación conserva metadata opcional del worktree y, tras reinicio, marca un worktree creado como `unknown` con revisión humana requerida; nunca lo elimina automáticamente.
 - `/harness-delegation` muestra el estado/ruta del worktree y el aviso de revisión; al iniciar sesión, el harness emite una advertencia si hay worktrees inciertos y bloquea cualquier continuación automática.
 - `/harness-delegation-review <task-id> <keep|remove>` verifica el worktree con argv Git sin shell: `keep` exige que exista y `remove` exige que Git confirme su desaparición antes de persistir el resultado.
+- `runDelegationProcess` aplica abort/cancelación, timeout y presupuesto sobre un runner inyectable; solo conserva estado resumido y clasifica fallos de recuperación como `lost`.
 - `/harness-delegation` muestra el registro de forma read-only.
 - No existe todavía launcher, proceso hijo, worktree físico, cancelación, timeout operativo, presupuesto ni integración automática; el registro ya rechaza ownership concurrente sobre el mismo scope de escritura.
 
@@ -163,7 +164,7 @@ La fase debe terminar con una decisión explícita: continuar hacia un workspace
 
 1. Repetir la matriz de compatibilidad y el smoke instalado sobre el commit actual.
 2. Ejecutar en CI la prueba de consumidor instalada para overview/delegation y esquemas corruptos o incompatibles.
-3. Mantener esta operación manual y aislada; el launcher real aún requiere cancelación, timeout, presupuesto y recuperación de proceso.
+3. Conectar este controlador a un adaptador de proceso real solo después de cerrar propagación de cancelación, recuperación y revisión humana.
 4. Mantener la delegación real apagada hasta cerrar el gate de aislamiento y recuperación.
 
 ## Criterio global de éxito

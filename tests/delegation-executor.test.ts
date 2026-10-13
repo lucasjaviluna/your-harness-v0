@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { join, resolve } from "node:path";
-import { createDelegationWorktreeManager, planDelegationWorktree, validateDelegationExecutionPlan, type DelegationExecutionPlan } from "../src/delegation-executor.ts";
+import { createDelegationWorktreeManager, planDelegationWorktree, runDelegationProcess, validateDelegationExecutionPlan, type DelegationExecutionPlan } from "../src/delegation-executor.ts";
 
 const workspaceRoot = resolve("test-fixtures", "repo");
 const base: DelegationExecutionPlan = {
@@ -110,4 +110,38 @@ test("el manager no oculta errores de Git y no fabrica un handle", async () => {
   });
   const manager = createDelegationWorktreeManager(async () => { throw new Error("git falló"); });
   await assert.rejects(manager.create(plan), /git falló/);
+});
+
+test("el controlador acepta una finalización dentro del presupuesto", async () => {
+  let terminated = false;
+  const result = await runDelegationProcess({ ...base, timeoutMs: 100 }, {
+    start: async () => ({ taskId: base.taskId, wait: async () => ({ exitCode: 0, costCents: 0 }), terminate: async () => { terminated = true; } }),
+  });
+  assert.deepEqual(result, { taskId: "child-1", status: "succeeded", summary: "La tarea hija terminó correctamente.", costCents: 0 });
+  assert.equal(terminated, false);
+});
+
+test("el controlador cancela y termina el proceso ante AbortSignal", async () => {
+  let terminatedReason = "";
+  const controller = new AbortController();
+  const pending = runDelegationProcess({ ...base, timeoutMs: 500 }, {
+    start: async () => ({ taskId: base.taskId, wait: () => new Promise(() => undefined), terminate: async (reason) => { terminatedReason = reason; } }),
+  }, controller.signal);
+  controller.abort();
+  assert.deepEqual(await pending, { taskId: "child-1", status: "cancelled", summary: "La tarea hija fue cancelada." });
+  assert.equal(terminatedReason, "cancelled");
+});
+
+test("el controlador aplica timeout y presupuesto sin conservar salida del hijo", async () => {
+  let timeoutReason = "";
+  const timeoutResult = await runDelegationProcess({ ...base, timeoutMs: 5 }, {
+    start: async () => ({ taskId: base.taskId, wait: () => new Promise(() => undefined), terminate: async (reason) => { timeoutReason = reason; } }),
+  });
+  assert.match(timeoutResult.summary, /timeout/);
+  assert.equal(timeoutResult.status, "failed");
+  assert.equal(timeoutReason, "timeout");
+  const budgetResult = await runDelegationProcess({ ...base, budgetCents: 1 }, {
+    start: async () => ({ taskId: base.taskId, wait: async () => ({ exitCode: 0, costCents: 2 }), terminate: async () => undefined }),
+  });
+  assert.deepEqual(budgetResult, { taskId: "child-1", status: "failed", summary: "La tarea hija excedió el presupuesto.", costCents: 2 });
 });

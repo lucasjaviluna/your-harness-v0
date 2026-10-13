@@ -23,6 +23,72 @@ export type DelegationProcessHandle = {
   startedAt: string;
 };
 
+export type DelegationProcessCompletion = {
+  exitCode: number | null;
+  signal?: string;
+  costCents: number;
+};
+
+export type DelegationChildProcess = {
+  taskId: string;
+  pid?: number;
+  wait(): Promise<DelegationProcessCompletion>;
+  terminate(reason: string): Promise<void>;
+};
+
+export type DelegationProcessRunner = {
+  start(plan: DelegationExecutionPlan): Promise<DelegationChildProcess>;
+};
+
+export type DelegationExecutionResult = {
+  taskId: string;
+  status: "succeeded" | "failed" | "cancelled" | "lost";
+  summary: string;
+  costCents?: number;
+};
+
+export async function runDelegationProcess(
+  plan: DelegationExecutionPlan,
+  runner: DelegationProcessRunner,
+  signal?: AbortSignal,
+): Promise<DelegationExecutionResult> {
+  const validation = validateDelegationExecutionPlan(plan);
+  if (!validation.valid) throw new Error(validation.reason);
+  const child = await runner.start(plan);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+  let cancelled = signal?.aborted ?? false;
+  const terminate = async (reason: string) => {
+    try { await child.terminate(reason); } catch { /* recovery will classify an uncooperative child as lost */ }
+  };
+  const cancellation = new Promise<"cancelled" | "timeout">((resolveCancellation) => {
+    timer = setTimeout(() => { timedOut = true; void terminate("timeout"); resolveCancellation("timeout"); }, plan.timeoutMs);
+    const cancel = () => { cancelled = true; void terminate("cancelled"); resolveCancellation("cancelled"); };
+    if (signal?.aborted) cancel();
+    else signal?.addEventListener("abort", cancel, { once: true });
+  });
+  try {
+    const outcome = await Promise.race([
+      child.wait().then((completion) => ({ kind: "completed" as const, completion })),
+      cancellation.then((kind) => ({ kind })),
+    ]);
+    if (outcome.kind === "cancelled" || cancelled) return { taskId: plan.taskId, status: "cancelled", summary: "La tarea hija fue cancelada." };
+    if (outcome.kind === "timeout" || timedOut) return { taskId: plan.taskId, status: "failed", summary: "La tarea hija excedió el timeout." };
+    const { completion } = outcome;
+    if (!Number.isFinite(completion.costCents) || completion.costCents < 0) return { taskId: plan.taskId, status: "failed", summary: "La tarea hija devolvió un coste inválido." };
+    if (completion.costCents > plan.budgetCents) {
+      await terminate("budget");
+      return { taskId: plan.taskId, status: "failed", summary: "La tarea hija excedió el presupuesto.", costCents: completion.costCents };
+    }
+    if (completion.exitCode === 0) return { taskId: plan.taskId, status: "succeeded", summary: "La tarea hija terminó correctamente.", costCents: completion.costCents };
+    return { taskId: plan.taskId, status: "failed", summary: `La tarea hija terminó con código ${String(completion.exitCode)}.`, costCents: completion.costCents };
+  } catch {
+    return { taskId: plan.taskId, status: "lost", summary: "No se pudo recuperar el resultado de la tarea hija." };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /** The adapter remains deliberately unimplemented until isolation and recovery gates are closed. */
 export type DelegationProcessAdapter = {
   start(plan: DelegationExecutionPlan): Promise<DelegationProcessHandle>;
