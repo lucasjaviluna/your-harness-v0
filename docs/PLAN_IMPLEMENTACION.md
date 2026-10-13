@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado: fases 0 a 16 completadas en el alcance documentado. La Fase 9 fue validada manualmente y está completa. El recorte de carga de arranque, el smoke obligatorio de consumidor instalado y la vista unificada están validados en `5feafb2`; GitHub Actions está verde en Ubuntu con Node `22.19.0` y `22.x`. El primer slice de Your-Team-Knowledge permanece fuera del candidato hasta alcanzar la madurez acordada.
+Estado revisado el 2026-10-13 sobre `5c7f4c6`: fases 0 a 16 completadas en el alcance documentado; además, el workspace read-only y el modelo persistente de delegación están implementados parcialmente. La Fase 9 fue validada manualmente. La evidencia de smoke/CI de `5feafb2` es histórica; la suite local actual pasa con 106 tests, 104 aprobados y 2 omitidos. El primer slice de Your-Team-Knowledge permanece fuera del candidato hasta alcanzar la madurez acordada.
 
 ## 1. Objetivo y alcance
 
@@ -452,7 +452,7 @@ Estado: completada el 2026-10-07. Detalle en [docs/STARTUP_PERFORMANCE.md](START
 
 ### Incremento posterior — Vista unificada de estado y cambios
 
-Estado: cerrado en el alcance actual. El comando `/harness-overview` compone, sin modificar el repositorio ni resolver gates automáticamente, la tarea activa, su próximo paso, el gate humano pendiente, el estado Git y los changes OpenSpec. La regresión cubre ausencia de tarea, tarea activa, MCP deshabilitado con allowlist vacía, historial MCP vacío y carga diferida de diagnósticos Git/OpenSpec. La delegación a subagentes permanece fuera del MVP y requiere un plan independiente.
+Estado: cerrado en el alcance actual. El comando `/harness-overview` compone, sin modificar el repositorio ni resolver gates automáticamente, la tarea activa, su próximo paso, el gate humano pendiente, el estado Git, los changes OpenSpec y resúmenes de tareas delegadas. `/harness-delegation` expone el registro persistente read-only. La ejecución real de subagentes permanece deshabilitada y sigue el plan independiente `docs/PLAN_WORKSPACE_DELEGATION_PARITY.md`.
 
 - [x] Diferir el SDK y la integración MCP hasta habilitar MCP o usar un comando MCP.
 - [x] Diferir Git, OpenSpec, verificación y el workflow `simple` hasta que un workflow o diagnóstico los necesite.
@@ -478,9 +478,9 @@ Decisión posterior: la medición comparó TypeScript en runtime con un prototip
 ### Roadmap de calidad recomendado
 
 1. **Estabilizar CI.** Completado: el `Require clean-consumer smoke test` se reproduce en Linux y pasa en GitHub Actions con la matriz Ubuntu `22.19.0`/`22.x`.
-2. **Convertir los recorridos críticos en regresiones.** El consumidor instalado ya verifica recuperación de tarea tras reinicio, OpenSpec ausente y configurado, artefacto corrupto, fallback de clasificación sin modelo, cancelación terminal, cambio de alcance, vista unificada sin/con tarea, MCP deshabilitado e historial vacío; todos pasan en el baseline `5feafb2`. La matriz Ubuntu `22.19.0`/`22.x` confirma la compatibilidad declarada.
+2. **Convertir los recorridos críticos en regresiones.** El consumidor instalado ya verificó históricamente recuperación de tarea tras reinicio, OpenSpec ausente y configurado, artefacto corrupto, fallback de clasificación sin modelo, cancelación terminal, cambio de alcance, vista unificada, MCP deshabilitado e historial vacío. Esa evidencia corresponde a `5feafb2`; debe repetirse para `5c7f4c6` cuando CI vuelva a ejecutarse.
 3. **Revisar la distribución compilada al preparar el release.** La medición actual no justifica un build adicional. El candidato `0.1.0` conserva TypeScript en runtime; adoptar JavaScript compilado solo si una medición futura mejora la mediana al menos 15 % de manera reproducible.
-4. **Fortalecer la experiencia de operación.** Probar en repositorios consumidores los flujos de error del modelo, OpenSpec ausente, artefactos corruptos y resultados MCP ambiguos; convertir cada caso reproducible en una prueba y una recuperación visible en TUI.
+4. **Fortalecer la experiencia de operación.** Completar regresiones instaladas del workspace/delegación y después probar los flujos de error del modelo, OpenSpec ausente, artefactos corruptos y resultados MCP ambiguos; convertir cada caso reproducible en una prueba y una recuperación visible en TUI.
 5. **Preparar distribución.** Completado técnicamente: compatibilidad, changelog, rollback, manifest, segundo entorno Linux, commit CI candidato y notas operativas están documentados. La publicación npm permanece sujeta a autorización explícita.
 
 Cada fase se puede implementar en una rama o PR independiente. Al cerrarla, actualizar las casillas, registrar decisiones que afecten fases posteriores y comprobar los criterios de cierre antes de avanzar.
@@ -493,7 +493,7 @@ Estas capacidades pueden ser valiosas, pero no son necesarias para validar el fl
 - Creación automática de ramas, commits, PRs o releases.
 - Subagentes, comunicación entre sesiones y coordinación distribuida.
 - Memoria persistente externa o sincronización con servicios como Engram.
-- Panel fullscreen, dashboard de cambios o UI propia de workspace.
+- Launcher/home propio y workspace fullscreen completo; el snapshot read-only actual sí forma parte del incremento posterior.
 - Monitoreo de consumo, perfiles avanzados de modelos y selección dinámica por proveedor.
 - Telemetría, métricas de uso y envío de datos fuera del repositorio.
 - Integración web, búsqueda externa y acceso a APIs de terceros.
@@ -503,6 +503,7 @@ Estas capacidades pueden ser valiosas, pero no son necesarias para validar el fl
 - Instaladores o binarios independientes de Pi.
 - Automatización completa de SDD sin confirmación humana.
 - Automatización completamente autónoma como comportamiento predeterminado; la intervención humana seguirá siendo obligatoria para acciones de alto riesgo.
+- Ejecución real de subagentes: el registro y la vista read-only están preparados, pero launcher, aislamiento, ownership, cancelación e integración requieren el plan de workspace/delegación.
 - Implementación completa de perfiles funcionales, de producto o marketing; el MVP solo necesita el perfil `developer`, pero los contratos deben quedar preparados.
 
 La regla de salida del MVP es que una persona pueda iniciar una tarea desde un prompt, recibir una recomendación, completar una tarea simple o ligera y recuperar su estado. OpenSpec puede integrarse después sin rediseñar esos contratos.

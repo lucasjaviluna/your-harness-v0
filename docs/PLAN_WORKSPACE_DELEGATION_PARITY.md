@@ -1,6 +1,6 @@
 # Workspace and Delegation Parity
 
-Estado: plan preparado para comenzar el 2026-10-12.
+Estado revisado el 2026-10-13: Fase 0 parcial, Fase 1 parcial y Fase 2 implementada en contratos/persistencia; la ejecución real de delegación continúa deshabilitada.
 
 ## Objetivo
 
@@ -26,6 +26,14 @@ El objetivo no es copiar Gentle Shell completo ni reemplazar Pi. `pi-harness` de
 - Identificar qué eventos permiten observar tareas hijo, cambios, cancelación y finalización.
 - Definir contratos internos para `WorkspaceSnapshot`, `DelegatedTask`, `DelegationEvent` y `DelegationResult`.
 - Definir límites: profundidad de delegación, cantidad máxima de hijos, timeout, presupuesto y permisos.
+
+### Avance actual
+
+- `docs/PI_COMPATIBILITY.md` documenta el baseline Pi `0.85.1`, las APIs confirmadas y la ausencia de una API pública nativa de child tasks.
+- `src/workspace.ts` y `/harness-overview` implementan el snapshot read-only, incluyendo resúmenes de delegación.
+- `src/delegation.ts` y `src/delegation-store.ts` implementan estados, eventos, límites, persistencia atómica y reconciliación tras reinicio.
+- `/harness-delegation` muestra el registro de forma read-only.
+- No existe todavía launcher, proceso hijo, worktree, ownership efectivo, cancelación, timeout operativo, presupuesto ni integración automática.
 
 ### Gate de salida
 
@@ -145,15 +153,13 @@ La fase debe terminar con una decisión explícita: continuar hacia un workspace
 - Ejecutar publicación npm automáticamente.
 - Permitir modo autónomo sin gates humanos.
 
-## Primer incremento para mañana
+## Próximo incremento
 
-1. Verificar la matriz de compatibilidad de Pi y seleccionar la versión objetivo.
-2. Inspeccionar las APIs disponibles para tareas hijo, eventos y cambios.
-3. Implementar únicamente los tipos y el snapshot read-only, sin lanzar subagentes.
-4. Agregar pruebas unitarias y una prueba instalada del snapshot.
-5. Actualizar `docs/PLAN_DE_PARIDAD.md` únicamente cuando el primer gate tenga evidencia.
+1. Repetir la matriz de compatibilidad y el smoke instalado sobre el commit actual.
+2. Agregar una prueba de consumidor instalado para overview/delegation y esquemas corruptos o incompatibles.
+3. Diseñar ownership e aislamiento antes de implementar cualquier launcher.
+4. Mantener la delegación real apagada hasta cerrar el gate de aislamiento y recuperación.
 
 ## Criterio global de éxito
 
 `pi-harness` debe poder mostrar y recuperar un workspace con tareas propias y delegadas, mantener ownership y límites verificables, exigir revisión antes de integrar cambios y conservar todos los gates actuales de seguridad, empaquetado y recuperación.
-

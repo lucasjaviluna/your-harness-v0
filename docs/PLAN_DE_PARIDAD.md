@@ -1,6 +1,6 @@
 # Plan de paridad
 
-Estado: Etapa 3 cerrada, Etapa 4 validada y Etapa 5 en expansión selectiva. El smoke e2e del baseline `5feafb2` pasa con consumidor instalado y GitHub Actions está verde en la matriz Ubuntu `22.19.0`/`22.x`. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
+Estado revisado el 2026-10-13 sobre `5c7f4c6`: Etapa 3 cerrada, Etapa 4 validada históricamente y Etapa 5 ampliada con el workspace read-only y el modelo persistente de delegación. La suite local actual pasa con 106 tests, 104 aprobados y 2 omitidos por limitaciones del entorno; la evidencia de CI y del smoke de consumidor corresponde a baselines anteriores y debe repetirse para este commit. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
 
 ## Objetivo
 
@@ -10,7 +10,7 @@ Lograr que `yh-pi` sea un producto estable y usable: instalable en un repositori
 
 - El núcleo ya implementa rutas `simple`, `task`, `sdd` y `clarify`, clasificación asistida con salvaguardas, gates humanos, planes versionados y persistencia de tareas ligeras.
 - OpenSpec y MCP están integrados de forma opcional; el provider de Your-Team-Knowledge existe como integración opt-in y sigue desactivado por defecto.
-- `npm test` pasó con 96 pruebas, 94 aprobadas, 0 fallos y 2 omitidas en Windows/consumidores temporales.
+- `npm test` pasó con 106 pruebas, 104 aprobadas, 0 fallos y 2 omitidas en Windows/consumidores temporales.
 - `npm run pack:check` pasó. El smoke obligatorio de un consumidor instalado pasó en Ubuntu WSL y en GitHub Actions después de corregir la resolución ESM del binario de Pi y el cierre de `stdin` en modo `--print`.
 - La UI actual es una capa sobre Pi; no ofrece todavía un workspace integral como gentle-shell. Esa expansión es posterior a estabilizar el flujo base.
 
@@ -53,9 +53,16 @@ Usar yh-pi en varios repositorios consumidores, registrar fallos de instalación
 
 ## Etapa 5 — Expansión selectiva
 
-Estado: completada en el alcance acordado. `/harness-overview` ofrece una vista read-only que combina tarea activa, próximo paso, gate humano pendiente, cambios Git y changes OpenSpec. La matriz instalada valida tarea ausente/activa, recuperación, MCP deshabilitado e historial vacío, además de la carga diferida de diagnósticos. La integración SQLite con `your-team-knowledge` queda pausada hasta alcanzar la madurez acordada.
+Estado: completada en su alcance inicial y ampliada parcialmente. `/harness-overview` ofrece una vista read-only que combina tarea activa, próximo paso, gate humano pendiente, cambios Git, changes OpenSpec y resúmenes de tareas delegadas. `/harness-delegation` expone el registro de delegación sin mutarlo. La integración SQLite con `your-team-knowledge` queda pausada hasta alcanzar la madurez acordada.
 
-Decisión de alcance: no se incorpora delegación a subagentes en esta etapa. El plan de implementación la mantiene fuera del MVP; retomarla requerirá un contrato separado para propiedad de tarea, aislamiento de artefactos, cancelación y recuperación, con gates propios.
+El modelo de delegación ya tiene contratos, límites, persistencia versionada y reconciliación tras reinicio. La ejecución real de subagentes sigue deshabilitada; aún faltan aislamiento/worktrees, ownership, launcher, cancelación, timeout efectivo, presupuesto, integración y pruebas instaladas.
+
+## Incremento actual — workspace y delegación
+
+- Fase 0: contratos y compatibilidad inicial documentados en `docs/PI_COMPATIBILITY.md`; falta una matriz reproducible de versiones/plataformas.
+- Fase 1: `WorkspaceSnapshot`, `/harness-overview` y pruebas unitarias read-only implementados; falta una regresión desde tarball para los estados principales.
+- Fase 2: `DelegatedTask`, eventos, límites, registro persistente y reconciliación `running/awaiting-input → lost` implementados y probados.
+- Fases 3–6: no iniciadas; no se lanzan procesos hijos ni se integran cambios automáticamente.
 
 ## Decisión de producto y riesgo de reimplementación
 

@@ -1,6 +1,6 @@
 # Release candidate
 
-Estado: gates técnicos en verde al 2026-10-11 en el baseline `5feafb2`. El package todavía no se publica ni se cambia su versión.
+Estado: gates técnicos históricos en verde al 2026-10-11 en el baseline `5feafb2`; validación local actualizada el 2026-10-13 sobre `5c7f4c6`. El package todavía no se publica ni se cambia su versión.
 
 ## Compatibilidad declarada
 
@@ -15,15 +15,15 @@ La dependencia de Pi permanece acotada en `package.json` como `^0.85.1`; la vers
 
 ## Evidencia disponible
 
-- `npm test`: 98 pruebas, 96 aprobadas, 0 fallos y 2 omitidas en Ubuntu.
+- `npm test`: 106 pruebas, 104 aprobadas, 0 fallos y 2 omitidas en el entorno Windows actual.
 - `npm run test:e2e:required`: 2 pruebas aprobadas, 0 fallos y 1 omitida por ser específica de Git Bash/Windows.
 - `npm run pack:check`: correcto; el tarball contiene el runtime distribuible.
-- GitHub Actions: verde para el commit candidato `5feafb2`, con matriz Ubuntu `22.19.0` y `22.x`.
+- GitHub Actions: verde históricamente para `5feafb2`, con matriz Ubuntu `22.19.0` y `22.x`; falta repetir el job para `5c7f4c6`.
 - La expectativa del manifest fue actualizada para reflejar la distribución de `CHANGELOG.md`; el test de manifest y `pack:check` vuelven a pasar.
 - Primer slice de Your-Team-Knowledge validado localmente: configuración, loader opt-in y tools nativas; el backend externo permanece desactivado por defecto.
 - Smoke e2e del commit `5feafb2`: consumidor instalado aprobado; Git Bash omitido porque este entorno no puede iniciar `/bin/bash`.
 - El consumidor instalado cubre instalación, rutas `simple`/`sdd`, recuperación, reconciliación explícita, artefacto corrupto, cancelación, cambio de alcance, fallback del modelo y MCP ambiguo.
-- La Etapa 5 del Plan de Paridad queda cerrada con `/harness-overview` y la matriz de diagnósticos/carga diferida; la delegación a subagentes permanece fuera del MVP.
+- La Etapa 5 incluye ahora `/harness-overview` y `/harness-delegation` read-only, con registro persistente de delegación; la ejecución de subagentes permanece deshabilitada.
 
 ## Acciones externas pendientes antes de publicar
 

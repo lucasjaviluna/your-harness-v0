@@ -1,6 +1,6 @@
 # Pi compatibility baseline
 
-Estado: gate inicial de workspace/delegación, 2026-10-12.
+Estado: gate inicial de workspace/delegación completado parcialmente, revisado el 2026-10-13.
 
 ## Versión objetivo
 

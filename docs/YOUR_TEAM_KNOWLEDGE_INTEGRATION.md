@@ -15,7 +15,7 @@ Implementar una extensión nativa de Pi para consumir el sistema de memoria comp
 - Las escrituras requieren `memory.allowWrites` y aprobación humana por defecto.
 - La ausencia del módulo, de la base o del proyecto produce diagnóstico y no bloquea Pi.
 
-El commit de integración pasó localmente `npm test` (96 pruebas, 94 aprobadas, 2 omitidas) y `npm run pack:check`. Aún no debe considerarse validado en CI ni como parte del candidato publicable hasta repetir esos gates sobre el commit exacto.
+La integración se validó localmente dentro de una suite que actualmente tiene 106 pruebas, 104 aprobadas y 2 omitidas; `npm run pack:check` también pasa. Aún no debe considerarse validada en CI ni como parte del candidato publicable hasta repetir esos gates sobre el commit exacto y validar el módulo SQLite distribuible.
 
 ## Alcance del plan
 
