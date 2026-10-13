@@ -56,11 +56,25 @@ export function createDelegationProcessRunner(spec: DelegationLaunchSpec): Deleg
         child.once("error", (cause) => rejectCompletion(cause instanceof Error ? cause : new Error(String(cause))));
         child.once("close", (exitCode, signal) => resolveCompletion({ exitCode, signal: signal ?? undefined, costCents: 0 }));
       });
+      const waitForClose = async (milliseconds: number): Promise<void> => {
+        await Promise.race([
+          completion.then(() => undefined, () => undefined),
+          new Promise<void>((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
+        ]);
+      };
       return {
         taskId: plan.taskId,
         pid: child.pid,
         wait: async () => completion,
-        terminate: async () => { if (child.exitCode === null && !child.killed) child.kill("SIGTERM"); },
+        terminate: async () => {
+          if (child.exitCode !== null) return;
+          child.kill("SIGTERM");
+          await waitForClose(250);
+          if (child.exitCode === null) {
+            child.kill("SIGKILL");
+            await waitForClose(250);
+          }
+        },
       };
     },
   };

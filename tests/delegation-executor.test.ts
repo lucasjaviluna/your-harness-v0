@@ -157,3 +157,17 @@ test("el runner real clasifica un comando inexistente como perdido", async () =>
   const result = await runDelegationProcess({ ...base, workspaceRoot: process.cwd(), workingDirectory: process.cwd(), timeoutMs: 500 }, runner);
   assert.deepEqual(result, { taskId: "child-1", status: "lost", summary: "No se pudo recuperar el resultado de la tarea hija." });
 });
+
+test("el runner real propaga cancelación y espera el cierre del hijo", async () => {
+  const controller = new AbortController();
+  const runner = createDelegationProcessRunner({ command: process.execPath, args: ["-e", "setTimeout(() => undefined, 10_000)"] });
+  const pending = runDelegationProcess({ ...base, workspaceRoot: process.cwd(), workingDirectory: process.cwd(), timeoutMs: 5_000 }, runner, controller.signal);
+  controller.abort();
+  assert.deepEqual(await pending, { taskId: "child-1", status: "cancelled", summary: "La tarea hija fue cancelada." });
+});
+
+test("el runner real aplica timeout y recupera el proceso hijo", async () => {
+  const runner = createDelegationProcessRunner({ command: process.execPath, args: ["-e", "setTimeout(() => undefined, 10_000)"] });
+  const result = await runDelegationProcess({ ...base, workspaceRoot: process.cwd(), workingDirectory: process.cwd(), timeoutMs: 10 }, runner);
+  assert.deepEqual(result, { taskId: "child-1", status: "failed", summary: "La tarea hija excedió el timeout." });
+});

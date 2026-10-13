@@ -32,16 +32,16 @@ El objetivo no es copiar Gentle Shell completo ni reemplazar Pi. `pi-harness` de
 - `docs/PI_COMPATIBILITY.md` documenta el baseline Pi `0.85.1`, las APIs confirmadas y la ausencia de una API pública nativa de child tasks.
 - `src/workspace.ts` y `/harness-overview` implementan el snapshot read-only, incluyendo resúmenes de delegación.
 - `src/delegation.ts` y `src/delegation-store.ts` implementan estados, eventos, límites, ownership de scope, validación de registros, persistencia atómica y reconciliación tras reinicio.
-- `src/delegation-executor.ts` define el contrato del adaptador futuro y rechaza planes con rutas, aislamiento, ownership, timeout o presupuesto inseguros; todavía no lanza procesos.
+- `src/delegation-executor.ts` define el contrato del adaptador y rechaza planes con rutas, aislamiento, ownership, timeout o presupuesto inseguros; el runner real existe pero todavía no lanza comandos de delegación del harness.
 - `src/delegation-executor.ts` también genera planes declarativos de worktree y comandos Git explícitos, sin ejecutar Git ni modificar el filesystem.
 - El manager de worktrees usa un runner Git inyectable: propaga errores, devuelve un handle solo tras crear correctamente y mantiene la remoción explícita; aún no está conectado al launcher.
 - El registro de delegación conserva metadata opcional del worktree y, tras reinicio, marca un worktree creado como `unknown` con revisión humana requerida; nunca lo elimina automáticamente.
 - `/harness-delegation` muestra el estado/ruta del worktree y el aviso de revisión; al iniciar sesión, el harness emite una advertencia si hay worktrees inciertos y bloquea cualquier continuación automática.
 - `/harness-delegation-review <task-id> <keep|remove>` verifica el worktree con argv Git sin shell: `keep` exige que exista y `remove` exige que Git confirme su desaparición antes de persistir el resultado.
 - `runDelegationProcess` aplica abort/cancelación, timeout y presupuesto sobre un runner inyectable; solo conserva estado resumido y clasifica fallos de recuperación como `lost`.
-- `createDelegationProcessRunner` adapta un proceso real con `spawn`, argv explícito, `shell: false` y stdio ignorado; permanece sin conexión al launcher.
+- `createDelegationProcessRunner` adapta un proceso real con `spawn`, argv explícito, `shell: false` y stdio ignorado; espera el cierre tras `SIGTERM` y escala a `SIGKILL` tras una gracia acotada. Permanece sin conexión al launcher.
 - `/harness-delegation` muestra el registro de forma read-only.
-- No existe todavía launcher, proceso hijo, worktree físico, cancelación, timeout operativo, presupuesto ni integración automática; el registro ya rechaza ownership concurrente sobre el mismo scope de escritura.
+- No existe todavía launcher ni integración automática, y no se crean worktrees físicos desde la sesión. El runner real ya cubre cancelación y timeout operativos de un proceso hijo aislado, mientras que el presupuesto sigue siendo un contrato resumido sin coste real. El registro ya rechaza ownership concurrente sobre el mismo scope de escritura.
 
 ### Gate de salida
 
@@ -165,8 +165,8 @@ La fase debe terminar con una decisión explícita: continuar hacia un workspace
 
 1. Repetir la matriz de compatibilidad y el smoke instalado sobre el commit actual.
 2. Ejecutar en CI la prueba de consumidor instalada para overview/delegation y esquemas corruptos o incompatibles.
-3. Probar propagación de cancelación y recuperación sobre procesos reales antes de conectar el runner a la delegación de sesión.
-4. Mantener la delegación real apagada hasta cerrar el gate de aislamiento y recuperación.
+3. Conectar el runner real a un launcher opt-in que reciba únicamente planes ya validados y persista transiciones resumidas.
+4. Mantener la delegación real apagada hasta cerrar el gate de aislamiento, ownership y recuperación del launcher.
 
 ## Criterio global de éxito
 
