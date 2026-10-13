@@ -24,6 +24,7 @@ export type HarnessConfig = {
   captureInput: boolean;
   hil: { requireApproval: boolean; requireReview: boolean; recoverInterrupted: boolean };
   routing: { allowManualOverride: boolean; allowRerouteToSdd: boolean };
+  delegation: { enabled: boolean };
   memory: HarnessMemoryConfig;
   mcp: {
     enabled: boolean;
@@ -41,6 +42,7 @@ export const DEFAULT_CONFIG: HarnessConfig = {
   defaultMode: "auto", profile: "developer", captureInput: false,
   hil: { requireApproval: true, requireReview: true, recoverInterrupted: true },
   routing: { allowManualOverride: true, allowRerouteToSdd: true },
+  delegation: { enabled: false },
   memory: {
     enabled: false,
     provider: "team-knowledge",
@@ -132,6 +134,11 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
         else warnings.push(`routing.${key} inválido; se conserva el valor default.`);
       }
     }
+    const delegation = parsed.delegation && typeof parsed.delegation === "object" ? parsed.delegation as Record<string, unknown> : undefined;
+    if (delegation?.enabled !== undefined) {
+      if (typeof delegation.enabled === "boolean") config.delegation.enabled = delegation.enabled;
+      else warnings.push("delegation.enabled inválido; se conserva deshabilitado.");
+    }
     const memory = parsed.memory && typeof parsed.memory === "object" ? parsed.memory as Record<string, unknown> : undefined;
     if (memory) {
       if (memory.provider !== undefined && memory.provider !== "team-knowledge") warnings.push("memory.provider inválido; se conserva team-knowledge.");
@@ -187,7 +194,7 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
       } else warnings.push("mcp.allowlist inválida; se conserva vacía.");
     }
     if (config.mcp.allowlist.length === 0) config.mcp.enabled = false;
-    const known = new Set(["defaultMode", "profile", "captureInput", "hil", "routing", "memory", "mcp"]);
+    const known = new Set(["defaultMode", "profile", "captureInput", "hil", "routing", "delegation", "memory", "mcp"]);
     for (const key of Object.keys(parsed)) if (!known.has(key)) warnings.push(`Clave desconocida ignorada: ${key}.`);
     return { config: applyRuntimeOverrides(config, runtimeOverrides), path, warnings, source: "project" };
   } catch (error) {
@@ -196,5 +203,5 @@ export async function loadConfig(cwd: string, runtimeOverrides: HarnessRuntimeOv
 }
 
 export function formatConfig(result: ConfigResult): string {
-  return [`Configuración: ${result.source}`, `Archivo: ${result.path ?? "defaults internos"}`, `Modo default: ${result.config.defaultMode}`, `Perfil: ${result.config.profile}`, `Captura input: ${result.config.captureInput ? "sí" : "no"}`, `HIL approval: ${result.config.hil.requireApproval ? "sí" : "no"}`, `HIL review: ${result.config.hil.requireReview ? "sí" : "no"}`, `Recuperar interrupciones: ${result.config.hil.recoverInterrupted ? "sí" : "no"}`, `Memoria: ${result.config.memory.enabled ? "habilitada" : "deshabilitada"} (${result.config.memory.provider}; recall automático: ${result.config.memory.autoRecall ? "sí" : "no"}; escritura: ${result.config.memory.allowWrites ? "permitida" : "no"})`, `MCP: ${result.config.mcp.enabled ? "habilitado" : "deshabilitado"} (${result.config.mcp.allowlist.reduce((count, entry) => count + entry.tools.length, 0)} tools allowlisted; aprobación default: ${result.config.mcp.defaultApproval})`, ...result.warnings.map((warning) => `Advertencia: ${warning}`)].join("\n");
+  return [`Configuración: ${result.source}`, `Archivo: ${result.path ?? "defaults internos"}`, `Modo default: ${result.config.defaultMode}`, `Perfil: ${result.config.profile}`, `Captura input: ${result.config.captureInput ? "sí" : "no"}`, `HIL approval: ${result.config.hil.requireApproval ? "sí" : "no"}`, `HIL review: ${result.config.hil.requireReview ? "sí" : "no"}`, `Recuperar interrupciones: ${result.config.hil.recoverInterrupted ? "sí" : "no"}`, `Delegación: ${result.config.delegation.enabled ? "habilitada explícitamente" : "deshabilitada"}`, `Memoria: ${result.config.memory.enabled ? "habilitada" : "deshabilitada"} (${result.config.memory.provider}; recall automático: ${result.config.memory.autoRecall ? "sí" : "no"}; escritura: ${result.config.memory.allowWrites ? "permitida" : "no"})`, `MCP: ${result.config.mcp.enabled ? "habilitado" : "deshabilitado"} (${result.config.mcp.allowlist.reduce((count, entry) => count + entry.tools.length, 0)} tools allowlisted; aprobación default: ${result.config.mcp.defaultApproval})`, ...result.warnings.map((warning) => `Advertencia: ${warning}`)].join("\n");
 }

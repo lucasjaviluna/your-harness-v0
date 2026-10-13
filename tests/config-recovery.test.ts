@@ -12,6 +12,7 @@ test("usa defaults cuando el proyecto no tiene configuración", async () => {
   const result = await loadConfig(cwd);
   assert.equal(result.source, "defaults");
   assert.deepEqual(result.config, DEFAULT_CONFIG);
+  assert.equal(result.config.delegation.enabled, false);
 });
 
 test("valida configuración de proyecto y conserva warnings", async () => {
@@ -24,6 +25,18 @@ test("valida configuración de proyecto y conserva warnings", async () => {
   assert.equal(result.config.profile, "product-owner");
   assert.equal(result.config.hil.requireReview, false);
   assert.match(result.warnings.join("\n"), /desconocida/);
+});
+
+test("la delegación sólo puede habilitarse explícitamente y conserva warnings", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-config-delegation-"));
+  await mkdir(join(cwd, ".harness"));
+  await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({ delegation: { enabled: true }, unknown: true }));
+  const enabled = await loadConfig(cwd);
+  assert.equal(enabled.config.delegation.enabled, true);
+  await writeFile(join(cwd, ".harness", "config.json"), JSON.stringify({ delegation: { enabled: "yes" } }));
+  const invalid = await loadConfig(cwd);
+  assert.equal(invalid.config.delegation.enabled, false);
+  assert.match(invalid.warnings.join("\n"), /delegation.enabled inválido/);
 });
 
 test("los overrides de runtime prevalecen sobre la configuración del proyecto", async () => {

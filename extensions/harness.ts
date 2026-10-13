@@ -25,6 +25,7 @@ import { loadTeamKnowledgeRuntime, type TeamKnowledgeRuntime } from "../src/memo
 import { registerTeamKnowledgeTools } from "./team-knowledge.ts";
 import type { DelegationRegistry } from "../src/delegation-store.ts";
 import { createDelegationWorktreeManager, runDelegationGitCommand } from "../src/delegation-executor.ts";
+import { createDelegationSessionController } from "../src/delegation-session.ts";
 
 let lastTask: HarnessTask | undefined;
 let sessionTasks: HarnessTask[] = [];
@@ -794,6 +795,44 @@ export default function (pi: ExtensionAPI) {
     handler: async (_args, ctx) => {
       const snapshot = delegationRegistry?.snapshot();
       showMessage(ctx, formatDelegationOverview(snapshot?.tasks ?? [], snapshot?.events ?? []));
+    },
+  });
+
+  pi.registerCommand("harness-delegation-prepare", {
+    description: "Prepara una tarea delegada read-only y deja visible el gate HIL",
+    handler: async (args, ctx) => {
+      const [taskId, parentTaskId, workingDirectory, mode = "task", ...extra] = args.trim().split(/\s+/);
+      if (!taskId || !parentTaskId || !workingDirectory || extra.length || !["task", "background"].includes(mode)) {
+        showMessage(ctx, "Uso: /harness-delegation-prepare <task-id> <parent-task-id> <working-directory> [task|background]", "warn");
+        return;
+      }
+      if (!delegationRegistry) {
+        showMessage(ctx, "No hay registro de delegación cargado.", "warn");
+        return;
+      }
+      try {
+        const { writeDelegationStore } = await import("../src/delegation-store.ts");
+        const controller = createDelegationSessionController({
+          enabled: currentConfig.delegation.enabled,
+          registry: delegationRegistry,
+          persist: async () => { await writeDelegationStore(ctx.cwd, delegationRegistry!.snapshot()); },
+          runner: { start: async () => { throw new Error("La ejecución aún no está conectada a la operación de sesión."); } },
+        });
+        const queued = await controller.queue({
+          taskId,
+          parentTaskId,
+          mode: mode as "task" | "background",
+          depth: 1,
+          isolation: "read-only",
+          workspaceRoot: ctx.cwd,
+          workingDirectory,
+          timeoutMs: 15 * 60 * 1000,
+          budgetCents: 0,
+        });
+        showMessage(ctx, `Tarea delegada ${queued.task.id} preparada en estado queued. Workspace: ${queued.plan.workingDirectory}. Requiere aprobación HIL explícita; ejecución: ${currentConfig.delegation.enabled ? "habilitada por configuración, pendiente de integración" : "deshabilitada"}.`);
+      } catch (error) {
+        showMessage(ctx, error instanceof Error ? error.message : String(error), "warn");
+      }
     },
   });
 
