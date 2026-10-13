@@ -35,6 +35,7 @@ El objetivo no es copiar Gentle Shell completo ni reemplazar Pi. `pi-harness` de
 - `src/delegation-executor.ts` define el contrato del adaptador futuro y rechaza planes con rutas, aislamiento, ownership, timeout o presupuesto inseguros; todavía no lanza procesos.
 - `src/delegation-executor.ts` también genera planes declarativos de worktree y comandos Git explícitos, sin ejecutar Git ni modificar el filesystem.
 - El manager de worktrees usa un runner Git inyectable: propaga errores, devuelve un handle solo tras crear correctamente y mantiene la remoción explícita; aún no está conectado al launcher.
+- El registro de delegación conserva metadata opcional del worktree y, tras reinicio, marca un worktree creado como `unknown` con revisión humana requerida; nunca lo elimina automáticamente.
 - `/harness-delegation` muestra el registro de forma read-only.
 - No existe todavía launcher, proceso hijo, worktree físico, cancelación, timeout operativo, presupuesto ni integración automática; el registro ya rechaza ownership concurrente sobre el mismo scope de escritura.
 

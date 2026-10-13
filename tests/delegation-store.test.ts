@@ -74,3 +74,32 @@ test("no registra dos tareas de escritura sobre el mismo scope", () => {
     ownership: { scope: "src/app", isolation: "workspace", artifactPaths: ["src/app/form.ts"] },
   }));
 });
+
+test("persiste el worktree y exige revisión si queda incierto tras reiniciar", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-delegation-worktree-"));
+  const registry = new DelegationRegistry();
+  registry.createTask(task("child-worktree"));
+  registry.recordEvent({ taskId: "child-worktree", type: "started", timestamp: "2026-10-13T00:01:00Z" });
+  registry.attachWorktree("child-worktree", {
+    path: join(cwd, "..", "child-worktree"), branchName: "harness/child-worktree", state: "created", reviewRequired: false,
+  });
+  await writeDelegationStore(cwd, registry.snapshot());
+  const recovered = new DelegationRegistry(await readDelegationStore(cwd));
+  const events = recovered.reconcileAfterRestart("2026-10-13T00:03:00Z");
+  assert.equal(events[0]?.type, "lost");
+  assert.deepEqual(recovered.listForParent("parent")[0]?.worktree, {
+    path: join(cwd, "..", "child-worktree"), branchName: "harness/child-worktree", state: "unknown", reviewRequired: true,
+  });
+});
+
+test("rechaza metadata de worktree malformada", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-delegation-worktree-invalid-"));
+  const directory = join(cwd, ".harness");
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "delegation.json"), JSON.stringify({
+    schemaVersion: 1,
+    tasks: [{ ...task("child-invalid"), worktree: { path: "/tmp/x", branchName: "main", state: "created" } }],
+    events: [],
+  }), "utf8");
+  await assert.rejects(readDelegationStore(cwd), /tarea o evento malformado/);
+});

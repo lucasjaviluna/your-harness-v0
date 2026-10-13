@@ -56,6 +56,13 @@ function isDelegatedTaskRecord(value: unknown): value is DelegatedTask {
     if (!ownership || typeof ownership !== "object" || Array.isArray(ownership) || typeof ownership.scope !== "string" || !(["read-only", "workspace", "worktree"] as string[]).includes(ownership.isolation)) return false;
     if (ownership.artifactPaths !== undefined && (!Array.isArray(ownership.artifactPaths) || !ownership.artifactPaths.every((path) => typeof path === "string"))) return false;
   }
+  if (task.worktree !== undefined) {
+    const worktree = task.worktree;
+    if (!worktree || typeof worktree !== "object" || Array.isArray(worktree)
+      || typeof worktree.path !== "string" || typeof worktree.branchName !== "string"
+      || !( ["planned", "created", "removed", "unknown"] as string[]).includes(worktree.state)
+      || typeof worktree.reviewRequired !== "boolean") return false;
+  }
   return true;
 }
 
@@ -126,6 +133,21 @@ export class DelegationRegistry {
     this.data.events.push({ ...event });
   }
 
+  attachWorktree(taskId: string, worktree: NonNullable<DelegatedTask["worktree"]>): DelegatedTask {
+    const task = this.data.tasks.find((item) => item.id === taskId);
+    if (!task) throw new Error(`No existe la tarea delegada ${taskId}.`);
+    task.worktree = { ...worktree };
+    return { ...task, worktree: { ...task.worktree } };
+  }
+
+  updateWorktreeState(taskId: string, state: NonNullable<DelegatedTask["worktree"]>["state"], reviewRequired: boolean): DelegatedTask {
+    const task = this.data.tasks.find((item) => item.id === taskId);
+    if (!task) throw new Error(`No existe la tarea delegada ${taskId}.`);
+    if (!task.worktree) throw new Error(`La tarea delegada ${taskId} no tiene un worktree asociado.`);
+    task.worktree = { ...task.worktree, state, reviewRequired };
+    return { ...task, worktree: { ...task.worktree } };
+  }
+
   listForParent(parentTaskId: string): DelegatedTask[] {
     return this.data.tasks.filter((task) => task.parentTaskId === parentTaskId).map((task) => ({ ...task }));
   }
@@ -135,6 +157,7 @@ export class DelegationRegistry {
     const lostEvents: DelegationEvent[] = [];
     for (const task of this.data.tasks) {
       if (isTerminalDelegatedTaskStatus(task.status) || task.status === "queued") continue;
+      if (task.worktree?.state === "created") task.worktree = { ...task.worktree, state: "unknown", reviewRequired: true };
       const event = { taskId: task.id, type: "lost" as const, timestamp, summary: "La tarea hija no pudo reconciliarse tras reiniciar la sesión." };
       this.recordEvent(event);
       lostEvents.push(event);

@@ -19,6 +19,15 @@ export type DelegationOwnership = {
   artifactPaths?: string[];
 };
 
+export type DelegationWorktreeState = "planned" | "created" | "removed" | "unknown";
+
+export type DelegationWorktree = {
+  path: string;
+  branchName: string;
+  state: DelegationWorktreeState;
+  reviewRequired: boolean;
+};
+
 /** Persistable metadata for a future delegated child. No prompt or raw output is stored here. */
 export type DelegatedTask = {
   id: string;
@@ -28,6 +37,7 @@ export type DelegatedTask = {
   depth: number;
   scope?: string;
   ownership?: DelegationOwnership;
+  worktree?: DelegationWorktree;
   summary?: string;
   createdAt: string;
   updatedAt: string;
