@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { join, resolve } from "node:path";
+import { DelegationRegistry } from "../src/delegation-store.ts";
 import { createDelegationProcessRunner, createDelegationWorktreeManager, planDelegationWorktree, runDelegationProcess, validateDelegationExecutionPlan, type DelegationExecutionPlan } from "../src/delegation-executor.ts";
+import { createDelegationLauncher } from "../src/delegation-launcher.ts";
 
 const workspaceRoot = resolve("test-fixtures", "repo");
 const base: DelegationExecutionPlan = {
@@ -170,4 +172,63 @@ test("el runner real aplica timeout y recupera el proceso hijo", async () => {
   const runner = createDelegationProcessRunner({ command: process.execPath, args: ["-e", "setTimeout(() => undefined, 10_000)"] });
   const result = await runDelegationProcess({ ...base, workspaceRoot: process.cwd(), workingDirectory: process.cwd(), timeoutMs: 10 }, runner);
   assert.deepEqual(result, { taskId: "child-1", status: "failed", summary: "La tarea hija excedió el timeout." });
+});
+
+function registeredTask(): { registry: DelegationRegistry; task: Parameters<DelegationRegistry["createTask"]>[0] } {
+  const registry = new DelegationRegistry();
+  const task = {
+    id: "child-1",
+    parentTaskId: "parent-1",
+    status: "queued" as const,
+    mode: "task" as const,
+    depth: 1,
+    createdAt: "2026-10-13T00:00:00.000Z",
+    updatedAt: "2026-10-13T00:00:00.000Z",
+  };
+  registry.createTask(task);
+  return { registry, task };
+}
+
+test("el launcher opt-in persiste started y el resultado resumido", async () => {
+  const { registry, task } = registeredTask();
+  const persisted: string[] = [];
+  const launcher = createDelegationLauncher({
+    enabled: true,
+    registry,
+    persist: async () => { persisted.push(registry.snapshot().events.at(-1)?.type ?? ""); },
+    now: () => "2026-10-13T00:00:01.000Z",
+    runner: { start: async () => ({ taskId: task.id, wait: async () => ({ exitCode: 0, costCents: 0 }), terminate: async () => undefined }) },
+  });
+  const result = await launcher.launch(task, { ...base, workspaceRoot: process.cwd(), workingDirectory: process.cwd() });
+  assert.equal(result.status, "succeeded");
+  assert.deepEqual(persisted, ["started", "completed"]);
+  assert.equal(registry.snapshot().tasks[0]?.status, "succeeded");
+});
+
+test("el launcher permanece apagado por defecto y no inicia el runner", async () => {
+  const { registry, task } = registeredTask();
+  let started = false;
+  const launcher = createDelegationLauncher({
+    enabled: false,
+    registry,
+    persist: async () => undefined,
+    runner: { start: async () => { started = true; throw new Error("no debe iniciar"); } },
+  });
+  await assert.rejects(launcher.launch(task, { ...base, workspaceRoot: process.cwd(), workingDirectory: process.cwd() }), /deshabilitada/);
+  assert.equal(started, false);
+  assert.equal(registry.snapshot().tasks[0]?.status, "queued");
+});
+
+test("el launcher persiste pérdida si el resultado no puede guardarse", async () => {
+  const { registry, task } = registeredTask();
+  let writes = 0;
+  const launcher = createDelegationLauncher({
+    enabled: true,
+    registry,
+    persist: async () => { writes += 1; if (writes === 2) throw new Error("store no disponible"); },
+    runner: { start: async () => ({ taskId: task.id, wait: async () => ({ exitCode: 0, costCents: 0 }), terminate: async () => undefined }) },
+  });
+  const result = await launcher.launch(task, { ...base, workspaceRoot: process.cwd(), workingDirectory: process.cwd() });
+  assert.deepEqual(result, { taskId: task.id, status: "lost", summary: "La tarea hija terminó, pero no se pudo persistir su resultado.", costCents: 0 });
+  assert.equal(registry.snapshot().tasks[0]?.status, "succeeded");
 });

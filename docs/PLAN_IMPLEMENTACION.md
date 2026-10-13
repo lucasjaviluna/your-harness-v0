@@ -1,6 +1,6 @@
 # Plan de implementación: harness de desarrollo para Pi
 
-Estado revisado el 2026-10-13 sobre `5c7f4c6`: fases 0 a 16 completadas en el alcance documentado; además, el workspace read-only y el modelo persistente de delegación están implementados parcialmente. La Fase 9 fue validada manualmente. La evidencia de smoke/CI de `5feafb2` es histórica; la suite local actual pasa con 133 tests, 131 aprobados y 2 omitidos. El primer slice de Your-Team-Knowledge permanece fuera del candidato hasta alcanzar la madurez acordada.
+Estado revisado el 2026-10-13 sobre `5c7f4c6`: fases 0 a 16 completadas en el alcance documentado; además, el workspace read-only, el modelo persistente de delegación y un launcher opt-in aislado están implementados parcialmente. La Fase 9 fue validada manualmente. La evidencia de smoke/CI de `5feafb2` es histórica; la suite local actual pasa con 136 tests, 134 aprobados y 2 omitidos. El primer slice de Your-Team-Knowledge permanece fuera del candidato hasta alcanzar la madurez acordada.
 
 ## 1. Objetivo y alcance
 
@@ -503,7 +503,7 @@ Estas capacidades pueden ser valiosas, pero no son necesarias para validar el fl
 - Instaladores o binarios independientes de Pi.
 - Automatización completa de SDD sin confirmación humana.
 - Automatización completamente autónoma como comportamiento predeterminado; la intervención humana seguirá siendo obligatoria para acciones de alto riesgo.
-- Ejecución real de subagentes: el registro y la vista read-only están preparados, pero launcher, aislamiento, ownership, cancelación e integración requieren el plan de workspace/delegación.
+- Ejecución real de subagentes: el registro, la vista read-only y un launcher opt-in de bajo nivel están preparados; la creación desde sesión, aislamiento físico/worktrees, propagación del padre e integración siguen requiriendo el plan de workspace/delegación.
 - Implementación completa de perfiles funcionales, de producto o marketing; el MVP solo necesita el perfil `developer`, pero los contratos deben quedar preparados.
 
 La regla de salida del MVP es que una persona pueda iniciar una tarea desde un prompt, recibir una recomendación, completar una tarea simple o ligera y recuperar su estado. OpenSpec puede integrarse después sin rediseñar esos contratos.
