@@ -61,7 +61,9 @@ function isDelegatedTaskRecord(value: unknown): value is DelegatedTask {
     if (!worktree || typeof worktree !== "object" || Array.isArray(worktree)
       || typeof worktree.path !== "string" || typeof worktree.branchName !== "string"
       || !( ["planned", "created", "removed", "unknown"] as string[]).includes(worktree.state)
-      || typeof worktree.reviewRequired !== "boolean") return false;
+      || typeof worktree.reviewRequired !== "boolean"
+      || (worktree.reviewDecision !== undefined && !( ["keep", "remove"] as string[]).includes(worktree.reviewDecision))
+      || (worktree.reviewedAt !== undefined && typeof worktree.reviewedAt !== "string")) return false;
   }
   return true;
 }
@@ -145,6 +147,16 @@ export class DelegationRegistry {
     if (!task) throw new Error(`No existe la tarea delegada ${taskId}.`);
     if (!task.worktree) throw new Error(`La tarea delegada ${taskId} no tiene un worktree asociado.`);
     task.worktree = { ...task.worktree, state, reviewRequired };
+    return { ...task, worktree: { ...task.worktree } };
+  }
+
+  resolveWorktreeReview(taskId: string, decision: NonNullable<DelegatedTask["worktree"]>["reviewDecision"], reviewedAt: string): DelegatedTask {
+    const task = this.data.tasks.find((item) => item.id === taskId);
+    if (!task) throw new Error(`No existe la tarea delegada ${taskId}.`);
+    if (!task.worktree || task.worktree.state !== "unknown" || !task.worktree.reviewRequired) {
+      throw new Error(`La tarea delegada ${taskId} no tiene una revisión de worktree pendiente.`);
+    }
+    task.worktree = { ...task.worktree, reviewRequired: false, reviewDecision: decision, reviewedAt };
     return { ...task, worktree: { ...task.worktree } };
   }
 

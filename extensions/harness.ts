@@ -796,6 +796,29 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  pi.registerCommand("harness-delegation-review", {
+    description: "Registra una decisión explícita sobre un worktree incierto",
+    handler: async (args, ctx) => {
+      const [taskId, decision, ...extra] = args.trim().split(/\s+/);
+      if (!taskId || !decision || extra.length || !["keep", "remove"].includes(decision)) {
+        showMessage(ctx, "Uso: /harness-delegation-review <task-id> <keep|remove>", "warn");
+        return;
+      }
+      if (!delegationRegistry) {
+        showMessage(ctx, "No hay registro de delegación cargado.", "warn");
+        return;
+      }
+      try {
+        const resolved = delegationRegistry.resolveWorktreeReview(taskId, decision as "keep" | "remove", new Date().toISOString());
+        const { writeDelegationStore } = await import("../src/delegation-store.ts");
+        await writeDelegationStore(ctx.cwd, delegationRegistry.snapshot());
+        showMessage(ctx, `Decisión ${resolved.worktree?.reviewDecision} registrada para ${taskId}. Estado físico: ${resolved.worktree?.state}; la acción Git todavía requiere el manager controlado.`);
+      } catch (error) {
+        showMessage(ctx, error instanceof Error ? error.message : String(error), "warn");
+      }
+    },
+  });
+
   pi.registerCommand("harness-decide", {
     description: "Registra una decisión para el checkpoint humano actual",
     handler: async (args, ctx) => {

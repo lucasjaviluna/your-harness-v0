@@ -103,3 +103,13 @@ test("rechaza metadata de worktree malformada", async () => {
   }), "utf8");
   await assert.rejects(readDelegationStore(cwd), /tarea o evento malformado/);
 });
+
+test("persiste una decisión explícita sobre un worktree incierto", () => {
+  const registry = new DelegationRegistry();
+  registry.createTask(task("child-review"));
+  registry.recordEvent({ taskId: "child-review", type: "started", timestamp: "2026-10-13T00:01:00Z" });
+  registry.attachWorktree("child-review", { path: "/tmp/child-review", branchName: "harness/child-review", state: "unknown", reviewRequired: true });
+  const resolved = registry.resolveWorktreeReview("child-review", "keep", "2026-10-13T00:04:00Z");
+  assert.deepEqual(resolved.worktree, { path: "/tmp/child-review", branchName: "harness/child-review", state: "unknown", reviewRequired: false, reviewDecision: "keep", reviewedAt: "2026-10-13T00:04:00Z" });
+  assert.throws(() => registry.resolveWorktreeReview("child-review", "remove", "2026-10-13T00:05:00Z"), /no tiene una revisión/);
+});

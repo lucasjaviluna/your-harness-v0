@@ -1,6 +1,6 @@
 # Plan de paridad
 
-Estado revisado el 2026-10-13 sobre `5c7f4c6`: Etapa 3 cerrada, Etapa 4 validada históricamente y Etapa 5 ampliada con el workspace read-only y el modelo persistente de delegación. La suite local actual pasa con 123 tests, 121 aprobados y 2 omitidos por limitaciones del entorno; la evidencia de CI y del smoke de consumidor corresponde a baselines anteriores y debe repetirse para este commit. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
+Estado revisado el 2026-10-13 sobre `5c7f4c6`: Etapa 3 cerrada, Etapa 4 validada históricamente y Etapa 5 ampliada con el workspace read-only y el modelo persistente de delegación. La suite local actual pasa con 125 tests, 123 aprobados y 2 omitidos por limitaciones del entorno; la evidencia de CI y del smoke de consumidor corresponde a baselines anteriores y debe repetirse para este commit. El primer slice de Your-Team-Knowledge está implementado, pero la integración SQLite real queda separada del release hasta disponer de un módulo compilado consumible. Este plan usa gentle-shell como referencia de usabilidad y madurez operativa; no exige copiar todas sus funciones.
 
 ## Objetivo
 
@@ -10,7 +10,7 @@ Lograr que `yh-pi` sea un producto estable y usable: instalable en un repositori
 
 - El núcleo ya implementa rutas `simple`, `task`, `sdd` y `clarify`, clasificación asistida con salvaguardas, gates humanos, planes versionados y persistencia de tareas ligeras.
 - OpenSpec y MCP están integrados de forma opcional; el provider de Your-Team-Knowledge existe como integración opt-in y sigue desactivado por defecto.
-- `npm test` pasó con 123 pruebas, 121 aprobadas, 0 fallos y 2 omitidas en Windows/consumidores temporales.
+- `npm test` pasó con 125 pruebas, 123 aprobadas, 0 fallos y 2 omitidas en Windows/consumidores temporales.
 - `npm run pack:check` pasó. El smoke obligatorio de un consumidor instalado pasó en Ubuntu WSL y en GitHub Actions después de corregir la resolución ESM del binario de Pi y el cierre de `stdin` en modo `--print`.
 - La UI actual es una capa sobre Pi; no ofrece todavía un workspace integral como gentle-shell. Esa expansión es posterior a estabilizar el flujo base.
 

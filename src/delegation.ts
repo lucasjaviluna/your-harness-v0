@@ -20,12 +20,15 @@ export type DelegationOwnership = {
 };
 
 export type DelegationWorktreeState = "planned" | "created" | "removed" | "unknown";
+export type DelegationWorktreeReviewDecision = "keep" | "remove";
 
 export type DelegationWorktree = {
   path: string;
   branchName: string;
   state: DelegationWorktreeState;
   reviewRequired: boolean;
+  reviewDecision?: DelegationWorktreeReviewDecision;
+  reviewedAt?: string;
 };
 
 /** Persistable metadata for a future delegated child. No prompt or raw output is stored here. */

@@ -24,3 +24,12 @@ test("expone un worktree incierto como revisión requerida", () => {
   assert.match(output, /Worktree: unknown/);
   assert.match(output, /Revisión requerida/);
 });
+
+test("expone la decisión registrada sin ocultar el estado físico", () => {
+  const output = formatDelegationOverview([{
+    ...task,
+    worktree: { path: "/tmp/child-1", branchName: "harness/child-1", state: "unknown", reviewRequired: false, reviewDecision: "remove", reviewedAt: "2026-10-13T00:04:00Z" },
+  }], []);
+  assert.match(output, /Decisión registrada: remove/);
+  assert.match(output, /Worktree: unknown/);
+});

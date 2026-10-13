@@ -15,6 +15,7 @@ export function formatDelegationOverview(
     if (task.worktree) {
       lines.push(`  Worktree: ${task.worktree.state} · ${task.worktree.path}`);
       if (task.worktree.reviewRequired) lines.push("  Revisión requerida: verificar el worktree antes de continuar.");
+      if (task.worktree.reviewDecision) lines.push(`  Decisión registrada: ${task.worktree.reviewDecision} (${task.worktree.reviewedAt ?? "sin fecha"}).`);
     }
   }
   if (events.length) {
