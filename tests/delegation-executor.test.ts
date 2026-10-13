@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { join, resolve } from "node:path";
-import { validateDelegationExecutionPlan, type DelegationExecutionPlan } from "../src/delegation-executor.ts";
+import { planDelegationWorktree, validateDelegationExecutionPlan, type DelegationExecutionPlan } from "../src/delegation-executor.ts";
 
 const workspaceRoot = resolve("test-fixtures", "repo");
 const base: DelegationExecutionPlan = {
@@ -48,4 +48,33 @@ test("un worktree requiere una ruta explícita fuera del checkout principal", ()
 test("rechaza timeout y presupuesto inválidos", () => {
   assert.match(validateDelegationExecutionPlan({ ...base, timeoutMs: 0 }).reason, /timeout/);
   assert.match(validateDelegationExecutionPlan({ ...base, budgetCents: -1 }).reason, /presupuesto/);
+});
+
+test("prepara comandos declarativos de worktree sin ejecutarlos", () => {
+  const worktreePath = resolve(workspaceRoot, "..", "worktrees", "child-1");
+  assert.deepEqual(planDelegationWorktree({
+    taskId: "child-1",
+    workspaceRoot,
+    worktreePath,
+    branchName: "harness/child-1",
+    baseRef: "HEAD",
+  }), {
+    taskId: "child-1",
+    workspaceRoot,
+    worktreePath,
+    branchName: "harness/child-1",
+    baseRef: "HEAD",
+    createCommand: ["git", "worktree", "add", "--detach", worktreePath, "HEAD"],
+    removeCommand: ["git", "worktree", "remove", worktreePath],
+  });
+});
+
+test("rechaza worktrees dentro del checkout y refs inseguras", () => {
+  const worktreePath = join(workspaceRoot, ".worktree");
+  assert.throws(() => planDelegationWorktree({
+    taskId: "child-1", workspaceRoot, worktreePath, branchName: "harness/child-1", baseRef: "HEAD",
+  }), /fuera del checkout/);
+  assert.throws(() => planDelegationWorktree({
+    taskId: "child-1", workspaceRoot, worktreePath: resolve(workspaceRoot, "..", "worktree"), branchName: "-bad", baseRef: "HEAD",
+  }), /refs Git seguras/);
 });

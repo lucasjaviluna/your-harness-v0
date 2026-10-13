@@ -27,6 +27,46 @@ export type DelegationProcessAdapter = {
   cancel(handle: DelegationProcessHandle, reason: string): Promise<void>;
 };
 
+export type DelegationWorktreeRequest = {
+  taskId: string;
+  workspaceRoot: string;
+  worktreePath: string;
+  branchName: string;
+  baseRef: string;
+};
+
+export type DelegationWorktreePlan = {
+  taskId: string;
+  workspaceRoot: string;
+  worktreePath: string;
+  branchName: string;
+  baseRef: string;
+  createCommand: readonly ["git", "worktree", "add", "--detach", string, string];
+  removeCommand: readonly ["git", "worktree", "remove", string];
+};
+
+/**
+ * Builds a worktree operation without touching the filesystem or invoking git.
+ * A real manager must execute this only after the delegation recovery gate passes.
+ */
+export function planDelegationWorktree(request: DelegationWorktreeRequest): DelegationWorktreePlan {
+  if (!request.taskId) throw new Error("La tarea es obligatoria para crear un worktree.");
+  if (!isAbsolute(request.workspaceRoot) || !isAbsolute(request.worktreePath)) {
+    throw new Error("Las rutas del worktree deben ser absolutas.");
+  }
+  if (resolve(request.workspaceRoot) === resolve(request.worktreePath) || isWithin(request.workspaceRoot, request.worktreePath)) {
+    throw new Error("El worktree debe ubicarse fuera del checkout principal.");
+  }
+  if (!isSafeGitRef(request.branchName) || !isSafeGitRef(request.baseRef)) {
+    throw new Error("La rama y la referencia base deben ser refs Git seguras.");
+  }
+  return {
+    ...request,
+    createCommand: ["git", "worktree", "add", "--detach", request.worktreePath, request.baseRef],
+    removeCommand: ["git", "worktree", "remove", request.worktreePath],
+  };
+}
+
 export function validateDelegationExecutionPlan(plan: DelegationExecutionPlan): { valid: true } | { valid: false; reason: string } {
   if (!plan.taskId || !plan.parentTaskId) return { valid: false, reason: "La tarea y su padre son obligatorios." };
   if (!isAbsolute(plan.workspaceRoot) || !isAbsolute(plan.workingDirectory)) return { valid: false, reason: "Las rutas de workspace deben ser absolutas." };
@@ -53,4 +93,8 @@ export function validateDelegationExecutionPlan(plan: DelegationExecutionPlan): 
 function isWithin(root: string, candidate: string): boolean {
   const path = relative(resolve(root), resolve(candidate));
   return path === "" || (!path.startsWith("..") && !isAbsolute(path));
+}
+
+function isSafeGitRef(value: string): boolean {
+  return value.length > 0 && !/[\u0000-\u0020~^:?*\\[\\]]/.test(value) && !value.startsWith("-") && !value.includes("..") && !value.endsWith("/");
 }
