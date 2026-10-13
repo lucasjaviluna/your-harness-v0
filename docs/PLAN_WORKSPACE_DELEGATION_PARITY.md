@@ -32,6 +32,7 @@ El objetivo no es copiar Gentle Shell completo ni reemplazar Pi. `pi-harness` de
 - `docs/PI_COMPATIBILITY.md` documenta el baseline Pi `0.85.1`, las APIs confirmadas y la ausencia de una API pública nativa de child tasks.
 - `src/workspace.ts` y `/harness-overview` implementan el snapshot read-only, incluyendo resúmenes de delegación.
 - `src/delegation.ts` y `src/delegation-store.ts` implementan estados, eventos, límites, ownership de scope, validación de registros, persistencia atómica y reconciliación tras reinicio.
+- `src/delegation-executor.ts` define el contrato del adaptador futuro y rechaza planes con rutas, aislamiento, ownership, timeout o presupuesto inseguros; todavía no lanza procesos.
 - `/harness-delegation` muestra el registro de forma read-only.
 - No existe todavía launcher, proceso hijo, worktree físico, cancelación, timeout operativo, presupuesto ni integración automática; el registro ya rechaza ownership concurrente sobre el mismo scope de escritura.
 
