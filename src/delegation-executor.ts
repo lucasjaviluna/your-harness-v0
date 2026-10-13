@@ -1,5 +1,6 @@
 import { isAbsolute, relative, resolve } from "node:path";
 import { execFile as execFileCallback } from "node:child_process";
+import { spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { DelegationIsolation, DelegationOwnership } from "./delegation.ts";
 
@@ -39,6 +40,31 @@ export type DelegationChildProcess = {
 export type DelegationProcessRunner = {
   start(plan: DelegationExecutionPlan): Promise<DelegationChildProcess>;
 };
+
+export type DelegationLaunchSpec = {
+  command: string;
+  args: readonly string[];
+};
+
+/** A real runner with no shell and no captured child output. It is not wired to the launcher yet. */
+export function createDelegationProcessRunner(spec: DelegationLaunchSpec): DelegationProcessRunner {
+  if (!spec.command || spec.args.some((arg) => arg.includes("\u0000"))) throw new Error("El comando de delegación no es seguro.");
+  return {
+    async start(plan) {
+      const child = spawn(spec.command, [...spec.args], { cwd: plan.workingDirectory, shell: false, stdio: ["ignore", "ignore", "ignore"] });
+      const completion = new Promise<DelegationProcessCompletion>((resolveCompletion, rejectCompletion) => {
+        child.once("error", (cause) => rejectCompletion(cause instanceof Error ? cause : new Error(String(cause))));
+        child.once("close", (exitCode, signal) => resolveCompletion({ exitCode, signal: signal ?? undefined, costCents: 0 }));
+      });
+      return {
+        taskId: plan.taskId,
+        pid: child.pid,
+        wait: async () => completion,
+        terminate: async () => { if (child.exitCode === null && !child.killed) child.kill("SIGTERM"); },
+      };
+    },
+  };
+}
 
 export type DelegationExecutionResult = {
   taskId: string;

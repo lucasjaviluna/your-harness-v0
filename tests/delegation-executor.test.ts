@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { join, resolve } from "node:path";
-import { createDelegationWorktreeManager, planDelegationWorktree, runDelegationProcess, validateDelegationExecutionPlan, type DelegationExecutionPlan } from "../src/delegation-executor.ts";
+import { createDelegationProcessRunner, createDelegationWorktreeManager, planDelegationWorktree, runDelegationProcess, validateDelegationExecutionPlan, type DelegationExecutionPlan } from "../src/delegation-executor.ts";
 
 const workspaceRoot = resolve("test-fixtures", "repo");
 const base: DelegationExecutionPlan = {
@@ -144,4 +144,16 @@ test("el controlador aplica timeout y presupuesto sin conservar salida del hijo"
     start: async () => ({ taskId: base.taskId, wait: async () => ({ exitCode: 0, costCents: 2 }), terminate: async () => undefined }),
   });
   assert.deepEqual(budgetResult, { taskId: "child-1", status: "failed", summary: "La tarea hija excedió el presupuesto.", costCents: 2 });
+});
+
+test("el runner real usa argv sin shell y devuelve solo metadatos", async () => {
+  const runner = createDelegationProcessRunner({ command: process.execPath, args: ["-e", "process.exit(0)"] });
+  const result = await runDelegationProcess({ ...base, workspaceRoot: process.cwd(), workingDirectory: process.cwd(), timeoutMs: 500 }, runner);
+  assert.deepEqual(result, { taskId: "child-1", status: "succeeded", summary: "La tarea hija terminó correctamente.", costCents: 0 });
+});
+
+test("el runner real clasifica un comando inexistente como perdido", async () => {
+  const runner = createDelegationProcessRunner({ command: "yh-pi-command-that-does-not-exist", args: [] });
+  const result = await runDelegationProcess({ ...base, workspaceRoot: process.cwd(), workingDirectory: process.cwd(), timeoutMs: 500 }, runner);
+  assert.deepEqual(result, { taskId: "child-1", status: "lost", summary: "No se pudo recuperar el resultado de la tarea hija." });
 });
