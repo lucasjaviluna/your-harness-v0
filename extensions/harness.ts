@@ -234,6 +234,10 @@ export default function (pi: ExtensionAPI) {
       delegationRegistry = new DelegationRegistry(await readDelegationStore(ctx.cwd));
       const lostEvents = delegationRegistry.reconcileAfterRestart(new Date().toISOString());
       if (lostEvents.length) await writeDelegationStore(ctx.cwd, delegationRegistry.snapshot());
+      const worktreesRequiringReview = delegationRegistry.snapshot().tasks.filter((task) => task.worktree?.reviewRequired);
+      if (worktreesRequiringReview.length) {
+        showMessage(ctx, `Revisión requerida: ${worktreesRequiringReview.map((task) => task.id).join(", ")} tiene worktree en estado incierto. No se continuará ni eliminará automáticamente.`, "warn");
+      }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       showMessage(ctx, `No se pudo cargar el registro de delegación: ${detail}`, "warn");

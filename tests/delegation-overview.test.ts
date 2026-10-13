@@ -15,3 +15,12 @@ test("expone diagnóstico read-only y distingue un hijo perdido", () => {
   assert.match(output, /child-1: lost/);
   assert.match(output, /Eventos recientes: lost\/child-1/);
 });
+
+test("expone un worktree incierto como revisión requerida", () => {
+  const output = formatDelegationOverview([{
+    ...task,
+    worktree: { path: "/tmp/child-1", branchName: "harness/child-1", state: "unknown", reviewRequired: true },
+  }], []);
+  assert.match(output, /Worktree: unknown/);
+  assert.match(output, /Revisión requerida/);
+});

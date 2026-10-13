@@ -36,6 +36,7 @@ El objetivo no es copiar Gentle Shell completo ni reemplazar Pi. `pi-harness` de
 - `src/delegation-executor.ts` también genera planes declarativos de worktree y comandos Git explícitos, sin ejecutar Git ni modificar el filesystem.
 - El manager de worktrees usa un runner Git inyectable: propaga errores, devuelve un handle solo tras crear correctamente y mantiene la remoción explícita; aún no está conectado al launcher.
 - El registro de delegación conserva metadata opcional del worktree y, tras reinicio, marca un worktree creado como `unknown` con revisión humana requerida; nunca lo elimina automáticamente.
+- `/harness-delegation` muestra el estado/ruta del worktree y el aviso de revisión; al iniciar sesión, el harness emite una advertencia si hay worktrees inciertos y bloquea cualquier continuación automática.
 - `/harness-delegation` muestra el registro de forma read-only.
 - No existe todavía launcher, proceso hijo, worktree físico, cancelación, timeout operativo, presupuesto ni integración automática; el registro ya rechaza ownership concurrente sobre el mismo scope de escritura.
 
@@ -161,7 +162,7 @@ La fase debe terminar con una decisión explícita: continuar hacia un workspace
 
 1. Repetir la matriz de compatibilidad y el smoke instalado sobre el commit actual.
 2. Ejecutar en CI la prueba de consumidor instalada para overview/delegation y esquemas corruptos o incompatibles.
-3. Integrar el manager de worktrees con persistencia/recovery y revisión de estado antes de implementar cualquier launcher.
+3. Integrar una decisión explícita de revisión/resolución del worktree antes de implementar cualquier launcher.
 4. Mantener la delegación real apagada hasta cerrar el gate de aislamiento y recuperación.
 
 ## Criterio global de éxito
