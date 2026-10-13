@@ -85,7 +85,7 @@ test("el manager ejecuta creación y remoción solo mediante el runner inyectado
     taskId: "child-1", workspaceRoot, worktreePath, branchName: "harness/child-1", baseRef: "HEAD",
   });
   const calls: Array<{ command: readonly string[]; cwd: string }> = [];
-  const manager = createDelegationWorktreeManager(async (command, cwd) => calls.push({ command, cwd }));
+  const manager = createDelegationWorktreeManager(async (command, cwd) => { calls.push({ command, cwd }); return { stdout: "", stderr: "" }; });
   const handle = await manager.create(plan);
   await manager.remove(handle);
   assert.equal(handle.taskId, "child-1");
@@ -93,6 +93,14 @@ test("el manager ejecuta creación y remoción solo mediante el runner inyectado
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[0], { command: plan.createCommand, cwd: workspaceRoot });
   assert.deepEqual(calls[1], { command: ["git", "worktree", "remove", worktreePath], cwd: workspaceRoot });
+});
+
+test("verifica la presencia física a partir de git worktree list", async () => {
+  const worktreePath = resolve(workspaceRoot, "..", "worktrees", "child-1");
+  const plan = planDelegationWorktree({ taskId: "child-1", workspaceRoot, worktreePath, branchName: "harness/child-1", baseRef: "HEAD" });
+  const manager = createDelegationWorktreeManager(async () => ({ stdout: `worktree ${worktreePath}\nHEAD abc\n`, stderr: "" }));
+  const handle = await manager.create(plan);
+  assert.equal(await manager.isPresent(handle), true);
 });
 
 test("el manager no oculta errores de Git y no fabrica un handle", async () => {

@@ -1,4 +1,6 @@
 import { isAbsolute, relative, resolve } from "node:path";
+import { execFile as execFileCallback } from "node:child_process";
+import { promisify } from "node:util";
 import type { DelegationIsolation, DelegationOwnership } from "./delegation.ts";
 
 /** Execution contract for a future child-process adapter. It carries no prompt or credentials. */
@@ -45,7 +47,8 @@ export type DelegationWorktreePlan = {
   removeCommand: readonly ["git", "worktree", "remove", string];
 };
 
-export type DelegationGitRunner = (command: readonly string[], workingDirectory: string) => Promise<void>;
+export type DelegationGitResult = { stdout: string; stderr: string };
+export type DelegationGitRunner = (command: readonly string[], workingDirectory: string) => Promise<DelegationGitResult>;
 
 export type DelegationWorktreeHandle = {
   taskId: string;
@@ -58,7 +61,18 @@ export type DelegationWorktreeHandle = {
 export type DelegationWorktreeManager = {
   create(plan: DelegationWorktreePlan): Promise<DelegationWorktreeHandle>;
   remove(handle: DelegationWorktreeHandle): Promise<void>;
+  isPresent(handle: DelegationWorktreeHandle): Promise<boolean>;
 };
+
+const execFile = promisify(execFileCallback);
+
+/** Runs an explicit Git argv without a shell. Callers still decide when it is allowed. */
+export async function runDelegationGitCommand(command: readonly string[], workingDirectory: string): Promise<DelegationGitResult> {
+  const [executable, ...args] = command;
+  if (executable !== "git") throw new Error("El runner de worktree solo permite ejecutar git.");
+  const result = await execFile(executable, args, { cwd: workingDirectory, encoding: "utf8" });
+  return { stdout: result.stdout, stderr: result.stderr };
+}
 
 /** Creates a controlled worktree manager around an explicitly injected Git runner. */
 export function createDelegationWorktreeManager(runGit: DelegationGitRunner): DelegationWorktreeManager {
@@ -75,6 +89,12 @@ export function createDelegationWorktreeManager(runGit: DelegationGitRunner): De
     },
     async remove(handle) {
       await runGit(["git", "worktree", "remove", handle.worktreePath], handle.workspaceRoot);
+    },
+    async isPresent(handle) {
+      const result = await runGit(["git", "worktree", "list", "--porcelain"], handle.workspaceRoot);
+      return result.stdout.split(/\r?\n/)
+        .filter((line) => line.startsWith("worktree "))
+        .some((line) => resolve(line.slice("worktree ".length).trim()) === resolve(handle.worktreePath));
     },
   };
 }

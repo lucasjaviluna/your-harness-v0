@@ -24,6 +24,7 @@ import { installHarnessHeader, showAssessmentProgress, showHarnessMessage as sho
 import { loadTeamKnowledgeRuntime, type TeamKnowledgeRuntime } from "../src/memory/team-knowledge.ts";
 import { registerTeamKnowledgeTools } from "./team-knowledge.ts";
 import type { DelegationRegistry } from "../src/delegation-store.ts";
+import { createDelegationWorktreeManager, runDelegationGitCommand } from "../src/delegation-executor.ts";
 
 let lastTask: HarnessTask | undefined;
 let sessionTasks: HarnessTask[] = [];
@@ -809,10 +810,21 @@ export default function (pi: ExtensionAPI) {
         return;
       }
       try {
+        const current = delegationRegistry.snapshot().tasks.find((task) => task.id === taskId);
+        if (!current?.worktree) throw new Error(`La tarea delegada ${taskId} no tiene un worktree asociado.`);
+        const manager = createDelegationWorktreeManager(runDelegationGitCommand);
+        const handle = { taskId, workspaceRoot: ctx.cwd, worktreePath: current.worktree.path, branchName: current.worktree.branchName, createdAt: current.updatedAt };
+        if (decision === "keep") {
+          if (!await manager.isPresent(handle)) throw new Error(`El worktree de ${taskId} no existe físicamente; no se puede conservar.`);
+        } else {
+          await manager.remove(handle);
+          if (await manager.isPresent(handle)) throw new Error(`Git no confirmó la remoción del worktree de ${taskId}.`);
+        }
         const resolved = delegationRegistry.resolveWorktreeReview(taskId, decision as "keep" | "remove", new Date().toISOString());
+        delegationRegistry.updateWorktreeState(taskId, decision === "keep" ? "created" : "removed", false);
         const { writeDelegationStore } = await import("../src/delegation-store.ts");
         await writeDelegationStore(ctx.cwd, delegationRegistry.snapshot());
-        showMessage(ctx, `Decisión ${resolved.worktree?.reviewDecision} registrada para ${taskId}. Estado físico: ${resolved.worktree?.state}; la acción Git todavía requiere el manager controlado.`);
+        showMessage(ctx, `Decisión ${resolved.worktree?.reviewDecision} verificada para ${taskId}. Estado físico persistido: ${delegationRegistry.snapshot().tasks.find((task) => task.id === taskId)?.worktree?.state}.`);
       } catch (error) {
         showMessage(ctx, error instanceof Error ? error.message : String(error), "warn");
       }
