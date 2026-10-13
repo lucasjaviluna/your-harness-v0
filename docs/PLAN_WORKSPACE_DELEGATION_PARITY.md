@@ -31,9 +31,9 @@ El objetivo no es copiar Gentle Shell completo ni reemplazar Pi. `pi-harness` de
 
 - `docs/PI_COMPATIBILITY.md` documenta el baseline Pi `0.85.1`, las APIs confirmadas y la ausencia de una API pública nativa de child tasks.
 - `src/workspace.ts` y `/harness-overview` implementan el snapshot read-only, incluyendo resúmenes de delegación.
-- `src/delegation.ts` y `src/delegation-store.ts` implementan estados, eventos, límites, persistencia atómica y reconciliación tras reinicio.
+- `src/delegation.ts` y `src/delegation-store.ts` implementan estados, eventos, límites, ownership de scope, validación de registros, persistencia atómica y reconciliación tras reinicio.
 - `/harness-delegation` muestra el registro de forma read-only.
-- No existe todavía launcher, proceso hijo, worktree, ownership efectivo, cancelación, timeout operativo, presupuesto ni integración automática.
+- No existe todavía launcher, proceso hijo, worktree físico, cancelación, timeout operativo, presupuesto ni integración automática; el registro ya rechaza ownership concurrente sobre el mismo scope de escritura.
 
 ### Gate de salida
 
@@ -156,8 +156,8 @@ La fase debe terminar con una decisión explícita: continuar hacia un workspace
 ## Próximo incremento
 
 1. Repetir la matriz de compatibilidad y el smoke instalado sobre el commit actual.
-2. Agregar una prueba de consumidor instalado para overview/delegation y esquemas corruptos o incompatibles.
-3. Diseñar ownership e aislamiento antes de implementar cualquier launcher.
+2. Ejecutar en CI la prueba de consumidor instalada para overview/delegation y esquemas corruptos o incompatibles.
+3. Diseñar el adaptador de procesos, ownership e aislamiento físico/worktrees antes de implementar cualquier launcher.
 4. Mantener la delegación real apagada hasta cerrar el gate de aislamiento y recuperación.
 
 ## Criterio global de éxito

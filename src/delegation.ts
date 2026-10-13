@@ -9,6 +9,16 @@ export type DelegatedTaskStatus =
 
 export type DelegationMode = "task" | "background";
 
+/** Isolation policy for a future child process. Execution is not enabled yet. */
+export type DelegationIsolation = "read-only" | "workspace" | "worktree";
+
+/** Explicit ownership reservation used to prevent concurrent writes to one scope. */
+export type DelegationOwnership = {
+  scope: string;
+  isolation: DelegationIsolation;
+  artifactPaths?: string[];
+};
+
 /** Persistable metadata for a future delegated child. No prompt or raw output is stored here. */
 export type DelegatedTask = {
   id: string;
@@ -17,6 +27,7 @@ export type DelegatedTask = {
   mode: DelegationMode;
   depth: number;
   scope?: string;
+  ownership?: DelegationOwnership;
   summary?: string;
   createdAt: string;
   updatedAt: string;
@@ -73,5 +84,26 @@ export function checkDelegationLimits(
 ): { allowed: true } | { allowed: false; reason: string } {
   if (childDepth > limits.maxDepth) return { allowed: false, reason: "Se alcanzó la profundidad máxima de delegación." };
   if (existingChildren >= limits.maxChildren) return { allowed: false, reason: "Se alcanzó la cantidad máxima de tareas hijas." };
+  return { allowed: true };
+}
+
+export function checkDelegationOwnership(
+  existingTasks: readonly DelegatedTask[],
+  candidate: DelegatedTask,
+): { allowed: true } | { allowed: false; reason: string; conflictingTaskId: string } {
+  if (!candidate.ownership || candidate.ownership.isolation === "read-only") return { allowed: true };
+  for (const existing of existingTasks) {
+    if (isTerminalDelegatedTaskStatus(existing.status) || !existing.ownership || existing.ownership.isolation === "read-only") continue;
+    const candidateArtifacts = new Set(candidate.ownership.artifactPaths ?? []);
+    const existingArtifacts = existing.ownership.artifactPaths ?? [];
+    const artifactsOverlap = candidateArtifacts.size > 0 && existingArtifacts.some((path) => candidateArtifacts.has(path));
+    if (artifactsOverlap || existing.ownership.scope === candidate.ownership.scope) {
+      return {
+        allowed: false,
+        conflictingTaskId: existing.id,
+        reason: `El scope ${candidate.ownership.scope} ya pertenece a la tarea delegada ${existing.id}.`,
+      };
+    }
+  }
   return { allowed: true };
 }

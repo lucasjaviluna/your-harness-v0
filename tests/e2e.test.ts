@@ -368,6 +368,25 @@ test("instala el tarball en dos consumidores y carga Pi fuera del repositorio", 
   );
   assert.ok(overviewNotifications.some((message) => /Tarea: ninguna activa/.test(message)), "La vista instalada no mostró el estado sin tarea activa.");
   assert.ok(overviewNotifications.some((message) => /Git: disponible|Git: no disponible/.test(message)), "La vista instalada no mostró el estado de Git.");
+  await mkdir(join(consumerA, ".harness"), { recursive: true });
+  await writeFile(join(consumerA, ".harness", "delegation.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    tasks: [{
+      id: "child-installed", parentTaskId: "parent-installed", status: "running", mode: "task", depth: 1,
+      ownership: { scope: "src/app", isolation: "workspace" },
+      createdAt: "2026-10-13T00:00:00Z", updatedAt: "2026-10-13T00:01:00Z",
+    }],
+    events: [
+      { taskId: "child-installed", type: "created", timestamp: "2026-10-13T00:00:00Z" },
+      { taskId: "child-installed", type: "started", timestamp: "2026-10-13T00:01:00Z" },
+    ],
+  }, null, 2)}\n`, "utf8");
+  const delegationNotifications = await runInstalledHarnessRpc(
+    consumerA,
+    { prompt: "/harness-delegation", expectedNotification: /pi-harness delegation/ },
+  );
+  assert.ok(delegationNotifications.some((message) => /Ejecución: deshabilitada; este diagnóstico es read-only/.test(message)), "La vista instalada no dejó claro que la delegación es read-only.");
+  assert.ok(delegationNotifications.some((message) => /child-installed: lost/.test(message)), "La sesión instalada no reconcilió un hijo en ejecución como perdido.");
   const disabledMcpNotifications = await runInstalledHarnessRpc(
     consumerA,
     { prompt: "/harness-mcp", expectedNotification: /yh-pi MCP: deshabilitado/ },

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -38,4 +38,39 @@ test("no permite exceder límites de hijos", () => {
   const registry = new DelegationRegistry();
   for (let index = 0; index < 4; index += 1) registry.createTask(task(`child-${index}`));
   assert.throws(() => registry.createTask(task("child-4")), /cantidad máxima/);
+});
+
+test("rechaza JSON de delegación corrupto o incompatible", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-delegation-invalid-"));
+  const directory = join(cwd, ".harness");
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "delegation.json"), "{", "utf8");
+  await assert.rejects(readDelegationStore(cwd), /JSON de delegación está corrupto/);
+  await writeFile(join(directory, "delegation.json"), JSON.stringify({ schemaVersion: 99, tasks: [], events: [] }), "utf8");
+  await assert.rejects(readDelegationStore(cwd), /esquema 99, incompatible/);
+});
+
+test("rechaza tareas y eventos malformados aunque el esquema coincida", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-harness-delegation-invalid-record-"));
+  const directory = join(cwd, ".harness");
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "delegation.json"), JSON.stringify({ schemaVersion: 1, tasks: [{ id: "missing-fields" }], events: [] }), "utf8");
+  await assert.rejects(readDelegationStore(cwd), /tarea o evento malformado/);
+});
+
+test("no registra dos tareas de escritura sobre el mismo scope", () => {
+  const registry = new DelegationRegistry();
+  registry.createTask({
+    ...task("child-owned"),
+    ownership: { scope: "src/app", isolation: "workspace", artifactPaths: ["src/app/form.ts"] },
+  });
+  assert.throws(() => registry.createTask({
+    ...task("child-conflict"),
+    ownership: { scope: "src/app", isolation: "workspace", artifactPaths: ["src/app/form.ts"] },
+  }), /ya pertenece/);
+  registry.recordEvent({ taskId: "child-owned", type: "completed", timestamp: "2026-10-12T00:03:00Z" });
+  assert.doesNotThrow(() => registry.createTask({
+    ...task("child-after"),
+    ownership: { scope: "src/app", isolation: "workspace", artifactPaths: ["src/app/form.ts"] },
+  }));
 });

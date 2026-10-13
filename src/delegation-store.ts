@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
   checkDelegationLimits,
+  checkDelegationOwnership,
   isTerminalDelegatedTaskStatus,
   type DelegatedTask,
   type DelegationEvent,
@@ -37,7 +38,35 @@ function parseStore(value: unknown): DelegationStoreData {
   if (!Array.isArray(candidate.tasks) || !Array.isArray(candidate.events)) {
     throw new Error("El registro de delegación no contiene tareas y eventos válidos.");
   }
+  if (!candidate.tasks.every(isDelegatedTaskRecord) || !candidate.events.every(isDelegationEventRecord)) {
+    throw new Error("El registro de delegación contiene una tarea o evento malformado.");
+  }
   return { schemaVersion: 1, tasks: candidate.tasks as DelegatedTask[], events: candidate.events as DelegationEvent[] };
+}
+
+function isDelegatedTaskRecord(value: unknown): value is DelegatedTask {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const task = value as Partial<DelegatedTask>;
+  if (typeof task.id !== "string" || typeof task.parentTaskId !== "string" || typeof task.status !== "string" || typeof task.mode !== "string") return false;
+  if (!(["queued", "running", "awaiting-input", "succeeded", "failed", "cancelled", "lost"] as string[]).includes(task.status)) return false;
+  if (!(["task", "background"] as string[]).includes(task.mode) || !Number.isInteger(task.depth)) return false;
+  if (typeof task.createdAt !== "string" || typeof task.updatedAt !== "string") return false;
+  if (task.ownership !== undefined) {
+    const ownership = task.ownership;
+    if (!ownership || typeof ownership !== "object" || Array.isArray(ownership) || typeof ownership.scope !== "string" || !(["read-only", "workspace", "worktree"] as string[]).includes(ownership.isolation)) return false;
+    if (ownership.artifactPaths !== undefined && (!Array.isArray(ownership.artifactPaths) || !ownership.artifactPaths.every((path) => typeof path === "string"))) return false;
+  }
+  return true;
+}
+
+function isDelegationEventRecord(value: unknown): value is DelegationEvent {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const event = value as Partial<DelegationEvent>;
+  return typeof event.taskId === "string"
+    && typeof event.type === "string"
+    && (["created", "started", "progress", "awaiting-input", "completed", "failed", "cancelled", "lost"] as string[]).includes(event.type)
+    && typeof event.timestamp === "string"
+    && (event.summary === undefined || typeof event.summary === "string");
 }
 
 export async function readDelegationStore(cwd: string): Promise<DelegationStoreData> {
@@ -81,6 +110,8 @@ export class DelegationRegistry {
     const existingChildren = this.data.tasks.filter((item) => item.parentTaskId === task.parentTaskId).length;
     const limit = checkDelegationLimits(existingChildren, task.depth, limits);
     if (!limit.allowed) throw new Error(limit.reason);
+    const ownership = checkDelegationOwnership(this.data.tasks, task);
+    if (!ownership.allowed) throw new Error(ownership.reason);
     this.data.tasks.push({ ...task });
     this.recordEvent({ taskId: task.id, type: "created", timestamp: task.createdAt, summary: "Tarea delegada registrada." });
     return { ...task };
