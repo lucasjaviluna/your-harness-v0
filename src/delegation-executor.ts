@@ -45,6 +45,40 @@ export type DelegationWorktreePlan = {
   removeCommand: readonly ["git", "worktree", "remove", string];
 };
 
+export type DelegationGitRunner = (command: readonly string[], workingDirectory: string) => Promise<void>;
+
+export type DelegationWorktreeHandle = {
+  taskId: string;
+  workspaceRoot: string;
+  worktreePath: string;
+  branchName: string;
+  createdAt: string;
+};
+
+export type DelegationWorktreeManager = {
+  create(plan: DelegationWorktreePlan): Promise<DelegationWorktreeHandle>;
+  remove(handle: DelegationWorktreeHandle): Promise<void>;
+};
+
+/** Creates a controlled worktree manager around an explicitly injected Git runner. */
+export function createDelegationWorktreeManager(runGit: DelegationGitRunner): DelegationWorktreeManager {
+  return {
+    async create(plan) {
+      await runGit(plan.createCommand, plan.workspaceRoot);
+      return {
+        taskId: plan.taskId,
+        workspaceRoot: plan.workspaceRoot,
+        worktreePath: plan.worktreePath,
+        branchName: plan.branchName,
+        createdAt: new Date().toISOString(),
+      };
+    },
+    async remove(handle) {
+      await runGit(["git", "worktree", "remove", handle.worktreePath], handle.workspaceRoot);
+    },
+  };
+}
+
 /**
  * Builds a worktree operation without touching the filesystem or invoking git.
  * A real manager must execute this only after the delegation recovery gate passes.

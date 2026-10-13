@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { join, resolve } from "node:path";
-import { planDelegationWorktree, validateDelegationExecutionPlan, type DelegationExecutionPlan } from "../src/delegation-executor.ts";
+import { createDelegationWorktreeManager, planDelegationWorktree, validateDelegationExecutionPlan, type DelegationExecutionPlan } from "../src/delegation-executor.ts";
 
 const workspaceRoot = resolve("test-fixtures", "repo");
 const base: DelegationExecutionPlan = {
@@ -77,4 +77,29 @@ test("rechaza worktrees dentro del checkout y refs inseguras", () => {
   assert.throws(() => planDelegationWorktree({
     taskId: "child-1", workspaceRoot, worktreePath: resolve(workspaceRoot, "..", "worktree"), branchName: "-bad", baseRef: "HEAD",
   }), /refs Git seguras/);
+});
+
+test("el manager ejecuta creación y remoción solo mediante el runner inyectado", async () => {
+  const worktreePath = resolve(workspaceRoot, "..", "worktrees", "child-1");
+  const plan = planDelegationWorktree({
+    taskId: "child-1", workspaceRoot, worktreePath, branchName: "harness/child-1", baseRef: "HEAD",
+  });
+  const calls: Array<{ command: readonly string[]; cwd: string }> = [];
+  const manager = createDelegationWorktreeManager(async (command, cwd) => calls.push({ command, cwd }));
+  const handle = await manager.create(plan);
+  await manager.remove(handle);
+  assert.equal(handle.taskId, "child-1");
+  assert.equal(handle.worktreePath, worktreePath);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], { command: plan.createCommand, cwd: workspaceRoot });
+  assert.deepEqual(calls[1], { command: ["git", "worktree", "remove", worktreePath], cwd: workspaceRoot });
+});
+
+test("el manager no oculta errores de Git y no fabrica un handle", async () => {
+  const worktreePath = resolve(workspaceRoot, "..", "worktrees", "child-1");
+  const plan = planDelegationWorktree({
+    taskId: "child-1", workspaceRoot, worktreePath, branchName: "harness/child-1", baseRef: "HEAD",
+  });
+  const manager = createDelegationWorktreeManager(async () => { throw new Error("git falló"); });
+  await assert.rejects(manager.create(plan), /git falló/);
 });
